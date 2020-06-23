@@ -4097,7 +4097,7 @@ descr
 "You are inside the small and humble village temple in Udgaard. A
 simple stone altar, with strange stone carvings, is placed against the
 north  wall. A small humble donation room is to the east.  The temple exit
-is south to the Village Square."
+is south to the Village Square. Test Russian text: В чащах юга жил бы цитрус"
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS, UNIT_FL_NO_TELEPORT,
        UNIT_FL_NO_MOB, UNIT_FL_SACRED}
 movement SECT_INSIDE
