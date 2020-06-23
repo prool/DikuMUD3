@@ -24,6 +24,7 @@ struct arg_type
     int g_bModeTelnet;
     int g_bModeRawHTML;
     int bWebSockets;
+    int Full8bit;
 };
 
 #define Assert(a,b) \

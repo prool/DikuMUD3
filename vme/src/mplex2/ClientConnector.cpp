@@ -373,8 +373,16 @@ char cConHook::AddInputChar(ubit8 c)
     *cp++ = c;
     *cp = 0;
 
-    if ((c < ' ') || (c == 255) || (m_sSetup.telnet && (c > 127)))
-        *(cp - 1) = 0;
+   if ( m_sSetup.full8bit ) // prool: full 8 bit characters support
+   {
+   if ((c < ' ') || (c==255) || (m_sSetup.telnet && ((c==0xFD) || (c==0xFE))))
+     *(cp-1) = 0;
+   }
+   else
+   {
+   if ((c < ' ') || (c==255) || (m_sSetup.telnet && (c > 127)))
+     *(cp-1) = 0;
+   }
 
     return *(cp - 1);
 }
@@ -1059,6 +1067,7 @@ void cConHook::SequenceCompare(ubit8 *pBuf, int *pnLen)
                 m_sSetup.redraw = FALSE;
                 m_sSetup.emulation = TERM_INTERNAL;
                 m_sSetup.telnet = FALSE;
+                m_sSetup.full8bit = FALSE;
 
                 memmove(pBuf, pBuf + strlen(match), *pnLen - strlen(match));
                 *pnLen -= strlen(match);
@@ -1275,6 +1284,7 @@ cConHook::cConHook(void)
     m_sSetup.echo = mplex_arg.g_bModeEcho;
     m_sSetup.redraw = mplex_arg.g_bModeRedraw;
     m_sSetup.telnet = mplex_arg.g_bModeTelnet;
+    m_sSetup.full8bit = mplex_arg.Full8bit;
 
     if (mplex_arg.g_bModeANSI)
         m_sSetup.emulation = TERM_ANSI;

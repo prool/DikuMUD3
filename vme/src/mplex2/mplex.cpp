@@ -87,6 +87,7 @@ void ShowUsage(const char *name)
     fprintf(stderr, "  -l  Name of the logfile (default: ./mplex.log).\n");
     fprintf(stderr, "  -x  Output raw HTML on telnet (nice for debugging).\n");
     fprintf(stderr, "  -w  Use Websockets.\n");
+    fprintf(stderr, "  -u  Full 8bit characters for UTF-8, koi8-r, cp1251, etc\n");
     exit(0);
 }
 
@@ -107,6 +108,7 @@ int ParseArg(int argc, char *argv[], struct arg_type *arg)
     arg->g_bModeTelnet = FALSE;
     arg->g_bModeRawHTML = FALSE;
     arg->bWebSockets = FALSE;
+    arg->Full8bit = FALSE;
     log_name = str_dup("./mplex.log");
 
     for (i = 1; i < argc; i++)
@@ -126,6 +128,10 @@ int ParseArg(int argc, char *argv[], struct arg_type *arg)
 
         case 'x':
             arg->g_bModeRawHTML = TRUE;
+            break;
+
+        case 'u':
+            arg->Full8bit = TRUE;
             break;
 
         case 'c':

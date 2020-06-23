@@ -25,6 +25,7 @@ struct terminal_setup_type
     ubit8 emulation;		/* TERM_XXX                 */
     ubit8 telnet;			/* Is telnet used?          */
     ubit8 colour_convert;		/* Colour conversion (mapping) used */
+    ubit8 full8bit;	/* full 8bit mode. by prool */
 };
 
 void protocol_send_ping(cHook *Hook);
