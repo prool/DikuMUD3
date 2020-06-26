@@ -224,10 +224,17 @@ void eventqueue::process(void)
                             ((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->prgname);
                 else
                     sprintf(dilname, "NO NAME");
-                if (((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->zone)
+                if (0/*((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->zone*/) // prool: crash bypass (обход)
                 {
-                    sprintf(dilzname, "%s",
+                            if (((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->zone->name) { // prool's protect
+                    //printf("prool's zonename=%s\n", ((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->zone->name);
+                    sprintf(dilzname, "%s", // prool: crash here
                             ((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->zone->name);
+			    }
+			    else {
+				printf("prool's debug: error #0\n");
+                    		sprintf(dilzname, "NO ZONE");
+			    }
                 }
                 else
                 {
