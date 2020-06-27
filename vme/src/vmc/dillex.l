@@ -77,7 +77,7 @@ char diltmpstr[YYLMAX * 2 + 1], *dila, *dilb;
 			  /* Process string */
 			  for (dila = diltext + 1, dilb = diltmpstr; *dila != '"';dila++, dilb++)
 			  {
-			     if (0/*(*dila < ' ') && !isspace(*dila)*/) prool: allow any characters (f.e. 8bit UTF-8)
+			     if (0/*(*dila < ' ') && !isspace(*dila)*/) /* prool: allow any characters (f.e. 8bit UTF-8) */
 			     {
 				sprintf(buf, "Illegal character ascii %d.",
 					*dila);
