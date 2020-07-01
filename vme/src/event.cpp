@@ -219,7 +219,7 @@ void eventqueue::process(void)
             if (tfunc == special_event && ((unit_fptr *)tmp_event->arg2)->data &&
                 ((struct unit_fptr *)tmp_event->arg2)->index == SFUN_DIL_INTERNAL)
             {
-                if (((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->prgname)
+                if (0/*((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->prgname*/) // prool: crash bypass #2
                     sprintf(dilname, "%s",
                             ((dilprg *)((unit_fptr *)tmp_event->arg2)->data)->fp->tmpl->prgname);
                 else
