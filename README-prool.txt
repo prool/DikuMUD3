@@ -10,7 +10,11 @@ Running mplex for good telnet connections:
 -t - for prevent "password error" (no telnet command in password)
 -l - for separate log (mplex.log - is log of first mplex with -w flag)
 
-23-Jun-2020
+----------------------
+
+This code only for 64bit platforms! Not 32bit.
+
+July-2020
 
 Best regards,
 
