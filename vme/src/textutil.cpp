@@ -220,20 +220,21 @@ char *str_str(register const char *cs, register const char *ct)
  *  Return pointer to first occurence of ct in cs - or NULL
  *  Used to determine ei. "from" and "in"
  */
-char *str_cstr(register const char *cs, register const char *ct)
+const char *str_cstr(const char *cs, const char *ct)
 {
-    register char *si;
-    register char *ti;
+    return strcasestr(cs, ct); // strstr ignores case
+
+/*    const char *si = cs;
+    const char *ti = ct;
 
     do
     {
-        for (si = (char *)cs, ti = (char *)ct;
-             tolower(*si) == tolower(*ti); si++)
+        for (si = cs, ti = ct; tolower(*si) == tolower(*ti); si++)
             if (*++ti == '\0')
-                return (char *)cs;
+                return cs;
     } while (*cs++);
 
-    return NULL;
+    return NULL;*/
 }
 
 /* return string without leading spaces */
@@ -817,11 +818,7 @@ void free_namelist(char **list)
 
     while (*list)
     {
-#ifdef MEMORY_DEBUG
-        FREE(*(list));
-#else
         free(*list);
-#endif
         list++;
         /* MS: Well, ugly but we have to do while free macro is in use! */
     }
@@ -954,6 +951,10 @@ void str_cescape_format(const char *src, char *dest)
                 src++;
                 break;
             case '\\':
+                break;
+            case 0:
+                dest++;       // Save the backslash
+                *dest = 0;    // terminate dest
                 break;
             default:
                 dest++;       // Save the backslash
@@ -1089,7 +1090,7 @@ char *html_encode_utf8(const char *src)
 
     slog(LOG_ALL, 0, sBuffer.c_str());
 
-    return strdup(sBuffer.c_str()); // Oh if only we used strings everywhere :))
+    return str_dup(sBuffer.c_str()); // Oh if only we used strings everywhere :))
 }
 
 // Helper function to wrap javascript into something. This something might change
@@ -1217,5 +1218,5 @@ char *fix_old_codes_to_html(const char *c)
     }
 
     str_nr_brnr(buf, buf2);
-    return strdup(buf2); // Dont worry about memory leaks it's a one time thing
+    return str_dup(buf2); // Dont worry about memory leaks it's a one time thing
 }

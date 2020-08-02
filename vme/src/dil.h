@@ -269,8 +269,9 @@ struct dilargstype
 #define DILE_FNDU2     194
 #define DILE_GFOL      195
 #define DILE_SACT	   196	/* sact (#,#,#,#,#,#) */
+#define DILE_GINT	   197	/* getinteger(unit, idx) */
 
-#define DILI_MAX       196	/* The maximum node number */
+#define DILI_MAX       197	/* The maximum node number */
 
 /* DIL Field references */
 #define DILF_NMS	0	/* .names */
@@ -487,13 +488,7 @@ struct dilvar
 class dilval
 {
 public:
-    dilval (void)
-    {
-        type = DILV_ERR;
-        val.ptr = NULL;
-        ref = NULL;
-        atyp = DILA_NONE;
-    }
+    dilval (void);
     ~dilval (void);
 
     ubit8 type;			/* result type     */
@@ -599,11 +594,16 @@ struct dilframe
 
 #define DIL_FRAMEINC    8	/* # of stackframes to inc stack with */
 
-struct dilprg
+class dilprg
 {
-    ubit32 flags;			/* Recall, copy, etc. */
-    ubit16 varcrc;		/* variable crc from compiler (saved) */
-    ubit16 corecrc;		/* core crc from compiler (saved) */
+public:
+    dilprg(class unit_data *owner, int bLink);
+    ~dilprg(void);
+
+    ubit32 flags;       // Recall, copy, etc.
+    ubit16 varcrc;		// variable crc from compiler (saved)
+    ubit16 corecrc;		// core crc from compiler (saved)
+    ubit16 nest;        // How many levels is the call nested 
 
     ubit16 framesz;		/* stack size */
     struct dilframe *fp;		/* stack and pointer */
@@ -616,14 +616,14 @@ struct dilprg
 
     sbit16 waitcmd;		/* Command countdown */
 
-    struct dilprg *next;		/* For global dilprg list (sendtoalldil) */
+    class dilprg *next;		/* For global dilprg list (sendtoalldil) */
+
+    int canfree(void);
 };
 
-extern struct dilprg *dil_list;
-extern struct dilprg *dil_list_nextdude;
-
-/* Function prototypes */
-void free_prg (struct dilprg *prg);
-void clear_prg (struct dilprg *prg);
+extern class dilprg *dil_list;
+extern class dilprg *dil_list_nextdude;
+extern int g_nDilPrg;
+extern int g_nDilVal;
 
 #endif /* _MUD_DIL_H */

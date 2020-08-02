@@ -41,6 +41,38 @@ int hit_location_table[] = /* Determine by using 2d8 */
     WEAR_FEET
 };
 
+
+int wear_location_prop[WEAR_MAX] = {0,0,0,0,0,0,
+22, // Body  [6]
+3,  // Head  [7]
+18, // Legs  [8]
+3,  // Feet  [9]
+3,  // Hands [10]
+15, // Arms  [11]
+0,0,0,0,0,0,0,0,0,0,0,0};
+
+// HEAD (7), HANDS(10), ARMS(11), BODY(6), LEGS(8), FEET(9)
+
+int hit_probability_table[] = /* Determine by using 2d8 */
+{
+    1, /* 2..3   =>  4.68% for Head  */
+    2,
+    3, /* 4      =>  4.69% for Hands */
+    4,  /* 5..7   => 23.43% for Arms  */
+    5,
+    6,
+    7, /* 8..10  => 34.38% for Body  */
+    8,
+    7,
+    6, /* 11..14 => 28.12% for legs  */
+    5,
+    4,
+    3,
+    2, /* 15..16 => 4.68% for feet   */
+    1
+};  // 64 total
+
+
 const char *professions[PROFESSION_MAX+1] = {PROFESSION_STRINGS, NULL};
 
 struct profession_cost ability_prof_table[ABIL_TREE_MAX + 1];
@@ -48,74 +80,6 @@ struct profession_cost ability_prof_table[ABIL_TREE_MAX + 1];
 struct profession_cost weapon_prof_table[WPN_TREE_MAX + 1];
 
 struct profession_cost skill_prof_table[SKI_TREE_MAX + 1];
-/*
-//                        L  MAG DIV STR DEX CON CHA BRA  HP       FI  KN  PA  RA  TH  AS  PR  DR  MY  NE  CO  MA 
-{SKI_TURN_UNDEAD      ,   5,   0,  1,  0,  0,  0,  0,  0,  0,      -5, -3, -3, -5, -5, -5, +5, -5, -5, -5, -5, -5},
-{SKI_SCROLL_USE       ,  13,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -3, +2, +5, -3, +2, +5, +5},
-{SKI_WAND_USE         ,   0,   0,  0,  0,  0,  0,  0,  3,  0,      -5, -5, -5, -5, -5, -5, -5, +5, -3,  0, +5, +5},
-{SKI_CONSIDER         ,   0,   0,  0,  0,  0,  0,  0,  0,  0,       0, +2, +2, +5, +5, +5, +2, +4, -5, -5, +5,  0},
-{SKI_DIAGNOSTICS      ,   0,   0,  0,  0,  0,  0,  0,  0,  0,       0, +2, +2, +2, +5, +5, +5, +4,  0, +5, +5, -5},
-{SKI_APPRAISAL        ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +5, +5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_VENTRILOQUATE    ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, +5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_WEATHER_WATCH    ,  12,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, +5},
-{SKI_FLEE             ,   0,   0,  0,  0,  0,  0,  0,  0,  0,       0, -5, -5, +4, +5, +5,  0,  0, -3,  0,  0,  0},
-{SKI_SNEAK            ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +2, +2, +2, -5, -5, -5, -5, -5, -5},
-{SKI_BACKSTAB         ,   0,   0,  0,  0,  3,  0,  0,  0,  0,      -5, -5, -5, -5, +2, +5, -5, -5, -5, -5, -5, -5},
-{SKI_HIDE             ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5,  0, +2, +5, -5, -5, -5, -5, -5, -5},
-{SKI_FIRST_AID        ,   6,   0,  0,  0,  0,  0,  0,  0,  0,      -5, +2, +2, +2,  0, -5, +5, +2,  0, -5, -5, -5},
-//                        L  MAG DIV STR DEX CON CHA BRA  HP       FI  KN  PA  RA  TH  AS  PR  DR  MY  NE  CO  MA 
-{SKI_PICK_LOCK        ,   2,   0,  0,  0, 10,  0,  0,  0,  0,      -5, -5, -5, -5, +2, -5, -5, -5, -5, -5, -5, -5},
-{SKI_STEAL            ,  10,   0,  0,  0, 30,  0,  0,  0,  0,      -5, -5, -5, -5,  0, -5, -5, -5, -5, -5, -5, -5},
-{SKI_RESCUE           ,   0,   0,  0,  0,  0,  0,  0,  0,  0,       0, +5, +5, +5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_SEARCH           ,   2,   0,  0,  0,  0,  0,  0,  0,  0,      -1, -2, -2, +3, +5, +2, -2, -2, -3, -3, -3, -3},
-{SKI_LEADERSHIP       ,  12,   0,  0,  0,  0,  0,  0,  0,  0,      +2, +5, +5, +5, -5, -5, -5, -5, -5,  0, -5, -5},
-{SKI_KICK             ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_SWIMMING         ,   0,   0,  0,  0,  0,  0,  0,  0,  0,       0,  0,  0, +1, +1, +1, -1, +2, -1, -2, -2, -2},
-{SKI_BASH             ,   3,   0,  0,  0,  0,  0,  0,  0,  0,      +2, +2, +2, +2, -5, -5, -5, -4, -5, -5, -5, -5},
-{SKI_CLIMB            ,   0,   0,  0,  0,  0,  0,  0,  0,  0,       0, -3, -3,  0, +2, +2, -3, -3, -3, -3, -3, -3},
-{SKI_SHIELD           ,   3,   0,  0,  0,  0,  0,  0,  0,  0,      +5, +2, +2, +2,  0,  0,  0, -4, -3, -5, -5, -5},
-//                        L  MAG DIV STR DEX CON CHA BRA  HP       FI  KN  PA  RA  TH  AS  PR  DR  MY  NE  CO  MA 
-{SKI_TRIP             ,   7,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5,  0, -5, -5, -5, -5, -5, -5, -5},
-{SKI_DUAL_WIELD       ,  10,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5,  0, +2, -5, -5, -5, -5, -5, -5},
-{SKI_CUFF             ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_RESIZE_CLOTHES   ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_RESIZE_LEATHER   ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_RESIZE_METAL     ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_EVALUATE         ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_PEEK             ,   8,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5,  0, -5, -5, -5, -5, -5, -5, -5},
-{SKI_PICK_POCKETS     ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, +2, -5, -5, -5, -5, -5, -5, -5},
-{SKI_FILCH            ,   5,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, +5, -5, -5, -5, -5, -5, -5, -5},
-//                        L  MAG DIV STR DEX CON CHA BRA  HP       FI  KN  PA  RA  TH  AS  PR  DR  MY  NE  CO  MA 
-{SKI_DISARM           ,   4,   0,  0,  0,  0,  0,  0,  0,  0,      +2, -5, -5, -5, -1,  0, -5, -5, -5, -5, -5, -5},
-{SKI_SKIN             ,   2,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +2, -5, -5, -5,  0, -5, -5, -5, -5},
-{SKI_SHELTER          ,   8,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_SOOTHE           ,   3,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +2, -5, -5, -5, +2, -5, -5, -5, -5},
-{SKI_AMBUSH           ,  18,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_CURARE           ,  40,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +3, -5, -5, -5, +3, -5, -5, -5, -5},
-{SKI_FASHION          ,   1,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +3, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_BUTCHER          ,   4,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +3, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_LAY_TRAP         ,  28,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +4, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_SHOOT            ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_HERBS            ,  12,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5,  0, -5, -5, -5, +5, -5, -5, -5, -5},
-{SKI_FORAGE           ,   3,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +1, -5, -5, -5, +1, -5, -5, -5, -5},
-{SKI_DOWSE            ,   5,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5,  0, -5, -5, -5, +2, -5, -5, -5, -5},
-{SKI_TRACK            ,   6,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_HUNT             ,  14,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +2, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_THROW            ,  20,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +3, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_COOK             ,  10,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +2, -5, -5, -5,  0, -5, -5, -5, -5},
-{SKI_SCAN             ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, +3, -5, -5, -5, +3, -5, -5, -5, -5},
-{SKI_SLIP             ,  15,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, +1, -5, -5, -5, -5, -5, -5, -5},
-//                        L  MAG DIV STR DEX CON CHA BRA  HP       FI  KN  PA  RA  TH  AS  PR  DR  MY  NE  CO  MA 
-{SKI_PALM             ,  10,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, +1, -5, -5, -5, -5, -5, -5, -5},
-{SKI_PLANT            ,  25,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5,  0, -5, -5, -5, -5, -5, -5, -5},
-{SKI_STALK            ,  22,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, +2, -5, -5, -5, -5, -5, -5},
-{SKI_KNEE             ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_ELBOW            ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_HIT              ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_PUNCH            ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5},
-{SKI_GLANCE           ,   0,   0,  0,  0,  0,  0,  0,  0,  0,      -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5, -5}
-};
-*/
 
 struct profession_cost spell_prof_table[SPL_TREE_MAX + 1];
 
@@ -207,8 +171,7 @@ void roll_description(class unit_data *att, const char *text, int roll)
 
         default:
             act("Divine $2t!", A_ALWAYS, att, text, 0, TO_CHAR);
-            act("$1n makes a divinely inspired $2t!",
-                A_ALWAYS, att, text, 0, TO_ROOM);
+            act("$1n makes a divinely inspired $2t!", A_ALWAYS, att, text, 0, TO_ROOM);
             break;
         }
     }
@@ -454,6 +417,21 @@ int weapon_attack_skill(class unit_data *ch, int skill)
     }
 }
 
+
+int weapon_attack_ability(class unit_data *ch, int skill)
+{
+    int i;
+
+    i = CHAR_ABILITY(ch, wpn_info[skill].ability[0]) + 
+        CHAR_ABILITY(ch, wpn_info[skill].ability[1]) + 
+        CHAR_ABILITY(ch, wpn_info[skill].ability[2]);
+
+    i = i / 3;
+
+    return i;
+}
+
+
 /* Return the armour position of where one person hits another */
 int hit_location(class unit_data *att, class unit_data *def)
 {
@@ -467,7 +445,56 @@ int hit_location(class unit_data *att, class unit_data *def)
 /* what armour you wear                                           */
 int effective_dex(class unit_data *ch)
 {
-    return CHAR_DEX(ch);
+    class unit_data *u;
+    static const int arm_dex_penalty[] = {0, 10, 20, 40, 100};
+
+    int at, b, p , psum = 0;
+
+    for (u = UNIT_CONTAINS(ch); u; u = u->next)
+    {
+        if (IS_OBJ(u) && (OBJ_EQP_POS(u) != 0) && (OBJ_TYPE(u) == ITEM_ARMOR))
+        {
+            if (OBJ_EQP_POS(u) > WEAR_MAX)
+                continue; // slog ?
+
+            at = OBJ_VALUE(u, 0);
+            if (!is_in(at, ARM_CLOTHES, ARM_PLATE))
+                continue; // slog ?
+
+            switch (at)
+            {
+                case ARM_LEATHER:
+                    b = (CHAR_ABILITY(ch, ABIL_STR) + 4*CHAR_ABILITY(ch, ABIL_DEX))/5;
+                    if (IS_PC(ch))
+                        b = (b + PC_SKI_SKILL(ch, SKI_ARM_LEATHER)) / 2;
+                    break;
+
+                case ARM_HLEATHER:
+                    b = (CHAR_ABILITY(ch, ABIL_STR) + 2*CHAR_ABILITY(ch, ABIL_DEX))/3;
+                    if (IS_PC(ch))
+                        b = (b + PC_SKI_SKILL(ch, SKI_ARM_HLEATHER))/2;
+                    break;
+                case ARM_CHAIN:
+                    b = (2*CHAR_ABILITY(ch, ABIL_STR) + CHAR_ABILITY(ch, ABIL_DEX))/3;
+                    if (IS_PC(ch))
+                        b = (b + PC_SKI_SKILL(ch, SKI_ARM_CHAIN))/2;
+                    break;
+                case ARM_PLATE:
+                    b = CHAR_ABILITY(ch, ABIL_STR);
+                    if (IS_PC(ch))
+                        b = (b + PC_SKI_SKILL(ch, SKI_ARM_PLATE))/2;
+                    break;
+                default:
+                    continue;
+            } // switch
+
+            b = MIN(100, b);
+            p = arm_dex_penalty[at] - (b * arm_dex_penalty[at]) / 200;
+            psum +=  p * wear_location_prop[OBJ_EQP_POS(u)];
+        }
+    } // for
+
+    return MAX(0,CHAR_DEX(ch) - psum/64);
 }
 
 /* ========================================================================= */
@@ -882,35 +909,61 @@ static void ability_init(void)
     abil_text[ABIL_TREE_MAX] = NULL;
 }
 
+bool pairISCompare(const std::pair<int, string>& firstElem, const std::pair<int, string>& secondElem)
+{
+    return firstElem.first > secondElem.first;
+}
+
 
 void ability_dump(void)
 {
-    int i;
+    string str;
+    char buf[MAX_STRING_LENGTH];
 
-    for (i = 0; i < ABIL_TREE_MAX; i++)
+    for (int j = 0; j < PROFESSION_MAX; j++)
     {
-        printf("name                    = %s\n", abil_text[i]);
+        vector< pair <int,string> > vect; 
 
-        if (ability_prof_table[i].min_level > 0 )
-            printf("restrict level          = %d\n", ability_prof_table[i].min_level);
+        for (int i = 0; i < ABIL_TREE_MAX; i++)
+        {
+            str = "";
 
-        for (int j=0; j < ABIL_TREE_MAX; j++)
-            if (ability_prof_table[i].min_abil[j] > 0)
-                printf("restrict %s%s    = %s%d\n", abil_text[j], spc(12-strlen(professions[j])),
-                 (ability_prof_table[i].min_abil[j] >= 0) ? "+" : "", ability_prof_table[i].min_abil[j]);
+            sprintf(buf, "%s,%s", abil_text[i], spc(20-strlen(abil_text[i])));
+            str.append(buf);
 
-        for (int j=0; j < PROFESSION_MAX; j++)
-            if (ability_prof_table[i].profession_cost[j] > -7)
-                printf("profession %s%s = %s%d\n", professions[j], spc(12-strlen(professions[j])),
-                 (ability_prof_table[i].profession_cost[j] >= 0) ? "+" : "", ability_prof_table[i].profession_cost[j]);
+            sprintf(buf, ".profession %s%s = %s%d\n", professions[j], spc(12-strlen(professions[j])),
+                (ability_prof_table[i].profession_cost[j] >= 0) ? "+" : "", ability_prof_table[i].profession_cost[j]);
+            str.append(buf);
+
+            vect.push_back(std::make_pair(ability_prof_table[i].profession_cost[j], str));
+
+            if (ability_prof_table[i].min_level > 0 )
+            {
+                sprintf(buf, "restrict level          = %d\n", ability_prof_table[i].min_level);
+                str.append(buf);
+            }
+
+            for (int j=0; j < ABIL_TREE_MAX; j++)
+                if (ability_prof_table[i].min_abil[j] > 0)
+                {
+                    sprintf(buf, "restrict %s%s    = %s%d\n", abil_text[j], spc(12-strlen(professions[j])),
+                       (ability_prof_table[i].min_abil[j] >= 0) ? "+" : "", ability_prof_table[i].min_abil[j]);
+                    str.append(buf);
+
+                }
+        }
+        std::sort(vect.begin(), vect.end(), pairISCompare);
+        for (auto it = vect.begin(); it != vect.end(); ++it)
+            printf("%s", it->second.c_str());
     }
+    exit(0);
 }
 
 void boot_ability(void)
 {
     ability_init();
     ability_read();
-    //ability_dump(); Saved in case someone needs to dump it out to excel or something
+    //ability_dump(); // Saved in case someone needs to dump it out to excel or something
 }
 
 /* ========================================================================= */
@@ -1076,6 +1129,39 @@ static void weapon_read(void)
                     weapon_prof_table[idx].min_abil[ridx] = dummy;
             }
         }
+        else if (strncmp(pTmp, "ability", 7) == 0)
+        {
+            char tmp[256];
+            int i1, i2, i3;
+
+            pCh = str_next_word(pCh, tmp);
+            i1 = atoi(tmp);
+            if (!is_in(i1, ABIL_MAG, ABIL_HP) || !str_is_number(tmp))
+            {
+                slog(LOG_ALL, 0, "Weapon init %d: Illegal ability[0] %d (%s).", idx, i1, tmp);
+                continue;
+            }
+
+            pCh = str_next_word(pCh, tmp);
+            i2 = atoi(tmp);
+            if (!is_in(i2, ABIL_MAG, ABIL_HP) || !str_is_number(tmp))
+            {
+                slog(LOG_ALL, 0, "Weapon init %d: Illegal ability[0] %d (%s).", idx, i2, tmp);
+                continue;
+            }
+
+            pCh = str_next_word(pCh, tmp);
+            i3 = atoi(tmp);
+            if (!is_in(i3, ABIL_MAG, ABIL_HP) || !str_is_number(tmp))
+            {
+                slog(LOG_ALL, 0, "Weapon init %d: Illegal ability[0] %d (%s).", idx, i3, tmp);
+                continue;
+            }
+
+            wpn_info[idx].ability[0] = i1;
+            wpn_info[idx].ability[1] = i2;
+            wpn_info[idx].ability[2] = i3;
+        }
         else if (strncmp(pTmp, "attack ", 7) == 0)
         {
             char tmp[256];
@@ -1107,6 +1193,11 @@ static void weapon_read(void)
                 idx2 = ARM_CHAIN;
             else if (strncmp(pTmp + 7, "plate", 5) == 0)
                 idx2 = ARM_PLATE;
+            else
+            {
+                slog(LOG_ALL, 0, "Weapon init %d: Illegal attack type %s.", idx, pTmp);
+                continue;
+            }
 
             if (idx2 != -1)
             {
@@ -1141,6 +1232,9 @@ static void weapon_init(void)
         wpn_info[i].type = WPNT_SLASH;
         wpn_info[i].speed = 0;
         wpn_info[i].shield = SHIELD_M_BLOCK;
+        wpn_info[i].ability[0] = ABIL_STR;
+        wpn_info[i].ability[1] = ABIL_STR;
+        wpn_info[i].ability[2] = ABIL_DEX;
 
         wpn_tree[i].parent = WPN_ROOT;
 
@@ -1149,7 +1243,7 @@ static void weapon_init(void)
         else
             wpn_tree[i].isleaf = TRUE;
 
-        wpn_text[i] = NULL;
+        wpn_text[i] = str_dup(""); // To manage missing weapons
 
         /* Default to zero */
         for (j = 0; j < PC_RACE_MAX; j++)
@@ -1179,29 +1273,42 @@ static void weapon_init(void)
 
 void weapon_dump(void)
 {
-    int i;
+    string str;
+    char buf[MAX_STRING_LENGTH];
 
-    for (i = 0; i < WPN_TREE_MAX; i++)
+    for (int j = 0; j < PROFESSION_MAX; j++)
     {
-        if (wpn_text[i] == NULL)
-            continue;
+        vector< pair <int,string> > vect; 
 
-        printf("name                    = %s\n", wpn_text[i]);
+        for (int i = WPN_GROUP_MAX; i < WPN_TREE_MAX; i++)
+        {
+            if (str_is_empty(wpn_text[i]))
+                continue;
 
-        if (weapon_prof_table[i].min_level > 0)
-            printf("restrict level          = %d\n", weapon_prof_table[i].min_level);
+            str = "";
 
-        for (int j=0; j < ABIL_TREE_MAX; j++)
-            if (weapon_prof_table[i].min_abil[j] > 0)
-                printf("restrict %s%s    = %s%d\n", abil_text[j], spc(12-strlen(abil_text[j])),
-                 (weapon_prof_table[i].min_abil[j] >= 0) ? "+" : "", weapon_prof_table[i].min_abil[j]);
+            sprintf(buf, "%s,%s", wpn_text[i], spc(20-strlen(wpn_text[i])));
+            str.append(buf);
 
-        for (int j=0; j < PROFESSION_MAX; j++)
-            if (weapon_prof_table[i].profession_cost[j] > -5)
-                printf("profession %s%s = %s%d\n", professions[j], spc(12-strlen(professions[j])),
-                 (weapon_prof_table[i].profession_cost[j] >= 0) ? "+" : "", weapon_prof_table[i].profession_cost[j]);
+            sprintf(buf, ".profession %s%s = %s%d\n", professions[j], spc(12-strlen(professions[j])),
+                (weapon_prof_table[i].profession_cost[j] >= 0) ? "+" : "", weapon_prof_table[i].profession_cost[j]);
+            str.append(buf);
 
-        printf("\n");
+            vect.push_back(std::make_pair(weapon_prof_table[i].profession_cost[j], str));
+
+            /*if (weapon_prof_table[i].min_level > 0)
+                printf("restrict level          = %d\n", weapon_prof_table[i].min_level);
+
+            for (int j=0; j < ABIL_TREE_MAX; j++)
+                if (weapon_prof_table[i].min_abil[j] > 0)
+                    printf("restrict %s%s    = %s%d\n", abil_text[j], spc(12-strlen(abil_text[j])),
+                    (weapon_prof_table[i].min_abil[j] >= 0) ? "+" : "", weapon_prof_table[i].min_abil[j]);*/
+
+        }
+        std::sort(vect.begin(), vect.end(), pairISCompare);
+        for (auto it = vect.begin(); it != vect.end(); ++it) {
+            printf("%s", it->second.c_str());
+        }        
     }
     exit(0);
 }

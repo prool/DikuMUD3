@@ -562,12 +562,12 @@ void generate_zone_indexes(void)
  */
 int bread_affect(CByteBuffer *pBuf, class unit_data *u, ubit8 nVersion)
 {
-    struct unit_affected_type af;
+    class unit_affected_type af;
     int i;
     ubit8 t8;
     ubit16 t16;
 
-    struct unit_affected_type *link_alloc_affect(class unit_data * unit, struct unit_affected_type * orgaf);
+    class unit_affected_type *link_alloc_affect(class unit_data * unit, class unit_affected_type * orgaf);
 
     if (nVersion <= 56)
     {
@@ -622,7 +622,6 @@ int bread_affect(CByteBuffer *pBuf, class unit_data *u, ubit8 nVersion)
             return 1;
 
         /* Don't call, don't apply and don't set up tick for this affect (yet) */
-        af.destructed = FALSE;
         af.event = NULL;
         link_alloc_affect(u, &af);
     }
@@ -631,6 +630,35 @@ int bread_affect(CByteBuffer *pBuf, class unit_data *u, ubit8 nVersion)
 }
 
 class zone_type *unit_error_zone = NULL;
+
+
+/* After a unit has been read, this is an opportunity to do stuff on it
+ *
+ */
+void post_read_unit(class unit_data *u)
+{
+    // Add regenerate to NPCs
+    if (UNIT_TYPE(u) == UNIT_ST_NPC)
+    {
+        static struct diltemplate *regen = NULL;
+
+        if (regen == NULL)
+            regen = find_dil_template("regenerate@update");
+
+        if (regen)
+        {
+            class dilprg *prg = dil_copy_template(regen, u, NULL);
+            prg->waitcmd = WAITCMD_MAXINST - 1;
+            dil_activate(prg);
+        }
+        else
+        {
+            slog(LOG_ALL, 0, "SERIOUS: Couldn't find NPC regenerate@update DIL.");
+        }
+    }
+
+}
+
 
 extern int memory_pc_alloc;
 extern int memory_npc_alloc;
@@ -644,7 +672,7 @@ extern int memory_room_alloc;
  * whom is an error message to be printed when something goes wrong.
  */
 class unit_data *read_unit_string(CByteBuffer *pBuf, int type, int len,
-                    const char *whom, int stspec)
+                                  const char *whom, int stspec)
 {
     void *ptr;
     class unit_data *u;
@@ -660,17 +688,9 @@ class unit_data *read_unit_string(CByteBuffer *pBuf, int type, int len,
 
     char *fix_old_codes_to_html(const char *c);
 
-#ifdef MEMORY_DEBUG
-    int memory_start;
-#endif
-
     void start_all_special(class unit_data * u);
 
     g_nCorrupt = 0;
-
-#ifdef MEMORY_DEBUG
-    memory_start = memory_total_alloc;
-#endif
 
     if (type != UNIT_ST_NPC &&
         type != UNIT_ST_PC && type != UNIT_ST_ROOM && type != UNIT_ST_OBJ)
@@ -679,7 +699,7 @@ class unit_data *read_unit_string(CByteBuffer *pBuf, int type, int len,
         return NULL;
     }
 
-    u = new (class unit_data)(type);
+    u = new EMPLACE(unit_data) unit_data(type);
 
     nStart = pBuf->GetReadPosition();
     g_nCorrupt += pBuf->Read8(&unit_version);
@@ -709,17 +729,20 @@ class unit_data *read_unit_string(CByteBuffer *pBuf, int type, int len,
     if (pBuf->SkipString(&c))
         g_nCorrupt++;
     UNIT_TITLE(u) = c;
-    if (unit_version < 70) UNIT_TITLE(u) = fix_old_codes_to_html(UNIT_TITLE(u).c_str());
+    if (unit_version < 70)
+        UNIT_TITLE(u) = fix_old_codes_to_html(UNIT_TITLE(u).c_str());
 
     if (pBuf->SkipString(&c))
         g_nCorrupt++;
     UNIT_OUT_DESCR(u) = c;
-    if (unit_version < 70) UNIT_OUT_DESCR(u) = fix_old_codes_to_html(UNIT_OUT_DESCR(u).c_str());
+    if (unit_version < 70)
+        UNIT_OUT_DESCR(u) = fix_old_codes_to_html(UNIT_OUT_DESCR(u).c_str());
 
     if (pBuf->SkipString(&c))
         g_nCorrupt++;
     UNIT_IN_DESCR(u) = c;
-    if (unit_version < 70) UNIT_IN_DESCR(u) = fix_old_codes_to_html(UNIT_IN_DESCR(u).c_str());
+    if (unit_version < 70)
+        UNIT_IN_DESCR(u) = fix_old_codes_to_html(UNIT_IN_DESCR(u).c_str());
 
     g_nCorrupt += bread_extra(pBuf, UNIT_EXTRA(u), unit_version);
 
@@ -897,7 +920,8 @@ class unit_data *read_unit_string(CByteBuffer *pBuf, int type, int len,
                 g_nCorrupt += pBuf->Read16(&PC_LIFESPAN(u));
             else
             {
-                CHAR_RACE(u)--; /* spooky */
+                CHAR_RACE(u)
+                --; /* spooky */
 
                 struct base_race_info_type *sex_race;
 
@@ -1057,7 +1081,7 @@ class unit_data *read_unit_string(CByteBuffer *pBuf, int type, int len,
                 else
                     g_nCorrupt += pBuf->Read16(&PC_SPL_SKILL(u, i));
                 g_nCorrupt += pBuf->Read8(&PC_SPL_LVL(u, i));
-                
+
                 if (unit_version < 72)
                     g_nCorrupt += pBuf->Read8(&t8);
 
@@ -1321,23 +1345,7 @@ class unit_data *read_unit_string(CByteBuffer *pBuf, int type, int len,
             return NULL;
     }
 
-#ifdef MEMORY_DEBUG
-    switch (type)
-    {
-    case UNIT_ST_PC:
-        memory_pc_alloc += memory_total_alloc - memory_start;
-        break;
-    case UNIT_ST_NPC:
-        memory_npc_alloc += memory_total_alloc - memory_start;
-        break;
-    case UNIT_ST_OBJ:
-        memory_obj_alloc += memory_total_alloc - memory_start;
-        break;
-    case UNIT_ST_ROOM:
-        memory_room_alloc += memory_total_alloc - memory_start;
-        break;
-    }
-#endif
+    post_read_unit(u);
 
     return u;
 }
@@ -1489,8 +1497,7 @@ void normalize_world(void)
 /* For local error purposes */
 static class zone_type *read_zone_error = NULL;
 
-struct zone_reset_cmd *
-read_zone(FILE *f, struct zone_reset_cmd *cmd_list)
+struct zone_reset_cmd *read_zone(FILE *f, struct zone_reset_cmd *cmd_list)
 {
     struct zone_reset_cmd *cmd, *tmp_cmd;
     class file_index_type *fi;
@@ -1620,7 +1627,7 @@ void read_all_zones(void)
         if ((f = fopen(filename, "rb")) == NULL)
         {
             slog(LOG_OFF, 0, "Could not open zone file: %s", zone->filename);
-            exit(1);
+            exit(10);
         }
 
         if (fread(&(zone->zone_time), sizeof(ubit16), 1, f) != 1)
@@ -1635,8 +1642,7 @@ void read_all_zones(void)
     }
 }
 
-char *
-read_info_file(char *name, char *oldstr)
+char *read_info_file(char *name, char *oldstr)
 {
     char tmp[20 * MAX_STRING_LENGTH];
     char buf[20 * MAX_STRING_LENGTH];
@@ -1686,13 +1692,8 @@ void boot_db(void)
     slog(LOG_OFF, 0, "Copyright (C) 1994 - 2020 by DikuMUD & Valhalla.");
 
     slog(LOG_OFF, 0, "Generating indexes from list of zone-filenames.");
-#ifdef MEMORY_DEBUG
-    memory_zoneidx_alloc = memory_total_alloc;
-#endif
+
     generate_zone_indexes();
-#ifdef MEMORY_DEBUG
-    memory_zoneidx_alloc = memory_total_alloc - memory_zoneidx_alloc;
-#endif
 
     slog(LOG_OFF, 0, "Generating player index.");
     player_file_index();
@@ -1719,15 +1720,9 @@ void boot_db(void)
     boot_sector();
 
     slog(LOG_OFF, 0, "Reading all rooms into memory.");
-#ifdef MEMORY_DEBUG
-    memory_roomread_alloc = memory_total_alloc;
-#endif
 
     read_all_rooms();
 
-#ifdef MEMORY_DEBUG
-    memory_roomread_alloc = memory_total_alloc - memory_roomread_alloc;
-#endif
     slog(LOG_OFF, 0, "Normalizing file index ref. and replacing rooms.");
     normalize_world();
 
@@ -1771,19 +1766,9 @@ void boot_db(void)
     }
 
     slog(LOG_OFF, 0, "Performing boot time reset.");
-#ifdef MEMORY_DEBUG
-    memory_zonereset_alloc = memory_total_alloc;
-#endif
     reset_all_zones();
-#ifdef MEMORY_DEBUG
-    memory_zonereset_alloc = memory_total_alloc - memory_zonereset_alloc;
-#endif
 
     touch_file(str_cc(g_cServerConfig.m_logdir, STATISTICS_FILE));
-#ifdef MEMORY_DEBUG
-    slog(LOG_OFF, 0, "Boot db -- DONE (%d bytes allocated).",
-         memory_total_alloc);
-#endif
 }
 
 void db_shutdown(void)
@@ -1795,7 +1780,6 @@ void db_shutdown(void)
     slog(LOG_OFF, 0, "Destroying unit list.");
 
     void clear_destructed(void);
-    void register_destruct(int i, void *ptr);
 
     while (!IS_ROOM(unit_list))
     {

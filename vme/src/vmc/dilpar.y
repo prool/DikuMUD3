@@ -81,7 +81,7 @@ int dilistemplate = 1;		/* is this a template program */
 
 /* work structures */
 
-struct dilprg prg;              /* current program building */
+class dilprg prg(0,0);              /* current program building */
 struct diltemplate tmpl;        /* current template building */
 struct dilframe frm;		/* current frame building */
 struct dilref ref;		/* current reference */
@@ -204,7 +204,7 @@ void make_code(struct exptype *dest);
 %token DILSE_AND DILSE_OR DILSE_NOT DILSE_ISPLAYER
 %token DILSE_WPNTXT DILSE_SKITXT DILSE_SENDPRE DILSE_GOPP
 %token DILSE_RHEAD DILSE_NHEAD DILSE_OHEAD DILSE_PHEAD
-%token DILSE_GFOL DILSE_SACT
+%token DILSE_GFOL DILSE_SACT  DILSE_GINT
 
 /* DIL built-in variables */
 %token DILTO_EQ DILTO_NEQ DILTO_PEQ DILTO_SEQ DILTO_LEQ DILTO_GEQ
@@ -274,6 +274,7 @@ file     : program
          {
 
             tmpl.coresz = wcore - tmpl.core + 1;
+            tmpl.corecrc = 0; // Prevent 1 valgrind error
 
             CByteBuffer *pBuf = &g_FileBuffer;
             pBuf->Clear();
@@ -839,19 +840,19 @@ variable : variable '.' field
 	       /* not a variable */
 	       /* check external function */
 
-      if ((i = search_block($1, (const char **) var_names, TRUE)) == -1)
-	    {
-		         char tmpbuf[256];
-		         sprintf(tmpbuf, "No such variable : %s", $1);
-		         dilfatal(tmpbuf);
-      } else {
-               $$.typ = tmpl.vart[i];
-               $$.dsl = DSL_LFT;
-               add_ubit8(&($$),DILE_VAR);
-               add_ubit16(&($$),i);
+         if ((i = search_block($1, (const char **) var_names, TRUE)) == -1)
+         {
+                  char tmpbuf[256];
+                  sprintf(tmpbuf, "No such variable : %s", $1);
+                  dilfatal(tmpbuf);
+         } else {
+                  $$.typ = tmpl.vart[i];
+                  $$.dsl = DSL_LFT;
+                  add_ubit8(&($$),DILE_VAR);
+                  add_ubit16(&($$),i);
+            }
          }
-}
-				|   DILSE_SELF 
+         |   DILSE_SELF 
          {
             INITEXP($$);
             $$.dsl = DSL_DYN;
@@ -927,7 +928,7 @@ variable : variable '.' field
             $$.dsl = DSL_DYN;
             $$.typ = DILV_INT;
             add_ubit8(&($$),DILE_WEAT);
-	 }
+         }
          |  DILSE_THO 
          {
             INITEXP($$);
@@ -2724,23 +2725,24 @@ dilfactor : '(' dilexp ')'
 /* ************************************************************* */
 
 dilfun   :  funcall
-           {  $1 = $$; }
-		     |  DILSE_ATOI '(' dilexp ')'
-         {
-            INITEXP($$);
-            if ($3.typ != DILV_SP)
-               dilfatal("Arg 1 of 'atoi' not string");
-            else {
-               /* Type is ok */
-               /* Function is not _yet_ static */
-               $$.dsl = DSL_DYN;
-               $$.typ = DILV_INT;
-               make_code(&($3));
-               add_code(&($$),&($3));
-               add_ubit8(&($$),DILE_ATOI);
+            {  $1 = $$; }
+		      |  DILSE_ATOI '(' dilexp ')'
+            {
+               INITEXP($$);
+               if ($3.typ != DILV_SP)
+                  dilfatal("Arg 1 of 'atoi' not string");
+               else {
+                  /* Type is ok */
+                  /* Function is not _yet_ static */
+                  $$.dsl = DSL_DYN;
+                  $$.typ = DILV_INT;
+                  make_code(&($3));
+                  add_code(&($$),&($3));
+                  add_ubit8(&($$),DILE_ATOI);
+               }
+               FREEEXP($3);
             }
-            FREEEXP($3);
-         }
+
          |  DILSE_ISPLAYER '(' dilexp ')'
          {
             INITEXP($$);
@@ -4283,6 +4285,32 @@ dilfun   :  funcall
                add_ubit8(&($$),DILE_SACT);
             }
             
+         }
+         | DILSE_GINT'(' dilexp ',' dilexp ',' dilexp ')'
+         {
+            INITEXP($$);
+            if ($3.typ != DILV_INT)
+               dilfatal("Arg 1 of 'getinteger' not integer");
+            else if (($5.typ != DILV_UP) && ($5.typ != DILV_NULL))
+               dilfatal("Arg 2 of 'getinteger' not unitptr");
+            else if ($7.typ != DILV_INT)
+               dilfatal("Arg 3 of 'getinteger' not integer");
+            else {
+               /* Type is ok */
+               /* Function is not _yet_ static */
+               $$.dsl = DSL_DYN;
+               $$.typ = DILV_INT;
+               make_code(&($3));
+               make_code(&($5));
+               make_code(&($7));
+               add_code(&($$),&($3));
+               add_code(&($$),&($5));
+               add_code(&($$),&($7));
+               add_ubit8(&($$),DILE_GINT);
+            }
+            FREEEXP($3);
+            FREEEXP($5);
+            FREEEXP($7);
          }
          | DILSE_AST '(' dilexp ')'
          {

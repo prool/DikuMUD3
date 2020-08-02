@@ -92,10 +92,21 @@ static int gold_cost(struct skill_teach_type *s, int level)
 // Otherwise, grows by 2x for each sum mod negative 
 // because half cost = 5, double cost = 20.
 // For each training level after 1, cost increases by 50%.
-int actual_cost(int cost, sbit8 racemodifier, int level)
+int actual_cost(int cost, sbit8 racemodifier, int level, int virtual_level)
 {
     int mod;
     int pct;
+    int avg_skill_cost;
+
+    avg_skill_cost = AVERAGE_SKILL_COST;
+    if (virtual_level > 100)
+    {
+        int i;
+        i = MIN(100, virtual_level-100);
+        avg_skill_cost += (i*AVERAGE_SKILL_COST*(ABILITY_POINT_FACTOR-1))/100;
+        // At level 200 the average skill cost has increased from 1*average_skill_cost
+        // to ABILITY_POINT_FACTOR * average_skill_cost
+    }
 
     pct = 100;
     if (level >= 1)
@@ -104,20 +115,20 @@ int actual_cost(int cost, sbit8 racemodifier, int level)
     mod = cost + racemodifier;
 
     if (mod == 0)
-        return (AVERAGE_SKILL_COST*pct+99)/100;
+        return (avg_skill_cost*pct+99)/100;
     else if (mod > 0)
     {
         if (mod > 5)
             mod = 5; // 10-5 = 5 is the cheapest cost
 
         // SO best possible training progression for any char is: 4, 6, 9, 14
-        return ((AVERAGE_SKILL_COST - mod)*pct+99)/100; 
+        return ((avg_skill_cost - mod)*pct+99)/100; 
     }
     else // mod < 0
     {
         if (mod < -7)
             mod = -7;
-        return ((AVERAGE_SKILL_COST - 3 * mod)*pct+99)/100;
+        return ((avg_skill_cost - 3 * mod)*pct+99)/100;
     }
 }
 
@@ -198,7 +209,8 @@ void info_show_one(class unit_data *teacher,
                    int gold,
                    const char *text,
                    int indent, ubit8 isleaf, int min_level,
-                   struct profession_cost *cost_entry)
+                   struct profession_cost *cost_entry,
+                   vector< pair <int,string> > &vect)
 {
     char buf[256];
 
@@ -209,16 +221,25 @@ void info_show_one(class unit_data *teacher,
 
         if (*req)
         {
-            sprintf(buf, "<pre>%s     %-20s %s</pre>",
+            sprintf(buf, "<div class='ca'><pre>%s     %-20s %s</pre></div>",
                     spc(4 * indent), text, req);
-            send_to_char(buf, pupil);
+            vect.push_back(std::make_pair(1000, buf));
+            return;
+        }
+
+        if (current_points >= max_level)
+        {
+            sprintf(buf, "<div class='ca'><pre>%s%3d%% %-20s [Teacher at max]</pre></div>",
+                    spc(4 * indent), current_points, text);
+            vect.push_back(std::make_pair(1002, buf));
             return;
         }
 
         if (next_point == 0)
         {
-            sprintf(buf, "<pre>%s%3d%% %-20s [Practice next level]</pre>",
+            sprintf(buf, "<div class='ca'><pre>%s%3d%% %-20s [Practice next level]</pre></div>",
                     spc(4 * indent), current_points, text);
+            vect.push_back(std::make_pair(1001, buf));
         }
         else
         {
@@ -226,22 +247,31 @@ void info_show_one(class unit_data *teacher,
 
             if (IS_SET(PC_FLAGS(pupil), PC_EXPERT))
                 sprintf(buf,
-                        "<pre>%s%3d%% %-20s [%3d%% of %3d%%, points %2d, %s]</pre>",
-                        spc(4 * indent),  current_points, text,   current_points, max_level,
+                        "<pre>%s%s%3d%% %-20s [%3d%% of %3d%%, points %2d, %s]%s</pre>",
+                        next_point >= 20 ? "<div class='ca'>":"", spc(4 * indent),  current_points, text,   current_points, max_level,
                         next_point,
-                        money_string(money_round(TRUE, gold, currency, 1),
-                                     currency, FALSE));
+                        money_string(money_round(TRUE, gold, currency, 1), currency, FALSE), 
+                        next_point >= 20 ? "</div>":"");
             else
-                sprintf(buf, "<pre>%s%3d%% %-20s [practice points %3d]</pre>",
-                        spc(4 * indent), current_points, text, next_point);
+                sprintf(buf, "<pre>%s%s%3d%% %-20s [practice points %3d]%s</pre>",
+                        next_point >= 20 ? "<div class='ca'>":"", spc(4 * indent), current_points, text, 
+                        next_point, next_point >= 20 ? "</div>":"");
+
+            vect.push_back(std::make_pair(next_point, buf));
         }
     }
-    else
-        sprintf(buf, "<pre>%s     %-20s</pre>", spc(4 * indent), text);
-
-    send_to_char(buf, pupil);
+    else // category, not isleaf
+    {
+        sprintf(buf, "<pre>%s     <a cmd='info #'>%s</a></pre>", spc(4 * indent), text);
+        vect.push_back(std::make_pair(-1, buf));
+    }
 }
 
+
+bool pairISCompareAsc(const std::pair<int, string>& firstElem, const std::pair<int, string>& secondElem)
+{
+    return firstElem.first < secondElem.first;
+}
 
 
 void info_show_roots(class unit_data *teacher, class unit_data *pupil,
@@ -252,6 +282,7 @@ void info_show_roots(class unit_data *teacher, class unit_data *pupil,
                      ubit8 pc_lvl[], sbit8 pc_cost[], struct profession_cost *cost_table)
 {
     int i, cost;
+    vector< pair <int,string> > vect;
 
     for (i = 0; teaches_skills[i].node != -1; i++)
         if ((!TREE_ISROOT(tree, teaches_skills[i].node) &&
@@ -261,20 +292,72 @@ void info_show_roots(class unit_data *teacher, class unit_data *pupil,
         {
             cost = actual_cost(cost_table[teaches_skills[i].node].profession_cost[PC_PROFESSION(pupil)],
                                pc_cost[teaches_skills[i].node],
-                               pc_lvl[teaches_skills[i].node]);
+                               pc_lvl[teaches_skills[i].node], PC_VIRTUAL_LEVEL(pupil));
 
             info_show_one(teacher, pupil,
                           pc_values[teaches_skills[i].node],
                           teaches_skills[i].max_skill,
                           cost,
-                          gold_cost(&teaches_skills[i],
-                                    pc_values[teaches_skills[i].node]),
+                          gold_cost(&teaches_skills[i], pc_values[teaches_skills[i].node]),
                           text[teaches_skills[i].node], 0,
                           TREE_ISLEAF(tree, teaches_skills[i].node),
                           teaches_skills[i].min_level,
-                          &cost_table[teaches_skills[i].node]);
+                          &cost_table[teaches_skills[i].node], vect);
         }
+
+    std::sort(vect.begin(), vect.end(), pairISCompareAsc);
+    string str;
+    for (auto it = vect.begin(); it != vect.end(); ++it)
+        str.append(it->second.c_str());
+
+    if (str.empty())
+        str = "Nothing to show (try <a cmd='#'>info roots</a>)<br/>";
+    send_to_char(str.c_str(), pupil);
 }
+
+
+void info_show_leaves(class unit_data *teacher, class unit_data *pupil,
+                     struct skill_teach_type *teaches_skills,
+                     struct tree_type *tree,
+                     const char *text[],
+                     sbit16 pc_values[],
+                     ubit8 pc_lvl[], sbit8 pc_cost[], struct profession_cost *cost_table)
+{
+    int i, cost;
+    vector< pair <int,string> > vect;
+
+    for (i = 0; teaches_skills[i].node != -1; i++)
+        if (TREE_ISLEAF(tree, teaches_skills[i].node))
+        {
+            cost = actual_cost(cost_table[teaches_skills[i].node].profession_cost[PC_PROFESSION(pupil)],
+                               pc_cost[teaches_skills[i].node],
+                               pc_lvl[teaches_skills[i].node], PC_VIRTUAL_LEVEL(pupil));
+
+            info_show_one(teacher, pupil,
+                          pc_values[teaches_skills[i].node],
+                          teaches_skills[i].max_skill,
+                          cost,
+                          gold_cost(&teaches_skills[i], pc_values[teaches_skills[i].node]),
+                          text[teaches_skills[i].node], 0,
+                          TREE_ISLEAF(tree, teaches_skills[i].node),
+                          teaches_skills[i].min_level,
+                          &cost_table[teaches_skills[i].node], vect);
+        }
+
+    std::sort(vect.begin(), vect.end(), pairISCompareAsc);
+    string str;
+    for (auto it = vect.begin(); it != vect.end(); ++it)
+    {
+        if (IS_SET(PC_FLAGS(pupil), PC_EXPERT) || it->first <= 25)  // Limit display
+            str.append(it->second.c_str());
+    }
+
+    if (str.empty())
+        str = "Nothing to show (try <a cmd='#'>info roots</a>)<br/>";
+
+    send_to_char(str.c_str(), pupil);
+}
+
 
 void info_one_skill(class unit_data *teacher, class unit_data *pupil,
                     struct skill_teach_type *teaches_skills,
@@ -286,6 +369,7 @@ void info_one_skill(class unit_data *teacher, class unit_data *pupil,
 {
     int indent, i, j, cost;
     indent = 0;
+    vector< pair <int,string> > vect;
 
     /* Find category if index is a leaf with a category parent */
 
@@ -309,7 +393,7 @@ void info_one_skill(class unit_data *teacher, class unit_data *pupil,
     if (!TREE_ISLEAF(tree, teaches_skills[teach_index].node))
     {
         i = teaches_skills[teach_index].node;
-        cost = actual_cost(cost_table[i].profession_cost[PC_PROFESSION(pupil)], pc_cost[i], pc_lvl[i]);
+        cost = actual_cost(cost_table[i].profession_cost[PC_PROFESSION(pupil)], pc_cost[i], pc_lvl[i], PC_VIRTUAL_LEVEL(pupil));
 
         info_show_one(teacher, pupil, pc_values[i],
                       teaches_skills[teach_index].max_skill,
@@ -319,7 +403,7 @@ void info_one_skill(class unit_data *teacher, class unit_data *pupil,
                       indent++,
                       TREE_ISLEAF(tree, teaches_skills[teach_index].node),
                       teaches_skills[teach_index].min_level,
-                      &cost_table[i]);
+                      &cost_table[i], vect);
 
         /* Show children of teach_index category */
         for (j = 0; teaches_skills[j].node != -1; j++)
@@ -329,7 +413,7 @@ void info_one_skill(class unit_data *teacher, class unit_data *pupil,
             {
                 /* It is a child */
                 i = teaches_skills[j].node;
-                cost = actual_cost(cost_table[i].profession_cost[PC_PROFESSION(pupil)], pc_cost[i], pc_lvl[i]);
+                cost = actual_cost(cost_table[i].profession_cost[PC_PROFESSION(pupil)], pc_cost[i], pc_lvl[i], PC_VIRTUAL_LEVEL(pupil));
                 info_show_one(teacher, pupil, pc_values[i],
                               teaches_skills[j].max_skill,
                               cost,
@@ -338,7 +422,7 @@ void info_one_skill(class unit_data *teacher, class unit_data *pupil,
                               indent,
                               TREE_ISLEAF(tree, teaches_skills[j].node),
                               teaches_skills[j].min_level,
-                              &cost_table[i]);
+                              &cost_table[i], vect);
             }
     }
     else // Leaf
@@ -349,7 +433,7 @@ void info_one_skill(class unit_data *teacher, class unit_data *pupil,
             {
                 /* It is a child */
                 i = teaches_skills[j].node;
-                cost = actual_cost(cost_table[i].profession_cost[PC_PROFESSION(pupil)], pc_cost[i], pc_lvl[i]);
+                cost = actual_cost(cost_table[i].profession_cost[PC_PROFESSION(pupil)], pc_cost[i], pc_lvl[i], PC_VIRTUAL_LEVEL(pupil));
 
                 info_show_one(teacher, pupil, pc_values[i],
                               teaches_skills[j].max_skill,
@@ -359,14 +443,21 @@ void info_one_skill(class unit_data *teacher, class unit_data *pupil,
                               indent,
                               TREE_ISLEAF(tree, teaches_skills[j].node),
                               teaches_skills[j].min_level,
-                              &cost_table[i]);
-            }
+                              &cost_table[i], vect);
+            }    
     }
+
+    std::sort(vect.begin(), vect.end(), pairISCompareAsc);
+    string str;
+    for (auto it = vect.begin(); it != vect.end(); ++it)
+        str.append(it->second.c_str());
+    send_to_char(str.c_str(), pupil);
 }
+
 
 int pupil_magic(class unit_data *pupil)
 {
-    struct unit_affected_type *af;
+    class unit_affected_type *af;
 
     for (af = UNIT_AFFECTED(pupil); af; af = af->next)
         switch (af->id)
@@ -463,7 +554,7 @@ int practice(struct spec_arg *sarg, struct teach_packet *pckt,
     }
 
     cost = actual_cost(cost_table[pckt->teaches[teach_index].node].profession_cost[PC_PROFESSION(sarg->activator)],
-                       pc_cost[pckt->teaches[teach_index].node], pc_lvl[pckt->teaches[teach_index].node]);
+                       pc_cost[pckt->teaches[teach_index].node], pc_lvl[pckt->teaches[teach_index].node], PC_VIRTUAL_LEVEL(sarg->activator));
 
     if (cost == 0)
     {
@@ -618,7 +709,7 @@ int teach_basis(struct spec_arg *sarg, struct teach_packet *pckt)
     {
         if (is_command(sarg->cmd, "info"))
         {
-            info_show_roots(sarg->owner, sarg->activator, pckt->teaches,
+            info_show_leaves(sarg->owner, sarg->activator, pckt->teaches,
                             pckt->tree, pckt->text,
                             pc_values, pc_lvl, pc_cost, cost_table);
             sprintf(buf, "<br/>You have %lu practice points left.<br/>",
@@ -638,6 +729,18 @@ int teach_basis(struct spec_arg *sarg, struct teach_packet *pckt)
     }
 
     arg = skip_spaces(sarg->arg);
+
+    if (str_ccmp(arg, "roots") == 0)
+    {
+        info_show_roots(sarg->owner, sarg->activator, pckt->teaches,
+                        pckt->tree, pckt->text,
+                        pc_values, pc_lvl, pc_cost, cost_table);
+        sprintf(buf, "<br/>You have %lu practice points left.<br/>",
+                (unsigned long)*practice_points);
+        send_to_char(buf, sarg->activator);
+        return SFR_BLOCK;
+    }
+
     index = search_block_abbrevs(arg, pckt->text, (const char **)&arg);
 
     if (index == -1)
@@ -690,6 +793,8 @@ int teach_basis(struct spec_arg *sarg, struct teach_packet *pckt)
 
     return SFR_BLOCK;
 }
+
+
 
 int teaching(struct spec_arg *sarg)
 {
@@ -1064,6 +1169,8 @@ int teach_init(struct spec_arg *sarg)
 
     sarg->fptr->index = SFUN_TEACHING;
     sarg->fptr->heart_beat = 0;
+
+    assert(sarg->fptr->index != SFUN_DIL_INTERNAL);
     FREE(sarg->fptr->data); /* Free the text string! */
     sarg->fptr->data = packet;
 

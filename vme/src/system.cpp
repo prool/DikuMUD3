@@ -178,7 +178,7 @@ descriptor_data::descriptor_data(cMultiHook *pe)
     replyid = (ubit32)-1;
 
     /* Make a new PC struct */
-    character = new (class unit_data)(UNIT_ST_PC);
+    character = new EMPLACE(unit_data) unit_data(UNIT_ST_PC);
     init_char(character);
     CHAR_DESCRIPTOR(character) = this;
 
@@ -259,7 +259,6 @@ void descriptor_close(class descriptor_data *d, int bSendClose, int bReconnect)
     struct diltemplate *link_dead;
     void unsnoop(class unit_data * ch, int mode);
     void unswitchbody(class unit_data * npc);
-    int is_destructed(int type, void *ptr);
 
     assert(d->character);
 
@@ -305,7 +304,7 @@ void descriptor_close(class descriptor_data *d, int bSendClose, int bReconnect)
              "Closing link and making link dead: %s.",
              UNIT_NAME(d->character));
 
-        if (!is_destructed(DR_UNIT, d->character))
+        if (!d->character->is_destructed())
         {
             void disconnect_game(class unit_data * pc);
 
@@ -321,7 +320,7 @@ void descriptor_close(class descriptor_data *d, int bSendClose, int bReconnect)
                     if (link_dead)
                     {
                         CHAR_DESCRIPTOR(d->character) = NULL;
-                        struct dilprg *prg =
+                        class dilprg *prg =
                             dil_copy_template(link_dead, d->character, NULL);
                         prg->waitcmd = WAITCMD_MAXINST - 1;
                         dil_activate(prg);

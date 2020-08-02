@@ -25,6 +25,8 @@
 #include "textutil.h"
 #include "files.h"
 #include "hookmud.h"
+#include "dilrun.h"
+
 
 extern ubit32 memory_total_alloc;
 extern void special_event(void *p1, void *p2);
@@ -75,6 +77,7 @@ void perform_violence_event(void *, void *);
 void update_crimes_event(void *, void *);
 void update_crimes();
 void check_reboot_event(void *, void *);
+void check_overpopulation_event(void *p1, void *p2);
 int check_reboot();
 
 /* ******************************************************************* *
@@ -150,7 +153,7 @@ int main(int argc, char **argv)
             {
                 slog(LOG_OFF, 0,
                      "Full path and file name for the config file expected.");
-                exit(1);
+                exit(4);
             }
             break;
 
@@ -169,7 +172,7 @@ int main(int argc, char **argv)
             {
                 slog(LOG_OFF, 0,
                      "Full path and file name for the config file expected.");
-                exit(1);
+                exit(5);
             }
             break;
 
@@ -185,7 +188,7 @@ int main(int argc, char **argv)
         if (!isdigit(*argv[pos]))
         {
             ShowUsage(argv[0]);
-            exit(1);
+            exit(6);
         }
 
     log_file_fd = freopen(log_name, "w", stderr);
@@ -193,7 +196,7 @@ int main(int argc, char **argv)
     {
         fprintf(stderr, "Error in opening the log:  '%s'", log_name);
         free(log_name);
-        exit(1);
+        exit(7);
     }
 
     free(log_name);
@@ -285,6 +288,7 @@ void run_the_game(char *srvcfg)
     //events.add(PULSE_POINTS, point_update_event, 0, 0);
     events.add(PULSE_SEC * SECS_PER_REAL_MIN * 5, update_crimes_event, 0, 0);
     events.add(PULSE_SEC * SECS_PER_REAL_MIN * 10, check_reboot_event, 0, 0);
+    events.add(PULSE_SEC * SECS_PER_REAL_HOUR * 4, check_overpopulation_event, 0, 0);
 
     slog(LOG_OFF, 0, "Entering game loop.");
 
@@ -303,16 +307,8 @@ void run_the_game(char *srvcfg)
 #endif
 
     fclose_cache();
-#ifdef MEMORY_DEBUG
-    slog(LOG_OFF, 0, "Memory used when shutting down: %d bytes.",
-         memory_total_alloc);
-#endif
     void db_shutdown(void);
     db_shutdown();
-#ifdef MEMORY_DEBUG
-    slog(LOG_OFF, 0, "Memory used at final checkpoint: %d bytes.",
-         memory_total_alloc);
-#endif
 
     if (mud_reboot)
     {
@@ -359,15 +355,11 @@ void game_loop()
 
         if (delay > 0)
         {
+            //usleep(1);
             usleep(delay);
-            old.tv_usec += delay; /* This time has passed in usleep.
-				   Overrun is not important. */
+            old.tv_usec += delay; /* This time has passed in usleep. Overrun is not important. */
         }
     }
-
-    extern pthread_t dijkstra_thread;
-    pthread_cancel(dijkstra_thread);
-    pthread_join(dijkstra_thread, NULL);
 
     slog(LOG_ALL, 0, "Saving all players before exiting");
     for (d = descriptor_list; d; d = d->next)
@@ -392,6 +384,11 @@ void game_loop()
         }
     }
     multi_close_all();
+
+    extern pthread_t dijkstra_thread;
+    //pthread_cancel(dijkstra_thread);
+    pthread_join(dijkstra_thread, NULL);
+    sleep(1);
 }
 
 /* Accept new connects, relay commands, and call 'heartbeat-functs' */
@@ -492,6 +489,54 @@ void update_crimes_event(void *p1, void *p2)
     events.add(PULSE_POINTS, point_update_event, 0, 0);
 }*/
 
+void check_overpopulation_event(void *p1, void *p2)
+{
+    events.add(PULSE_SEC * SECS_PER_REAL_HOUR * 4, check_overpopulation_event, 0, 0);
+
+    int nHours;
+    nHours = (tics / PULSE_SEC) / 3600;
+    slog(LOG_ALL, 0, "Game up for %d tick hours, checking for overpopulation", nHours);
+
+    class unit_data *u, *t;
+    int i;
+    int nUnits = 0;
+
+    for (u = unit_list; u; u = u->gnext)
+    {
+        membug_verify(u);
+        nUnits++;
+        // Make sure it's not a player
+        t = u;
+        while (t)
+        {
+            if (UNIT_TYPE(t) == UNIT_ST_PC)
+                break;
+            t = UNIT_IN(t);
+        }
+        if (t)
+            continue; // If it's inside a player, skip
+
+        i = 0;
+        for (t = UNIT_CONTAINS(u); t; t = t->next) // count top layer
+            i++;
+
+        if (i >= 50)
+        {
+            slog(LOG_ALL, 0, "Too many items in %s@%s(%s) : %d units", UNIT_FI_NAME(u), UNIT_FI_ZONENAME(u), UNIT_NAME(u), i);
+
+            struct diltemplate *worms;
+            worms = find_dil_template("worms@basis");
+            if (worms)
+            {
+                class dilprg *prg = dil_copy_template(worms, u, NULL);
+                prg->waitcmd = WAITCMD_MAXINST - 1;
+                dil_activate(prg);
+            }
+        }
+    }
+    slog(LOG_ALL, 0, "Server has %d units.", nUnits);
+}
+
 
 void check_reboot_event(void *p1, void *p2)
 {
@@ -544,3 +589,4 @@ void ShowUsage(const char *name)
     fprintf(stderr, "  -p: Persistant containers list\n");
     fprintf(stderr, "Copyright (C) 1994 - 1996 by Valhalla.\n");
 }
+

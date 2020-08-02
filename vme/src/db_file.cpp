@@ -248,7 +248,7 @@ struct diltemplate *bread_diltemplate(CByteBuffer *pBuf, int version)
 }
 
 /* Reads DIL interrupt list */
-void bread_dilintr(CByteBuffer *pBuf, struct dilprg *prg, int version)
+void bread_dilintr(CByteBuffer *pBuf, class dilprg *prg, int version)
 {
     int i;
     ubit32 lab;
@@ -276,7 +276,7 @@ void bread_dilintr(CByteBuffer *pBuf, struct dilprg *prg, int version)
         prg->frame[0].intr = NULL;
 }
 
-void bwrite_dilintr(CByteBuffer *pBuf, struct dilprg *prg)
+void bwrite_dilintr(CByteBuffer *pBuf, class dilprg *prg)
 {
     ubit16 i;
     ubit32 lab;
@@ -346,11 +346,11 @@ void bwrite_dilintr(CByteBuffer *pBuf, struct dilprg *prg)
  */
 
 void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
-                struct unit_fptr *fptr, int stspec)
+                class unit_fptr *fptr, int stspec)
 {
-
+    void *membug_new(size_t size);
 #ifdef DMSERVER
-    struct dilprg *prg;
+    class dilprg *prg;
     struct diltemplate *tmpl = NULL;
     ubit32 recallpc = 0;
     ubit16 t16;
@@ -358,17 +358,7 @@ void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
     ubit8 t;
     char name[255];
 
-    CREATE(prg, struct dilprg, 1);
-    CREATE(prg->frame, struct dilframe, 1);
-    prg->fp = prg->frame;
-    prg->framesz = 1;
-    prg->owner = owner;
-    prg->stack.init(10);
-    if (stspec)
-    {
-        prg->next = dil_list;
-        dil_list = prg;
-    }
+    prg = new EMPLACE(dilprg) dilprg(owner, stspec);
 
     /* read new version */
     if (version < 64)
@@ -392,6 +382,7 @@ void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
         void dil_free_template(struct diltemplate * tmpl, int copy);
         dil_free_template(tmpl, IS_SET(prg->flags, DILFL_COPY));
         SET_BIT(prg->flags, DILFL_COPY);
+        slog(LOG_ALL, 0, "hula hop");
     }
     else
     {
@@ -571,10 +562,10 @@ void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
 #endif
 }
 
-struct unit_fptr *bread_func(CByteBuffer *pBuf, ubit8 version,
+class unit_fptr *bread_func(CByteBuffer *pBuf, ubit8 version,
                              class unit_data *owner, int stspec)
 {
-    struct unit_fptr *fptr, *head;
+    class unit_fptr *fptr, *head;
     int i;
     ubit8 t8;
     ubit16 t16;
@@ -597,24 +588,17 @@ struct unit_fptr *bread_func(CByteBuffer *pBuf, ubit8 version,
     {
         if (fptr)
         {
-            CREATE(fptr->next, struct unit_fptr, 1);
+            fptr->next = new EMPLACE(unit_fptr) unit_fptr;
             fptr = fptr->next;
-            fptr->priority = FN_PRI_CHORES;
-            fptr->event = 0;
-            fptr->flags = 0;
-            fptr->destructed = FALSE;
         }
         else
         {
-            CREATE(head, struct unit_fptr, 1);
+            head = new EMPLACE(unit_fptr) class unit_fptr;
             fptr = head;
-            fptr->priority = FN_PRI_CHORES;
-            fptr->event = 0;
-            fptr->flags = 0;
-            fptr->destructed = FALSE;
         }
 
         g_nCorrupt += pBuf->Read16(&fptr->index);
+
         if (fptr->index > SFUN_TOP_IDX)
         {
             slog(LOG_ALL, 0,
@@ -721,7 +705,7 @@ void bread_block(FILE *datafile, long file_pos, int length, void *buffer)
         assert(FALSE);
 }
 
-void bwrite_affect(CByteBuffer *pBuf, struct unit_affected_type *af,
+void bwrite_affect(CByteBuffer *pBuf, class unit_affected_type *af,
                    ubit8 version)
 {
     int i = 0;
@@ -825,7 +809,7 @@ void bwrite_diltemplate(CByteBuffer *pBuf, struct diltemplate *tmpl)
 /*
  * This function writes a DIL program
  */
-void bwrite_dil(CByteBuffer *pBuf, struct dilprg *prg)
+void bwrite_dil(CByteBuffer *pBuf, class dilprg *prg)
 {
     int i;
     struct diltemplate *tmpl;
@@ -900,7 +884,7 @@ void bwrite_dil(CByteBuffer *pBuf, struct dilprg *prg)
     bwrite_dilintr(pBuf, prg);
 }
 
-void bwrite_func(CByteBuffer *pBuf, struct unit_fptr *fptr)
+void bwrite_func(CByteBuffer *pBuf, class unit_fptr *fptr)
 {
     char *data;
     int i = 0;
@@ -948,7 +932,7 @@ void bwrite_func(CByteBuffer *pBuf, struct unit_fptr *fptr)
         if (fptr->index == SFUN_DIL_INTERNAL)
         {
             assert(fptr->data);
-            bwrite_dil(pBuf, (struct dilprg *)fptr->data);
+            bwrite_dil(pBuf, (class dilprg *)fptr->data);
         }
         else if (fptr->index == SFUN_DILCOPY_INTERNAL)
         {

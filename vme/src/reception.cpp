@@ -194,6 +194,10 @@ void enlist(CByteBuffer *pBuf, class unit_data *unit, int level, int fast)
     struct objheader h;
     CByteBuffer TmpBuf;
 
+    /* On 64 bit Linux at least, the struct is padded and 1 byte larger than its data */
+    /* So I memset to zero to avoid valgrind reporting a memory error                 */
+    memset(&h, 0, sizeof(h)); 
+
     int diff(char *ref, ubit32 reflen, char *obj, int objlen, char *dif,
              int diflen, ubit32 crc);
 
@@ -201,8 +205,9 @@ void enlist(CByteBuffer *pBuf, class unit_data *unit, int level, int fast)
     {
         slog(LOG_ALL, 0,
              "MAJOR ERROR - enlist a non-NPC or non-OBJ is being saved. Aborted");
+        return;
     }
-    if (is_destructed(DR_UNIT, unit))
+    if (unit->is_destructed())
     {
         slog(LOG_ALL, 0,
              "MAJOR ERROR - enlist a destructed unit is being saved. Aborted");
@@ -350,7 +355,7 @@ void basic_save_contents(const char *pFileName, class unit_data *unit,
         if (rename(TmpName, pFileName) != 0)
         {
             perror("rename:");
-            exit(1);
+            exit(2);
         }
     }
 }
