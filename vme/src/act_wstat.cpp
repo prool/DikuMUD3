@@ -95,13 +95,14 @@ static void stat_world_extra(const class unit_data *ch)
     int i;
     std::string mystr;
 
-    mystr = "<div class='fourcol'>";
+    mystr = "";
     sprintf(buf, "World zones (%d):<br/>", zone_info.no_of_zones);
     mystr.append(buf);
 
+    mystr = "<div class='fourcol'>";
     for (i = 1, zp = zone_info.zone_list; zp; zp = zp->next, i++)
     {
-        sprintf(buf, "%s<br/>", zp->name);
+        sprintf(buf, "<a cmd='goto #'>%s</a><br/>", zp->name);
         mystr.append(buf);
     }
     mystr.append("</div><br/>");
@@ -139,6 +140,7 @@ static void stat_world(class unit_data *ch)
     extern int world_nonpc, world_nopc;
     extern char world_boottime[64];
     extern int tics;
+    extern int g_nTickUsec;
     //extern int g_nDilPrg;
     char buf[MAX_STRING_LENGTH];
     time_t now = time(0);
@@ -147,7 +149,7 @@ static void stat_world(class unit_data *ch)
     p[strlen(p) - 1] = '\0';
 
     sprintf(buf, "Server compiled at %s %s<br/>"
-                 "World status (tick %d aka %d hours):<br/>"
+                 "World status (tick %d aka %d hours): %s<br/>"
                  "#rooms [%4d]  #objects [%4d]  #chars [%4d]  #npcs [%4d] "
                  "  #pcs [%4d]<br/>"
                  "#units [%4d]  #zones   [%4d]<br/>"
@@ -156,7 +158,7 @@ static void stat_world(class unit_data *ch)
                  "Boottime: %s<br/>Time now: %s<br/>"
                  "DIL programs [%d]   DIL Vals [%d]<br>",
             compile_date, compile_time,
-            tics, tics / (PULSE_SEC * 3600),
+            tics, tics / (PULSE_SEC * 3600), g_nTickUsec < 1 ? "time-warped" : "",
             world_norooms, world_noobjects, world_nochars,
             world_nonpc, world_nopc,
             world_norooms + world_noobjects + world_nochars,
@@ -414,7 +416,7 @@ static void extra_stat_zone(class unit_data *ch, char *arg, class zone_type *zon
     std::string mystr;
     int argno;
     class file_index_type *fi;
-    int search_type = 0, i;
+    int search_type = 0;
 
     //  void stat_dijkstraa (class unit_data * ch, class zone_type *z);
 
@@ -510,28 +512,16 @@ static void extra_stat_zone(class unit_data *ch, char *arg, class zone_type *zon
     }
 
     /* Search for mobs/objs/rooms and line in columns */
-    mystr = "";
-    for (*buf = 0, fi = zone->fi, i = 0; fi; fi = fi->next)
+    mystr = "<div class='threecol'>";
+    for (*buf = 0, fi = zone->fi; fi; fi = fi->next)
         if (fi->type == search_type)
         {
-            sprintf(buf, "%-20s", fi->name);
+            sprintf(buf, "%s<br/>", fi->name);
             mystr.append(buf); //MS2020
-
-            /* Enough to fill a whole line */
-            if (++i == 4)
-            {
-                mystr.append("<br/>"); // MS2020
-                send_to_char(mystr.c_str(), ch);
-                *buf = 0;
-                mystr = "";
-                i = 0;
-            }
         }
-    if (i)
-    {
-        mystr.append("<br/>"); // MS2020 quick hack
-        send_to_char(mystr.c_str(), ch);
-    }
+
+    mystr.append("</div></br>");
+    send_to_char(mystr.c_str(), ch);
 }
 
 static void stat_ability(const class unit_data *ch, class unit_data *u)

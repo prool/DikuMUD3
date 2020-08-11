@@ -1049,7 +1049,7 @@ int run_dil(struct spec_arg *sarg)
         return SFR_BLOCK;
     }
 
-    if (IS_SET(prg->flags, DILFL_EXECUTING | DILFL_DEACTIVATED))
+    if ((prg->waitcmd > 0) && IS_SET(prg->flags, DILFL_EXECUTING | DILFL_DEACTIVATED))
     {
         prg->nest--;
         return SFR_SHARE;
@@ -1122,7 +1122,7 @@ int run_dil(struct spec_arg *sarg)
     //	assert (!(prg->waitcmd>WAITCMD_FINISH) && (prg->fp==prg->frame) && (prg->stack.length()!=0)));
     sarg->arg = orgarg;
 
-    if (prg->waitcmd <= WAITCMD_DESTROYED)
+    if (prg->waitcmd <= WAITCMD_DESTROYED) // Maybe also destroy if fptr or owner is destroyed?
     { /* Was it destroyed?? */
         prg->nest--;
 
@@ -1160,19 +1160,36 @@ int run_dil(struct spec_arg *sarg)
     }
     else if (prg->waitcmd <= WAITCMD_STOP)
     {
-        /* Just return and let the EXECUTING bit stay turned on, so all
-           execution is blocked */
+        /* Just return and let the EXECUTING bit stay turned on, so all execution is blocked */
+        // Not sure when this might happen, logging
+        slog(LOG_ALL, 0, "DIL program [%s] stopped on unit %s@%s.", 
+            prg->fp->tmpl->prgname, UNIT_FI_NAME(sarg->owner), UNIT_FI_ZONENAME(sarg->owner));
         prg->nest--;
-        return SFR_SHARE;
+
+        // 
+        // MS2020 It seems we should delete the program to avoid having it hang around broken. 
+        //
+        int bBlock = IS_SET(prg->flags, DILFL_CMDBLOCK);
+        if (prg->canfree())
+        {
+            DELETE(dilprg, prg);
+            prg = NULL;
+            sarg->fptr->data = NULL;
+            destroy_fptr(sarg->owner, sarg->fptr);
+        }
+
+        if (bBlock)
+            return SFR_BLOCK;
+        else
+            return SFR_SHARE;
     }
     else if (prg->waitcmd > WAITCMD_FINISH)
     {
-        prg->nest--;
-        prg->waitcmd = WAITCMD_DESTROYED;
-        szonelog(UNIT_FI_ZONE(sarg->owner), "DIL %s in unit %s@%s had "
-                                            "endless loop.",
+        szonelog(UNIT_FI_ZONE(sarg->owner), "DIL %s in unit %s@%s had endless loop.",
                  prg->fp->tmpl->prgname,
                  UNIT_FI_NAME(sarg->owner), UNIT_FI_ZONENAME(sarg->owner));
+
+        prg->nest--;
         if (prg->canfree())
         {
             DELETE(dilprg, prg);
@@ -1378,11 +1395,12 @@ int dil_destroy(const char *name, class unit_data *u)
     struct spec_arg sarg;
 
     fptr = dil_find(name, u);
-    if (fptr)
+    if (fptr && !fptr->is_destructed())
     {
         assert(fptr->data); /* MUST or ged! */
         prg = ((class dilprg *)fptr->data);
-        //  This is to send the dildestroy SFB,
+
+        //  This is to send the dildestroy SFB to any listening DILs
         sarg.owner = prg->owner;
         sarg.activator = NULL;
         sarg.fptr = fptr;
@@ -1393,12 +1411,13 @@ int dil_destroy(const char *name, class unit_data *u)
         sarg.target = NULL;
         sarg.pInt = NULL;
 
-        REMOVE_BIT(prg->flags, DILFL_DEACTIVATED); // We're going to destroy it
-
         run_dil(&sarg);
-        //  We finished the on_dildestroy part, now lets really destroy it.
+
+
+        //  We finished the signalling, now lets really destroy it.
         if (!fptr->is_destructed() && fptr && fptr->data)
         {
+            REMOVE_BIT(prg->flags, DILFL_DEACTIVATED); // We're going to destroy it
             prg->waitcmd = WAITCMD_QUIT;
             dil_activate(prg);
         }
@@ -1481,9 +1500,9 @@ class dilprg *dil_copy_template(struct diltemplate *tmpl,
 
     /* activate on tick SOON! */
     if (IS_SET(tmpl->flags, DILFL_AWARE))
-        fptr = create_fptr(u, SFUN_DIL_INTERNAL, tmpl->priority , 1, SFB_ALL | SFB_AWARE, prg);
+        fptr = create_fptr(u, SFUN_DIL_INTERNAL, tmpl->priority , PULSE_SEC, SFB_ALL | SFB_AWARE, prg);
     else
-        fptr = create_fptr(u, SFUN_DIL_INTERNAL,  tmpl->priority, 1, SFB_ALL, prg);
+        fptr = create_fptr(u, SFUN_DIL_INTERNAL,  tmpl->priority, PULSE_SEC, SFB_ALL, prg);
 
     if (pfptr)
         *pfptr = fptr;
@@ -1698,14 +1717,8 @@ class unit_fptr *dil_find(const char *name, class unit_data *u)
     {
         for (fptr = UNIT_FUNC(u); fptr; fptr = fptr->next)
             if ((!fptr->is_destructed()) && (fptr->index == SFUN_DIL_INTERNAL))
-                if (((class dilprg *)fptr->data)->frame[0].tmpl == tmpl)
-                {
-                    if (((class dilprg *)fptr->data)->waitcmd <= WAITCMD_QUIT)
-                    {
-                        slog(LOG_ALL,0, "dil_find found DIL <= WAITCMD_QUIT %for %s %s@%s", UNIT_NAME(u), UNIT_FI_NAME(u), UNIT_FI_ZONENAME(u));
-                    }
+                if ((((class dilprg *)fptr->data)->frame[0].tmpl == tmpl) &&  ((class dilprg *)fptr->data)->waitcmd > WAITCMD_QUIT)
                     return fptr;
-                }
     }
     return NULL;
 }

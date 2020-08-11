@@ -194,6 +194,9 @@ void connect_game(class unit_data *pc)
 {
     //  assert (CHAR_DESCRIPTOR (pc));
 
+    if (pc->is_destructed() || !CHAR_DESCRIPTOR(pc))
+        return;
+
     PC_TIME(pc).connect = time(0);
     CHAR_DESCRIPTOR(pc)->logon = time(0);
 
@@ -208,15 +211,21 @@ void connect_game(class unit_data *pc)
 
 void disconnect_game(class unit_data *pc)
 {
-    CHAR_DESCRIPTOR(pc)->RemoveBBS();
+    if (CHAR_DESCRIPTOR(pc))
+    {
+        CHAR_DESCRIPTOR(pc)->RemoveBBS();
 
-    no_players--;
+        no_players--;
+    }
 }
 
 void reconnect_game(class descriptor_data *d, class unit_data *ch)
 {
     //char *color;
     //char tbuf[MAX_STRING_LENGTH * 2];
+
+    if (ch->is_destructed() || !d)
+        return;
 
     CHAR_DESCRIPTOR(d->character) = NULL;
     extract_unit(d->character);
@@ -225,7 +234,10 @@ void reconnect_game(class descriptor_data *d, class unit_data *ch)
 
     dil_destroy("link_dead@basis", ch);
 
-    ActivateDil(ch);
+    ActivateDil(ch); // ch could potentially get zapped here.
+
+    if (ch->is_destructed() || !d)
+        return;
 
     connect_game(ch);
     /* MS2020
@@ -456,8 +468,16 @@ void nanny_motd(class descriptor_data *d, char *arg)
         dilmenu = TRUE;
         enter_game(d->character, TRUE);
         class dilprg *prg = dil_copy_template(on_connect, d->character, NULL);
-        prg->waitcmd = WAITCMD_MAXINST - 1;
-        dil_activate(prg);
+        if (prg)
+        {
+            prg->waitcmd = WAITCMD_MAXINST - 1;
+            dil_activate(prg);
+        }
+        else
+        {
+            slog(LOG_ALL, 0, "nanny_motd() no on_connect@basis");
+        }
+        
     }
     else
     {
@@ -549,11 +569,14 @@ void nanny_dil(class descriptor_data *d, char *arg)
         class dilprg *prg;
 
         prg = dil_copy_template(nanny_dil_tmpl, d->character, NULL);
-        prg->waitcmd = WAITCMD_MAXINST - 1; // The usual hack, see db_file
+        if (prg)
+        {
+            prg->waitcmd = WAITCMD_MAXINST - 1; // The usual hack, see db_file
 
-        prg->fp->vars[0].val.string = str_dup(arg);
+            prg->fp->vars[0].val.string = str_dup(arg);
 
-        dil_activate(prg);
+            dil_activate(prg);
+        }
     }
 
     if (d->character && UNIT_EXTRA(d->character).find_raw("$nanny") == NULL)
