@@ -182,7 +182,7 @@ void cConHook::PressReturn(const char *cmd)
 
     if (*skip_blanks(cmd))
     {
-        SendCon("<div class='return'>*** Read aborted ***</div>");
+        SendCon("<br/><div class='return'>*** Read aborted ***</div><br/>");
 
         m_qPaged.Flush();
         m_pFptr = dumbPlayLoop;
@@ -205,7 +205,7 @@ void cConHook::PressReturn(const char *cmd)
         if (oldmode != m_nPromptMode)
         {
             char buf[1000];
-            strcpy(buf, ParseOutput("<div class='return'>** Read Done **</div>"));
+            strcpy(buf, ParseOutput("<br/><div class='return'>*** Read Done ***</div><br/>"));
             Write((ubit8 *)buf, strlen(buf));
             PlayLoop("");
         }
@@ -410,8 +410,7 @@ void cConHook::AddString(char *str)
         }
         else
         {
-            int x_pos = (m_nPromptLen + strlen(m_aInputBuf)) %
-                        m_sSetup.width;
+            int x_pos = (m_nPromptLen + strlen(m_aInputBuf)) % m_sSetup.width;
             c = AddInputChar(*s);
             if (c)
             {
@@ -599,9 +598,22 @@ char *cConHook::IndentText(const char *source,
     {
         if (*current == CONTROL_CHAR)
         {
-            current++;
-            protocol_translate(this, *current, &newptr);
-            current++;
+            *newptr++ = *current++; // Copy control char
+
+            for (int j=0; j < 20; j++) // Skip the control sequence which ends with 'm'
+            {
+                *newptr++ = *current; // copy char
+
+                if (*current == 0)
+                    break;
+
+                if (*current == 'm')
+                {
+                    current++;
+                    break;
+                }
+                current++;
+            }
             continue;
         }
 
@@ -836,10 +848,55 @@ const char *GetTag(const char *p, char *pTag, int nTagMax)
     return c+1; // return char after '>'
 }
 
-/*
-    <br/> becomes \n\r except if it is <br/>\n\r then it is ignored. Thus
-    <br/><br/>\n\r becomes \n\r\n\r.
-    That's by design to support both telnet and HTML reasonably. 
+
+/* p points to the html contents between < and >
+ * name is the value to get from, e.g. "class" will get you the value for "class='value"
+ * Copies the value into pTag. Copies at most nTagMax bytes (incl \0)
+ * Returns length of value
+ */
+int GetValue(const char *name, const char *p, char *pTag, int nTagMax)
+{
+    const char *c;
+
+    *pTag = 0;
+
+    c = strstr(p, name);
+    if (c == NULL)
+        return 0;
+
+    c += strlen(name);
+    c = skip_blanks(c); // skip any whitespace before equal
+    if (*c != '=')
+        return 0;
+    c++; // skip equal
+    c = skip_blanks(c); // skip any whitespace after equal
+
+    if (*c != '\'')
+        return 0;
+
+    c++; // Skip '
+
+    const char *ce;
+    ce = strchr(c, '\''); // Find the last ' for the value
+    if (ce == NULL)
+        return 0;
+
+    if (ce-c <= 1) // If the string is empty
+        return 0;
+
+    if (ce-c > nTagMax-1) // Not enough space
+        return 0;
+
+    strncpy(pTag, c, ce-c);
+    pTag[ce-c] = 0;
+
+    return ce-c;
+}
+
+/*  Misleading name. Function changes HTML to TELNET
+ *  <br/> becomes \n\r except if it is <br/>\n\r then it is ignored. Thus
+ *  <br/><br/>\n\r becomes \n\r\n\r.
+ *  That's by design to support both telnet and HTML reasonably. 
 */
 void cConHook::StripHTML(char *dest, const char *src)
 {
@@ -867,7 +924,7 @@ void cConHook::StripHTML(char *dest, const char *src)
             // We got a HTML tag
             if (strcmp(aTag, "br")==0 || strcmp(aTag, "br/")==0)
             {
-                if (*p == '\n' && *(p+1)=='\r') // If the next is \n\r then dont add it
+                if (*p == '\n' || *(p+1)=='\n') // If the next is \n\r then dont add it
                     continue;
 
                 // the <br/> tag was not followed by \n\r so add \n\r
@@ -895,17 +952,54 @@ void cConHook::StripHTML(char *dest, const char *src)
                 }
                 continue;
             }
+            else if (strncmp(aTag, "/div", 4)==0)
+            {
+                // Hm, this'll send a lot of code... but telnet's a hack now :)
+                // How on earth will I get the "default color" if someone prefers e.g. yellow... ?
+                Control_ANSI_Fg(this, &dest, 'w', FALSE);
+                Control_ANSI_Bg(this, &dest, 'n');
+            }
             else if (strncmp(aTag, "div ", 4)==0)
             {
-                // See if there is a class='something', extract it and set a color
-                // Just do a cheap hack for now
+                char buf[256];
+                int l;
 
-                /* This is not working on my telnet. I dont understand why 
-                     "\033[35;40m" doesn't change telnet ANSI to magenta...
+                l = GetValue("class", aTag, buf, sizeof(buf)-1);
 
-                if (strstr(aTag, "class='obj_title'"))
-                    Control_Fg_Magenta(this, &dest, 0);
-                */
+                if (l == 0)
+                    continue;
+
+                // We got a single or double color code on our hands
+                // e.g. cpg, cg bn, cpy bb, etc.
+                if ((l >= 2) && (l <= 6) && ((buf[0]=='b') || (buf[0]=='c')))
+                {
+                    char *p;
+                    char tmp[256];
+
+                    p = str_next_word(buf, tmp); 
+
+                    while (p)
+                    {
+                        if (tmp[0] == 'c')
+                        {
+                            if (tmp[1] == 'p')
+                                Control_ANSI_Fg(this, &dest, buf[2], TRUE);
+                            else
+                                Control_ANSI_Fg(this, &dest, buf[1], FALSE);
+                        }
+                        else if (buf[0] == 'b')
+                        {
+                            Control_ANSI_Bg(this, &dest, buf[1]);
+                        }
+                        else
+                        {
+                            slog(LOG_ALL, 0, "Illegal color code %s", buf);
+                            break;
+                        }
+
+                        p = str_next_word(p, tmp);
+                    }
+                }
             }
             continue;
         }
@@ -1237,7 +1331,7 @@ void cConHook::ShowChunk(void)
 
     if (m_nPromptMode == 1)
     {
-        strcat(buffer, ParseOutput("<div class='paged'> *** Return for more *** </div>"));
+        strcat(buffer, ParseOutput("<br/><div class='paged'> *** Return for more *** </div><br/>"));
     }
 
     assert(strlen(buffer) < sizeof(buffer));
@@ -1337,7 +1431,7 @@ cConHook::cConHook(void)
     unsigned long val = 1;
     x = ioctlsocket(fd, FIONBIO, &val);
 #endif
-    /* We **want** Nagle to work on the individual socket connections
+    /* We *want* Nagle to work on the individual socket connections
        to the outside world, but not between the servers & mplex'ers
        int i;
        j = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &i, sizeof(i));
