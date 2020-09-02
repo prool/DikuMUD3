@@ -580,7 +580,7 @@ void dilfe_clr(class dilprg *p)
     {
     case DILV_SP:
         v->atyp = DILA_EXP;
-        v->val.ptr = str_dup(getcolor((char *)v1->val.ptr));
+        v->val.ptr = str_dup(divcolor((char *)v1->val.ptr));
         break;
     case DILV_FAIL:
     case DILV_UP:
@@ -2914,10 +2914,18 @@ void dilfe_wpntxt(register class dilprg *p)
     case DILV_INT:
         v->type = DILV_SP;
         v->atyp = DILA_EXP;
-        if ((v1->val.num < WPN_TREE_MAX) && (v1->val.num >= 0) && wpn_text[v1->val.num])
-            v->val.ptr = str_dup(wpn_text[v1->val.num]);
+        if ((v1->val.num < WPN_TREE_MAX) && (v1->val.num >= 0))
+        {
+            if (wpn_text[v1->val.num])
+                v->val.ptr = str_dup(wpn_text[v1->val.num]);
+            else
+                v->val.ptr = str_dup("");
+        }
         else
-            v->val.ptr = str_dup("");
+        {
+            v->val.ptr = NULL; // OOB
+            v->type = DILV_NULL;
+        }
         break;
     default:
         v->type = DILV_ERR; /* wrong type */
@@ -3166,8 +3174,7 @@ void dilfe_sact(register class dilprg *p)
             if (v3->val.ptr)
             {
                 char dest[MAX_STRING_LENGTH];
-                sact(dest, (char *)v1->val.ptr, v2->val.num, v3->val.ptr, v4->val.ptr,
-                     v5->val.ptr, v6->val.num);
+                sact(dest, (char *)v1->val.ptr, v2->val.num, v3, v4, v5, v6->val.num);
                 v->val.ptr = str_dup(dest);
                 v->atyp = DILA_EXP;
                 v->type = DILV_SP;
@@ -3179,8 +3186,7 @@ void dilfe_sact(register class dilprg *p)
             if (v5->val.ptr)
             {
                 char dest[MAX_STRING_LENGTH];
-                sact(dest, (char *)v1->val.ptr, v2->val.num, v3->val.ptr, v4->val.ptr,
-                     v5->val.ptr, v6->val.num);
+                sact(dest, (char *)v1->val.ptr, v2->val.num, v3, v4, v5, v6->val.num);
                 v->val.ptr = str_dup(dest);
                 v->atyp = DILA_EXP;
                 v->type = DILV_SP;
@@ -3281,6 +3287,13 @@ void dilfe_gint(register class dilprg *p)
         case DIL_GINT_LEVELXP:
             int level_xp(int level);
             v->val.num = level_xp(p_i);
+            break;
+
+        case DIL_GINT_DESCRIPTOR:
+            if ((p_u != NULL) && IS_PC(p_u))
+                v->val.num = (CHAR_DESCRIPTOR(p_u) != NULL);
+            else
+                v->val.num = 1;
             break;
 
         default:
@@ -6252,8 +6265,7 @@ void dilfe_act(register class dilprg *p)
         case TO_REST:
             /* these require 1st argument */
             if (v3->val.ptr)
-                act_generate(buf, (char *)v1->val.ptr, v2->val.num,
-                             v3->val.ptr, v4->val.ptr, v5->val.ptr,
+                act_generate(buf, (char *)v1->val.ptr, v2->val.num, v3, v4, v5, 
                              v6->val.num, (class unit_data *)v3->val.ptr);
             v->type = DILV_SP;
             v->atyp = DILA_EXP;
@@ -6263,8 +6275,7 @@ void dilfe_act(register class dilprg *p)
         case TO_VICT:
         case TO_NOTVICT:
             if (v5->val.ptr)
-                act_generate(buf, (char *)v1->val.ptr, v2->val.num,
-                             v3->val.ptr, v4->val.ptr, v5->val.ptr,
+                act_generate(buf, (char *)v1->val.ptr, v2->val.num, v3, v4, v5, 
                              v6->val.num, (class unit_data *)v5->val.ptr);
             v->type = DILV_SP;
             v->atyp = DILA_EXP;

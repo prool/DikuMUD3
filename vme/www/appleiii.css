@@ -1,4 +1,12 @@
-        /* ============ STRUCTURE ============== */
+/* Thanks to these two articles:
+ *    https://superuser.com/questions/361297/what-colour-is-the-dark-green-on-old-fashioned-green-screen-computer-displays
+ *    https://css-tricks.com/old-timey-terminal-styling/
+ *
+ * Chosen Apple III monitor color because that was my original monitor, green = #66FF66, background = #282828 :-)
+ */
+
+/* ============ STRUCTURE ============== */
+
         .c_container {
             width: 100vw;
             display: inline-flex;
@@ -14,7 +22,7 @@
         .c_left {
             width: 70%;
             height: 100vh;
-            background-color: #727272;
+            background-color: #727272;            
         }
         
         .c_center {
@@ -35,11 +43,23 @@
             width: 100%;
             height: 100%; /* fill up the screen when empty */
             max-height: calc(100% - 40px);
-            background-color: midnightblue;
-            color: lightsteelblue;
+            background-color: black;
+            background-image: radial-gradient(
+              rgba(60, 60, 60, 0.75), black 120%
+            );
+            color:#66FF66;
             overflow-y: auto;
         }
-        
+        #al_text::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.15) 1px, transparent 1px, transparent 2px);
+            pointer-events: none;
+        }        
         #al_cmd {
             width: 100%;
             background-color: darkslategray;
@@ -174,6 +194,8 @@
         /* ============ MAIN ============== */
         html,body {
             height: 100%; margin: 0px; padding: 0px;
+            font-family: 'Courier New', Courier, monospace;
+            text-shadow: 0 0 5px #808080;
         }
         a:link {
             color:currentColor;
@@ -181,8 +203,8 @@
         a:visited {
             color:currentColor;
         }
-       
-       .center {
+        
+        .center {
             display: block;
             margin-left: auto;
             margin-right: auto;
@@ -190,65 +212,65 @@
         }
 
         /* ============ STYLES ============== */
-        h1              { font-size: medium; } /* Used for screen readers, room title */
+        h1              { font-weight: bold; font-size: initial;} /* Used for screen readers, room title */
 
         #btnConnect    { width: 100px; }
         #btnDisconnect { width: 100px; }
         #btnSend       { width: 100px; }
         .command       { display: inline; }
-        .echo          { display: inline; color:floralwhite; font-weight: bold; }
+        .echo          { display: inline; color:#66FF66; font-weight: bold; }
 
         /* Combat */
-        .hit_me         { display: inline; color:darkorange; font-weight: bold;}
-        .hit_opponent   { display: inline; color:goldenrod; font-weight: bold;}
-        .hit_other      { display: inline; color:goldenrod;}
+        .hit_me         { display: inline; color:#66FF66; font-weight: bold;}
+        .hit_opponent   { display: inline; color:#66FF66; font-weight: bold;}
+        .hit_other      { display: inline; color:#66FF66;}
 
-        .nodam_me       { display: inline; color:tomato; }
-        .nodam_opponent { display: inline; color:rosybrown; }
-        .nodam_other    { display: inline; color:lightsalmon; }
+        .nodam_me       { display: inline; color:#66FF66; }
+        .nodam_opponent { display: inline; color:#66FF66; }
+        .nodam_other    { display: inline; color:#66FF66; }
 
-        .miss_me        { display: inline; color:salmon; }
-        .miss_opponent  { display: inline; color:tan; }
-        .miss_other     { display: inline; color:sienna; }            
+        .miss_me        { display: inline; color:#66FF66; }
+        .miss_opponent  { display: inline; color:#66FF66; }
+        .miss_other     { display: inline; color:#66FF66; }            
 
-        .shield_me       { display: inline; color:roseybrown; }
-        .shield_opponent { display: inline; color:roseybrown; }
-        .shield_other    { display: inline; color:roseybrown; }
+        .shield_me       { display: inline; color:#66FF66; }
+        .shield_opponent { display: inline; color:#66FF66; }
+        .shield_other    { display: inline; color:#66FF66; }
 
 
         /* Communication */
-        .ask_self      { display: inline; color:floralwhite;}
-        .ask_other     { display: inline; color:tan;}
-        .say_self      { display: inline; color:floralwhite;}
-        .say_other     { display: inline; color:tan;}
-        .shout_self      { display: inline; color:floralwhite;}
-        .shout_other     { display: inline; color:tan;}
-        .whisper       { display: inline; color:floralwhite;}
-        .tell_self     { display: inline; color:floralwhite;}
-        .tell_other    { display: inline; color:tan;}
+        .ask_self      { display: inline; color:#66FF66;}
+        .ask_other     { display: inline; color:#66FF66;}
+        .say_self      { display: inline; color:#66FF66;}
+        .say_other     { display: inline; color:#66FF66;}
+        .shout_self      { display: inline; color:#66FF66;}
+        .shout_other     { display: inline; color:#66FF66;}
+        .whisper       { display: inline; color:#66FF66;}
+        .tell_self     { display: inline; color:#66FF66;}
+        .tell_other    { display: inline; color:#66FF66;}
 
-        .death       { display: inline; color:crimson;}
-        .prompt      { display: inline; color:gold;}
-        .npc_title   { display: inline; color:indianred; }
-        .npc_descr   { display: inline; color:indianred; }
-        .obj_descr   { display: inline; color:lightgreen; }
-        .obj_title   { display: inline; color:lightgreen; }
-        .spells      { display: inline; color:plum; }
-        .immort_title    { display: inline; color:gold; }
-        .pc_title    { display: inline; color:chocolate; }
-        .pc_descr    { display: inline; color:chocolate; }
+        .death       { display: inline; color:#66FF66;}
+        .prompt      { display: inline; color:#66FF66;}
+        .npc_title   { display: inline; color:#66FF66; }
+        .npc_descr   { display: inline; color:#66FF66; }
+        .obj_descr   { display: inline; color:#66FF66; }
+        .obj_title   { display: inline; color:#66FF66; }
+        .spells      { display: inline; color:#66FF66; }
+        .immort_title    { display: inline; color:#66FF66; }
+        .pc_title    { display: inline; color:#66FF66; }
+        .pc_descr    { display: inline; color:#66FF66; }
 
-        .room_title  { display: inline; color:skyblue; }
-        .room_descr  { display: inline; color:lightsteelblue; font-style: italic; width: 600px; }
-        .score       { display: inline; color:floralwhite; }
-        .social_self { display: inline; color:floralwhite; }
-        .social_other { display: inline; color:floralwhite; }
-        .score       { display: inline; color:lemonchiffon; }
-        .spell       { display: inline; color:#D1E8E2; }
-        .worn        { display: inline; color:salmon; }
-        .who         { display: inline; color:bisque; }
-	.who_name    { display: inline; color:bisque; }
-        .who_title   { display: inline; color:#FFCB9A; }
+        .room_title  { display: inline; color: #66FF66; }
+        .room_descr  { display: inline; font-style: italic; width: 600px; color:#66FF66; }
+        .score       { display: inline; color:#66FF66; }
+        .social_self { display: inline; color:#66FF66; }
+        .social_other { display: inline; color:#66FF66; }
+        .score       { display: inline; color:#66FF66; }
+        .spell       { display: inline; color:#66FF66; }
+        .worn        { display: inline; color:#66FF66; }
+        .who         { display: inline; color:#66FF66; }
+        .who_name    { display: inline; color:#66FF66; }
+        .who_title   { display: inline; color:#66FF66; }
         .who_inv     { display: inline; }
 
         .xpgain         { display: inline; color:firebrick; font-weight: bold;}
@@ -279,7 +301,7 @@
         .cc     { display: inline; color:darkcyan; }
         .cpc    { display: inline; color:cyan; }
         .bc     { display: inline; background-color:darkcyan; }
-        .cw     { display: inline; color:#ccc; }
+        .cw     { display: inline; color:#66FF66; }
         .cpw    { display: inline; color:white; }
         .bw     { display: inline; background-color:#ccc; }
         .ca     { display: inline; color:grey; }

@@ -160,25 +160,25 @@ void roll_description(class unit_data *att, const char *text, int roll)
         switch (roll / 100)
         {
         case 2:
-            act("Great $2t!", A_ALWAYS, att, text, 0, TO_CHAR);
-            act("$1n makes a great $2t!", A_ALWAYS, att, text, 0, TO_ROOM);
+            act("Great $2t!", A_ALWAYS, att, text, cActParameter(), TO_CHAR);
+            act("$1n makes a great $2t!", A_ALWAYS, att, text, cActParameter(), TO_ROOM);
             break;
 
         case 3:
-            act("Superb $2t!", A_ALWAYS, att, text, 0, TO_CHAR);
-            act("$1n makes a superb $2t!", A_ALWAYS, att, text, 0, TO_ROOM);
+            act("Superb $2t!", A_ALWAYS, att, text, cActParameter(), TO_CHAR);
+            act("$1n makes a superb $2t!", A_ALWAYS, att, text, cActParameter(), TO_ROOM);
             break;
 
         default:
-            act("Divine $2t!", A_ALWAYS, att, text, 0, TO_CHAR);
-            act("$1n makes a divinely inspired $2t!", A_ALWAYS, att, text, 0, TO_ROOM);
+            act("Divine $2t!", A_ALWAYS, att, text, cActParameter(), TO_CHAR);
+            act("$1n makes a divinely inspired $2t!", A_ALWAYS, att, text, cActParameter(), TO_ROOM);
             break;
         }
     }
     else if (roll <= -100)
     {
-        act("You fumble!", A_ALWAYS, att, text, 0, TO_CHAR);
-        act("$1n fumbles!", A_ALWAYS, att, text, 0, TO_ROOM);
+        act("You fumble!", A_ALWAYS, att, text, cActParameter(), TO_CHAR);
+        act("$1n fumbles!", A_ALWAYS, att, text, cActParameter(), TO_ROOM);
     }
 }
 
@@ -406,7 +406,17 @@ int weapon_attack_skill(class unit_data *ch, int skill)
 {
     if (IS_PC(ch))
     {
-        return PC_WPN_SKILL(ch, skill) == 0 ? -50 : PC_WPN_SKILL(ch, skill);
+        int n;
+
+        n = PC_WPN_SKILL(ch, skill);
+
+        if (TREE_ISLEAF(wpn_tree, skill))
+            n = MAX(TREE_PARENT(wpn_tree, skill), n);
+
+        if (n == 0)
+            n = -25;
+
+        return n;
     }
     else
     {
