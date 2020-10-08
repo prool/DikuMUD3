@@ -20,6 +20,8 @@ creators {"whistler"}
 #define CORPSE_EXTRA  "$CORPSE_EXTRA"
 #define CORPSE_FILE  "$CORPSE_FILE"
 #define CORPSE_TIME  "$CORPSE_TIME"
+
+
 %dil
 
 
@@ -99,29 +101,30 @@ quit;
 }
 dilend
 
+
 dilbegin statue(arg:string);
- var
+var
    rltime:integer;
 code
 {
-heartbeat:=3;
-rltime:=realtime;
-addextra (self.extra,{CORPSE_FILE},"statue_"+arg+"."+itoa(rltime));
-addextra (self.extra,{CORPSE_TIME},itoa(rltime));
-store (self,"statue_"+arg+"."+itoa(rltime),TRUE);
+   heartbeat:=3;
+   rltime:=realtime;
+   addextra (self.extra, {CORPSE_FILE},"statue_"+arg+"."+itoa(rltime));
+   addextra (self.extra, {CORPSE_TIME},itoa(rltime));
+   store (self,"statue_"+arg+"."+itoa(rltime),TRUE);
 
-quit;
-}
-dilend
+   quit;
+   }
+   dilend
 
-dilbegin death_clear();
-var
- i:integer;
- code
- {
- heartbeat:=3;
-i:=delunit(self.extra.["$CORPSE_FILE"].descr);
-destroy(self);
+   dilbegin death_clear();
+   var
+   i:integer;
+   code
+   {
+   heartbeat:=3;
+   i:=delunit(self.extra.["$CORPSE_FILE"].descr);
+   destroy(self);
 }
 dilend
 
@@ -263,20 +266,20 @@ dilend /* decapitate */
 dilbegin gcrps (arg:string);
 code
 {
-heartbeat:=3;
+   heartbeat:=3;
    if (self.level < 200)
    {
-      act("Arglebargle, glop-glyf!?!",
-          A_ALWAYS, self, null, null, TO_CHAR);
+      act("Arglebargle, glop-glyf!?!", A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-act ("The following corpses were found:",
-	A_ALWAYS,self,null,null,TO_CHAR);
-sendtoalldil ("reportgod","report_corpse@death");
-quit;
+   act("The following corpses were found:", A_ALWAYS,self,null,null,TO_CHAR);
+   sendtoalldil("reportgod","report_corpse@death");
+   quit;
 }
 dilend
+
+
 
 dilbegin bob_code ();
 var
@@ -356,52 +359,76 @@ power:=-1;
 }
 dilend
 
-dilbegin recall rot_corpse ();
-var
-	n:integer; /*amount of hours since created*/
-	i:integer;
 
+// realtime is C time(0), i.e. counting seconds
+//
+// I'm wondering why we're using realtime rather than just pauses... ?
+//
+dilbegin recall rot_corpse();
+var
+	n : integer; /*amount of hours since created*/
+   i : integer;
+   s : string;
 code
 {
-heartbeat:=4;
-if (self.value[2]==1)
-  i:=143200;
-else
-  i:=900;
+   heartbeat:=PULSE_SEC;
+   pause; // IMPORTANT. OTHERWISE THE VALUES WONT GET SET because the code will run on load()
+   pause;
 
-	n:=atoi(self.extra.[CORPSE_TIME].descr);
-:start:
-heartbeat := PULSE_SEC*300;
-pause;
-if (self.inside == null) goto quickmag;
+   if (self.value[2] == 1)
+   {
+      i := 143200; // ~40 hours
+      if (self.inside == null) 
+         s := " empty ";
+      else
+         s := " has inventory ";
+      log("Player: " + self.name + s + " time " + self.extra.[CORPSE_TIME].descr);
+   }
+   else
+      i := 900; // 15 minutes
 
-if ((realtime-n)>i)
+   n := atoi(self.extra.[CORPSE_TIME].descr);
+
+   heartbeat := PULSE_SEC * 300;
+
+   :start:
+   pause;
+   if (self.inside == null) 
+      goto quickmag;
+
+   if ((realtime-n) > i)
 	{
-:quickmag:
- 	if (not (isset(self.flags, UNIT_FL_BURIED)))
-	act ("$1n begins to rot.",
-		A_SOMEONE,self,null,null,TO_ALL);
-	pause;
+      :quickmag:
+      if (self.value[2] == 1)
+      {
+         if (self.inside == null) 
+            s := " empty ";
+         else
+            s := " has inventory ";
+         log("Player: " + self.name + s + " begins to rot extra: " + self.extra.[CORPSE_TIME].descr + " realtime="+itoa(realtime));
+      }
 
-	 	if (not (isset(self.flags, UNIT_FL_BURIED)))
-	act ("$1n really smells bad now.",
-		A_SOMEONE,self,null,null,TO_ALL);
-	pause;
+      if (not (isset(self.flags, UNIT_FL_BURIED)))
+         act("$1n begins to rot.", A_SOMEONE,self,null,null,TO_ALL);
+      pause;
 
-	 	if (not (isset(self.flags, UNIT_FL_BURIED)))
-	act ("You notice some maggots crawling around on $1n",
-			A_SOMEONE,self,null,null,TO_ALL);
-	pause;
+      if (not (isset(self.flags, UNIT_FL_BURIED)))
+         act("$1n really smells bad now.", A_SOMEONE,self,null,null,TO_ALL);
+      pause;
 
- 	if (not (isset(self.flags, UNIT_FL_BURIED)))
-		act("A quivering horde of maggots consume $1n.",
-			A_SOMEONE,self, null,null,TO_ALL);
+      if (not (isset(self.flags, UNIT_FL_BURIED)))
+         act("You notice some maggots crawling around on $1n", A_SOMEONE,self,null,null,TO_ALL);
+      pause;
 
-	if (self.extra.[CORPSE_FILE]!=null)
- i:= 	delunit(self.extra.[CORPSE_FILE].descr);
-	destroy (self);
+      if (not (isset(self.flags, UNIT_FL_BURIED)))
+         act("A quivering horde of maggots consume $1n.", A_HIDEINV, self, null,null,TO_ALL);
+
+      if (self.extra.[CORPSE_FILE] != null)
+         i := delunit(self.extra.[CORPSE_FILE].descr);
+      destroy (self);
 	}
-goto start;
+   goto start;
+
 }
 dilend
 
@@ -649,12 +676,14 @@ code
 dilend
 
 
-dilbegin noaction();
+dilbegin unique fnpri(FN_PRI_DEATH+1) noaction();
 code
 {
-heartbeat:=3;
+   heartbeat:=3;
    :loop:
    wait(SFB_CMD, activator == self);
+   if (command("tell"))  // Allow the tell command
+      goto loop;
 
    if (activator.level < IMMORTAL_LEVEL)
    {
@@ -678,90 +707,96 @@ dilend
 */
 dilbegin make_corpse();
 external
-  string findcrproom(u:unitptr);
+   string findcrproom(u:unitptr);
 var
-	rltime:integer;
-	corpseroom:string;
-	crp:unitptr;
-	item:unitptr;
-	temp:unitptr;
+   rltime:integer;
+   corpseroom:string;
+   crp:unitptr;
+   item:unitptr;
+   temp:unitptr;
 code
 {
-  heartbeat:=3;
-  crp:=load("corpse@death");
-  substring (crp.names,crp.names.[0]);
-  if (self.type==UNIT_ST_NPC)
-    addstring (crp.names,"corpse of "+self.title);
-  else
-    addstring (crp.names,"corpse of "+self.name);
+   heartbeat := PULSE_SEC;
+   
+   crp := load("corpse@death");
 
-  addstring (crp.names,"corpse");
+   substring(crp.names, crp.names.[0]);
 
-  if (self.type==UNIT_ST_PC)
-    crp.title:=self.name+"'s corpse";
-  else
-    crp.title:=self.title+"'s corpse";
+   if (self.type==UNIT_ST_NPC)
+      addstring (crp.names,"corpse of "+self.title);
+   else
+      addstring (crp.names,"corpse of "+self.name);
+
+   addstring (crp.names,"corpse");
+
+   if (self.type==UNIT_ST_PC)
+      crp.title:=self.name+"'s corpse";
+   else
+      crp.title:=self.title+"'s corpse";
   
   crp.baseweight:=self.baseweight;
   crp.weight:=crp.baseweight;
   crp.height:=self.height;
   
-  if (self.type==UNIT_ST_NPC)
-  {
-    crp.outside_descr:="The corpse of "+self.title+" is laying here.";
-    crp.value[2]:=0;
-    crp.value[3]:=self.level;
-  }
-  else
-  {
-    crp.outside_descr:="The corpse of "+self.name+" is laying here.";
-    crp.value[2]:=1;
-    crp.value[3]:=self.vlevel;
-  }
-  crp.value[4]:=self.race;
-  if (isset (self.pcflags, PC_PK_RELAXED))
-    addextra (crp.extra,{"$BOB"},"");
-  item:=self.inside;
-  while (item!=null)
-  {
-    unequip(item);
-    if ((item.zoneidx!="treasure") and (item.minv<51))
-    {
-      temp:=item.next;
-      link (item, crp);
-      item:=temp;
-    }
-    else
-    {
-      item.minv:=200;
-      item:=item.next;
-    }
+   if (self.type==UNIT_ST_NPC)
+   {
+      crp.outside_descr:="The corpse of "+self.title+" is laying here.";
+      crp.value[2]:=0;
+      crp.value[3]:=self.level;
+   }
+   else
+   {
+      crp.outside_descr:="The corpse of "+self.name+" is laying here.";
+      crp.value[2]:=1;
+      crp.value[3]:=self.vlevel;
+   }
+   crp.value[4] := self.race;
+   
+   if (isset(self.pcflags, PC_PK_RELAXED))
+      addextra (crp.extra,{"$BOB"},"");
+   
+   item:=self.inside;
+   while (item!=null)
+   {
+      unequip(item);
+      if ((item.zoneidx!="treasure") and (item.minv<51))
+      {
+         temp:=item.next;
+         link (item, crp);
+         item:=temp;
+      }
+      else
+      {
+         item.minv:=200;
+         item:=item.next;
+      }
+   }
 
-  }
-  rltime:=realtime;
-  if (self.type==UNIT_ST_PC)
-  {
-    corpseroom:=	findcrproom(self);
-    addextra (crp.extra,{CORPSE_EXTRA},corpseroom );
+   rltime:=realtime;
 
-    addextra (crp.extra,{CORPSE_FILE},"corpse_"+self.name+"."+itoa(rltime));
-    addextra (crp.extra,{CORPSE_TIME},itoa(rltime));
-    store (crp,"corpse_"+self.name+"."+itoa(rltime),TRUE);
-    dilcopy ("partial_get@death",crp);
-  }
-  else
-    addextra (crp.extra,{CORPSE_TIME}, itoa(rltime));
+   if (self.type==UNIT_ST_PC)
+   {
+      corpseroom := findcrproom(self);
+      addextra(crp.extra, {CORPSE_EXTRA}, corpseroom);
 
-  dilcopy("remove_corpse@death",crp);
+      addextra(crp.extra, {CORPSE_FILE}, "corpse_"+self.name+"."+itoa(rltime));
+      addextra(crp.extra, {CORPSE_TIME}, itoa(rltime));
+      store (crp,"corpse_"+self.name+"."+itoa(rltime),TRUE);
+      dilcopy("partial_get@death",crp);
+   }
+   else
+      addextra (crp.extra,{CORPSE_TIME}, itoa(rltime));
 
-  link(crp,self.outside);
-  item:=self.outside;
-  while ((item!=null) and (item.type!=UNIT_ST_ROOM))
-  {
-    item.weight:=item.weight+crp.weight;
-    item:=item.outside;
-  }
-  return;
+   dilcopy("remove_corpse@death",crp);
+
+   link(crp, self.outside);
+   item := self.outside;
+   while ((item!=null) and (item.type!=UNIT_ST_ROOM))
+   {
+      item.weight := item.weight+crp.weight;
+      item := item.outside;
+   }
+   return;
 }
 dilend
 
@@ -972,43 +1007,54 @@ dilend
 
 
 
-dilbegin report_corpse ();
+dilbegin report_corpse();
 var
 	act_str:string;
 	empty:string;
-    symb: string;
+   symb: string;
+
 code
 {
-heartbeat:=4;
-if (self.value[2]!=1) quit;
-:start:
-symb := "";
-wait (SFB_MSG,TRUE);
-if ((argument!="report") and (argument!="reportgod"))
-	goto start;
-	if ((argument =="report") and (self.value[3]>20))
-		goto start;
+   heartbeat:=PULSE_SEC;
+   pause; // IMPORTANT. OTHERWISE THE VALUES WONT GET SET because the code will run on load()
+   pause;
 
-	if (self.outside.type==UNIT_ST_PC)
-		act_str:=self.outside.name;
-	else
-		act_str:=self.outside.title;
+   if (self.value[2]!=1)
+      quit;
 
-	if (self.inside==null)
-		empty:="[Empty]";
-    else
-		empty:="[Not Empty]";
+   :start:
+   symb := "";
+   wait(SFB_MSG,TRUE);
 
-    if ((argument=="reportgod") and (self.outside.type==UNIT_ST_ROOM))
-        symb := "("+self.outside.nameidx+"@"+self.outside.zoneidx+") ";
+   log("report corpse");
+   if ((argument!="report") and (argument!="reportgod"))
+      goto start;
 
-    if (self.flags & UNIT_FL_BURIED)
-        symb := symb + "[Buried] ";
+   if ((argument =="report") and (self.value[3]>20))
+      goto start;
 
-	sendtext (self.name+" in "+act_str+" "+symb+empty+"<br/>", activator);
-	goto start;
+   if (self.outside.type==UNIT_ST_PC)
+      act_str:=self.outside.name;
+   else
+      act_str:=self.outside.title;
+
+   if (self.inside==null)
+      empty:="[Empty]";
+   else
+      empty:="[Not Empty]";
+
+   if ((argument=="reportgod") and (self.outside.type==UNIT_ST_ROOM))
+      symb := "("+self.outside.nameidx+"@"+self.outside.zoneidx+") ";
+
+   if (self.flags & UNIT_FL_BURIED)
+      symb := symb + "[Buried] ";
+
+   sendtext (self.name+" in "+act_str+" "+symb+empty+"<br/>", activator);
+   goto start;
 }
 dilend
+
+
 
 %objects
 
@@ -1019,8 +1065,6 @@ descr "The decapitated head of is here"
 type ITEM_TRASH
 manipulate {MANIPULATE_TAKE}
 weight 1
-
-
 end
 
 
@@ -1031,12 +1075,10 @@ descr "a corpse is laying here smelling up the place."
 type ITEM_CONTAINER
 manipulate {MANIPULATE_TAKE, MANIPULATE_ENTER}
 /* Rest of values are inserted at runtime */
-                                     weight 0
+weight 0
 dilcopy rot_corpse();
 dilcopy report_corpse();
-
 end
 
 %end
-
 

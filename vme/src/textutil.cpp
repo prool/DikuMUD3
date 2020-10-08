@@ -86,20 +86,29 @@ int str_lower(const char *s, char *d, int nBufSize)
     return l;
 }
 
-/* Return a string consisting of `n' spaces */
-char *spc(int n)
+/* Return a string consisting of `n' chars c */
+char *str_repeatchar(int n, char c)
 {
     static char buf[256];
 
+    if (n > 255)
+        n = 255;
+
+    if (n < 0)
+        n = 0;
+
     buf[n] = '\0';
 
-    if (n > 256)
-        n = 256;
-
     for (; n;)
-        buf[--n] = ' ';
+        buf[--n] = c;
 
     return buf;
+}
+
+/* Return a string consisting of `n' spaces */
+char *spc(int n)
+{
+    return str_repeatchar(n, ' ');
 }
 
 /*  Return a pointer to the string containing the ascii reresentation
@@ -581,6 +590,7 @@ void str_substitute(const char *old, const char *newstr, char *str)
     }
 }
 
+// Search is the string to search for in subject and replace with replace
 void str_substitute(const std::string &search, const std::string &replace, std::string &subject)
 {
     size_t pos = 0;
@@ -989,6 +999,56 @@ char *str_escape_format(const char *src, int formatting)
     return str_dup(dest);
 }
 
+
+// This validates a string to be UTF-8 cool
+// Illegal characters become question marks
+//
+void str_correct_utf8(std::string &src)
+{
+    int nLen = src.length();
+    
+    for (int pos = 0; pos < nLen; ++pos)
+    {
+        if ((src[pos] & 0x80) == 0) // lead bit is zero, must be a single ascii
+        {
+             // ignore all odd/control ascii characters.
+            if ((src[pos] < 32) && (src[pos] != '\n') && (src[pos] != '\r'))
+                src[pos] = '?';
+            continue;
+        }
+        else if ((src[pos] & 0xE0) == 0xC0) // 110x xxxx
+        {
+            if (pos + 1 < nLen)
+            {
+                pos += 1;
+                continue;
+            }
+            src[pos] = '?'; // Must be a UTF8 error of sorts
+        }
+        else if ((src[pos] & 0xF0) == 0xE0) // 1110 xxxx
+        {
+            if (pos + 2 < nLen)
+            {
+                pos += 2;
+                continue;
+            }
+            src[pos] = '?'; // Must be a UTF8 error of sorts
+        }
+        else if ((src[pos] & 0xF8) == 0xF0) // 1111 0xxx
+        {
+            if (pos + 3 < nLen)
+            {
+                pos += 3;
+                continue;
+            }
+            src[pos] = '?'; // Must be a UTF8 error of sorts
+        }
+        else
+            src[pos] = '?'; // Must be a UTF8 error of sorts
+    } // end for
+}
+
+
 // This both encodes and prepares string for interpreter.
 // Removes all leading and trailing whitespace.
 // Ensures only one whitespace between each word.
@@ -1365,3 +1425,65 @@ const char *divcolor(const char *colorstr)
 
     return buf;
 }
+
+
+// Encode str to JSON encoding (format X)
+std::string str_json_encode(const char *str)
+{
+    string s;
+
+    s = str;
+
+    str_substitute("\n", "\\n", s);
+    str_substitute("\"", "&quot;", s);
+
+    return s;
+}
+
+// As str_json_encode but wraps string in quotes
+std::string str_json_encode_quote(const char *str)
+{
+    string s;
+
+    s = "\"";
+    s.append(str_json_encode(str));
+    s.append("\"");
+
+    return s;
+} 
+
+std::string str_json(const char *lbl, ubit64 nInt)
+{
+    string s;
+
+    s.append("\"");
+    s.append(str_json_encode(lbl));
+    s.append("\"");
+    s.append(": ");
+    s.append(ltoa(nInt));
+
+    return s;
+}
+
+std::string str_json(const char *lbl, const char *str)
+{
+    string s;
+
+    s.append("\"");
+    s.append(lbl);
+    s.append("\"");
+    s.append(": ");
+    s.append("\"");
+    if (str)
+        s.append(str_json_encode(str));
+    s.append("\"");
+
+    return s;
+}
+
+std::string str_json(const char *lbl, const std::string &str)
+{
+    return str_json(lbl, str.c_str());
+}
+
+

@@ -56,6 +56,7 @@ xx/xx/99 - Around may-june? Storage broken in real commands and put in commands.
 11/19/00 - added  mvlev_restrict to allow virtual MAX level restrictions, player
            must be below this to wear-Ratlin/Darg
 2010.05.26 - Etna added comb_acid for mob macros
+2020.09.30 - Sender added prof_restrict to enable profession restrictions
 "
 
 
@@ -2426,7 +2427,72 @@ goto start;
 }
 dilend
 
+/* prof_restrict added to enable restriction to professions. fun! */
 
+dilbegin prof_restrict (prof:integer,damage:integer,percent:integer,action:string);
+var
+	amount:integer;
+code
+{
+	if (damage < 0)
+		damage := -damage;
+	if (percent < 0)
+		percent := -percent;
+	interrupt (SFB_MSG,argument=="unstore",start);
+	if ((self.equip) and (self.outside.zoneidx=="g_q"))
+		goto nextstart;
+
+:start:
+	
+	damage := 0;
+	percent := 25;
+	amount := 0;
+
+	wait (SFB_DONE, (((command ("hold")) or (command ("wear")) or (command ("grab")) or
+	(command ("wield"))) and (self==medium)));
+	
+:nextstart:
+	
+	if ((activator.type == UNIT_ST_NPC) and not ("$pc obey" in activator.extra) and (activator.master.type != UNIT_ST_PC) )
+		goto start;
+
+	if (self.outside.level>=IMMORTAL_LEVEL)
+		goto start;
+
+	if(self.outside.profession == prof)
+		goto start;
+
+	if ((not( command ("wear"))) and (not(command ("wield"))) and (not(command ("hold")))) goto start;
+
+	if (action=="")
+	{
+		act ("Your $2n burns you and you drop it to the ground.",
+			A_ALWAYS,self.outside,self,null,TO_CHAR);
+		act ("$1n's $2n burns $1m and $1e drops it to the ground.",
+			A_SOMEONE,self.outside,self,null,TO_REST);
+		act ("Being of the right profession would help.",
+			A_ALWAYS,self.outside,null,null,TO_CHAR);
+	}
+	else action ();
+
+	if (percent!=0)
+		amount:=(self.outside.hp*percent)/100;
+	if (damage==-1)
+		damage:=openroll (100,5);
+	if (percent!=0)
+		if (damage>amount)
+			damage:=amount;
+		else if (damage==0)
+			damage:=amount;
+
+	self.outside.hp:=self.outside.hp-damage;
+	position_update (self.outside);
+
+	unequip (self);
+	link (self,self.outside.outside);
+	goto start;
+}
+dilend // prof_restrict
 
 dilbegin anti_guild
 (guilds:stringlist,damage:integer,percent:integer,action:string);
@@ -6637,7 +6703,7 @@ code
   secure(talker, lost);
   slKeys := {"@", "#", "1join1", "1left1"};
   sKey := "";
-  sChan := getword(msg); /*Throw away the CHANNEL*/
+  sChan := getword(msg); /*Throw away the text CHANNEL*/
   sChan := getword(msg);
   if(not(sChan in slActive))
       return;
@@ -6680,9 +6746,9 @@ if(sChan=="clan"){
   }
   if (sKey == "@") {
     if (self.level >= talker.minv) {
-      sendtext("<"+sChan+ "> " +talker.name+ " "+msg+"<br/>",self );
+      sendtext("<div class='comm_emote'>&lt;"+sChan+"&gt; " +talker.name+ " "+msg+"</div><br/>",self );
     } else {
-      sendtext("<"+sChan+"> Someone "+msg+"<br/>",self );
+      sendtext("<div class='comm_emote'>&lt;"+sChan+"&gt; Someone "+msg+"</div><br/>",self );
     }
   }
 	else if (sKey == "#"){
@@ -6695,17 +6761,15 @@ if(sChan=="clan"){
     ") (alignment/"+itoa(self.alignment)+ ") (guild/"+self.guild+")<br/>", talker);
     else if (self.level < 251)
     sendtext("   "+self.name+" "+self.title+ " (Immortal [Level " +
-    itoa(self.level) +"]" +
-    ") (alignment/"+itoa(self.alignment)+ ") (guild/"+self.guild+")<br/>", talker);
+    itoa(self.level) +"]" + ") (alignment/"+itoa(self.alignment)+ ") (guild/"+self.guild+")<br/>", talker);
     else
     sendtext("   "+self.name+" "+self.title+ " (Admin [Level " +
-    itoa(self.level) +"]" +
-    ") (alignment/"+itoa(self.alignment)+ ") (guild/"+self.guild+")<br/>", talker);
+    itoa(self.level) +"]" + ") (alignment/"+itoa(self.alignment)+ ") (guild/"+self.guild+")<br/>", talker);
  }
 else
 {
  if (self.level <200)
-sendtext("   "+self.name+" "+self.title+ " (Level "+itoa(self.vlevel) + ")<br/>", talker);
+    sendtext("   "+self.name+" "+self.title+ " (Level "+itoa(self.vlevel) + ")<br/>", talker);
     else if (self.level < 251)
     sendtext("   "+self.name+" "+self.title+ " (Immortal [Level " +itoa(self.level) +"]" + ")<br/>", talker);
     else
@@ -6718,23 +6782,22 @@ sendtext("   "+self.name+" "+self.title+ " (Level "+itoa(self.vlevel) + ")<br/>"
 	} else if (sKey == "1join1" ) {
      if (jmode ==1) {
        if (self.level >= talker.minv ) {
-         sendtext(" <"+sChan+"> " +talker.name + " has entered the " +
-                  "channel.<br/>",self);
+         sendtext("<div class='comm_join'>&lt;"+sChan+"&gt; " +talker.name + " has entered the " +
+                  "channel.</div><br/>",self);
        }
      }
   } else if (sKey == "1left1" ) {
      if (dmode ==1) {
        if (self.level >= talker.minv ) {
-         sendtext(" <"+sChan+"> " +talker.name + " has left the " +
-                  "channel.<br/>",self);
+         sendtext("<div class='comm_leave'>&lt;"+sChan+"&gt; " +talker.name + " has left the " +
+                  "channel.</div><br/>",self);
        }
      }
   } else {
     if (self.level >= talker.minv) {
-      sendtext(" <"+sChan+"> " +talker.name+" says '"
-+msg+"'<br/>",self);
+      sendtext("<div class='comm_say'>&lt;"+sChan+"&gt; " +talker.name+" says '"+msg+"'</div><br/>",self);
     } else {
-      sendtext("  <"+sChan+"> Someone says '" +msg+"'<br/>",self);
+      sendtext("<div class='comm_say'>&lt;"+sChan+"&gt; Someone says '" +msg+"'</div><br/>",self);
     }
   }
   :lost:
@@ -6746,55 +6809,52 @@ dilend
 #define  NOTELL_QUEST   "$notell"
 #define  NOCOMM_QUEST  "$nocomm"
 #define  NO_NEWBIE_QUEST  "$nonewbie"
-dilbegin aware recall unique channel( );
+
+dilbegin aware unique fnpri(FN_PRI_SYS) channel();
 external
   recieve@function( slActive : stringlist, msg : string, talker : unitptr,
                 jmode:integer, dmode:integer);
 var
-time_string:string;
-targ:unitptr;
-  slActive : stringlist;
-  func:string;
-  msg : string;
-  words : stringlist;
-  nChan : integer;
-  nEcho : integer;
-  x : integer;
-  dmode : integer;
-  jmode : integer;
+   time_string:string;
+   targ:unitptr;
+   slActive : stringlist;
+   func:string;
+   msg : string;
+   words : stringlist;
+   nChan : integer;
+   nEcho : integer;
+   x : integer;
+   dmode : integer;
+   jmode : integer;
 code
 {
-  heartbeat := 3;
-  nEcho := 1;
-  dmode := 1;
-  jmode := 1;
-  if ((self.level>=200) or (self.name=="ginger"))
-  interrupt (SFB_CMD, (command ("nocomm") and
-  (self==activator)),nochannel);
-  interrupt (SFB_CMD, (command ("noshout") and
-  (self==activator)),noshout);
-  interrupt (SFB_CMD, (command ("notell") and
-  (self==activator)),notell);
+   heartbeat := 3;
+   nEcho := 1;
+   dmode := 1;
+   jmode := 1;
+   if (self.level>=200)
+      interrupt (SFB_CMD, (command ("nocomm") and (self==activator)),nochannel);
 
-interrupt (SFB_DONE,((command ("tell")) and (self==target)),told);
-
-  interrupt (SFB_CMD, (command("comm") and
-                      (("add" in argument) or
-                      ("del" in argument)) and
-							 (activator == self)), add_del);
-  interrupt (SFB_CMD, (command("comm") and
-                      ("echo" in argument) and
-							 (activator == self)), echo_chan);
-  interrupt (SFB_CMD, (command("comm") and
-                      ("help" == argument) and
-							 (activator == self)), help_chan);
-  interrupt (SFB_CMD, (command("comm") and
-                      ("inform" in argument) and
-							 (activator == self)), inform);
-  interrupt (SFB_CMD, (command("comm") and
-                      ("#" == argument) and
-                      (activator == self)), show_chan);
-  interrupt (SFB_MSG, ("CHANNEL" in argument), recieve);
+   interrupt (SFB_CMD, (command ("noshout") and  (self==activator)),noshout);
+   interrupt (SFB_CMD, (command ("notell") and   (self==activator)),notell);
+   interrupt (SFB_DONE,((command ("tell")) and (self==target)),told);
+   interrupt (SFB_CMD, (command("comm") and
+                        (("add" in argument) or
+                        ("del" in argument)) and
+                        (activator == self)), add_del);
+   interrupt (SFB_CMD, (command("comm") and
+                        ("echo" in argument) and
+                        (activator == self)), echo_chan);
+   interrupt (SFB_CMD, (command("comm") and
+                        ("help" == argument) and
+                        (activator == self)), help_chan);
+   interrupt (SFB_CMD, (command("comm") and
+                        ("inform" in argument) and
+                        (activator == self)), inform);
+   interrupt (SFB_CMD, (command("comm") and
+                        ("#" == argument) and
+                        (activator == self)), show_chan);
+   interrupt (SFB_MSG, ("CHANNEL" in argument), recieve);
 
 :start:
   wait (SFB_CMD, (excmdstr in slActive) and (activator == self));

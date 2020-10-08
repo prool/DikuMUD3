@@ -80,7 +80,7 @@ dilend
 
 
 /*
- * Used by do_alias, trigger, variable
+ * Used by do_alias, do_trigger, do_variable
  */
 dilbegin dlrmanage(pfx : string, arg : string);
 external
@@ -202,9 +202,17 @@ dilend
 dilbegin do_variable(arg : string);
 external
    dlrmanage@commands(pfx : string, arg : string);
+   string dlrdump@commands(pfx : string);
 code
 {
    dlrmanage@commands("$var", arg);
+
+   // We need to also resend triggers for variable substitution to the client
+
+   if (arg != "")
+   {
+      sendtext(dlrdump@commands("$trigger"), self);
+   }
    quit;
 }
 dilend
@@ -365,96 +373,102 @@ var
  i:integer;
 code
 {
-if (arg=="")
- {
-    sendtext ("Freeze who?<br/>",self);
-    quit;
-    }
+	if (arg=="")
+	{
+		sendtext ("Freeze who?<br/>",self);
+		quit;
+	}
 
-u:=findunit(self,arg,FIND_UNIT_SURRO|FIND_UNIT_WORLD,null,UNIT_ST_PC);
+	u:=findunit(self,arg,FIND_UNIT_SURRO|FIND_UNIT_WORLD,null,UNIT_ST_PC);
 
-if (u==null)
+	if (u==null)
+	{
+		sendtext ("No such person around.<br/>",self);
+		quit;
+	}
+
+	if (self==u)
+	{
+		sendtext ("Hehe.  Most amusing, Sire. (People have actually DONE this!)<br/>",self);
+		quit;
+	}
+
+	if (self.level <= u.level)
+	{
+		sendtext ("It IS a little cold isn't it?<br/>",self);
+		quit;
+	}
+
+	if (dilfind("frozen@commands",u))
+	{
+		act ("$1n is now unfrozen.",
+		A_SOMEONE, u, null, self, TO_VICT);
+		sendtext ("You unfreeze.<br/>",u);
+		i:=dildestroy ("frozen@commands",u);
+		quit;
+	}
+	else
+	{
+		  act ("$1n is now frozen.",
+		  A_SOMEONE, u, null, self, TO_VICT);
+		  sendtext ("You totally freeze.<br/>",u);
+		  dilcopy ("frozen@commands",u);
+		  quit;
+	}
+
+	quit;
+}
+dilend
+
+dilbegin do_notell (arg:string);
+var
+vict:unitptr;
+
+code
 {
-    sendtext ("No such person around.<br/>",self);
-    quit;
-    }
-
-if (self==u)
-{
-    sendtext ("Hehe.  Most amusing, Sire. (People have actually DONE this!)<br/>",self);
-              quit;
-          }
-
-if (self.level <= u.level)
-{
-    sendtext ("It IS a little cold isn't it?<br/>",self);
-    quit;
-    }
-
-if (dilfind("frozen@commands",u))
-{
-       act ("$1n is now unfrozen.",
-       A_SOMEONE, u, null, self, TO_VICT);
-      sendtext ("You unfreeze.<br/>",u);
-      i:=dildestroy ("frozen@commands",u);
-      quit;
-      }
-else
- {
-      act ("$1n is now frozen.",
-      A_SOMEONE, u, null, self, TO_VICT);
-      sendtext ("You totally freeze.<br/>",u);
-      dilcopy ("frozen@commands",u);
-      quit;
-      }
-
-      quit;
-      }
-      dilend
-
-      dilbegin do_notell (arg:string);
-      var
-       vict:unitptr;
-
-      code
-      {
 if (self.type!=UNIT_ST_PC)
 return;
+
+if ("New Player Helper" in self.quests) goto proceed;
 
 if (self.level<200)
  return;
 
-  vict := findunit (self, arg, FIND_UNIT_WORLD,null,UNIT_ST_PC);
-if (vict==null)
+:proceed:
+	vict := findunit (self, arg, FIND_UNIT_WORLD,null,UNIT_ST_PC);
+	if ((vict == null) or (vict.minv > self.level))
     {
-      sendtext ("No such player around.<br/>",self);
-            return;
+		sendtext ("No such player around.<br/>",self);
+		return;
+    }
+	if ((self.level < 200) and (vict.level > 20))
+	{
+		sendtext ("That person is not a newbie. This only works for level 20 and below.<br/>",self);
+		return;
+	}
+
+	if ((self.level >= 200) and (vict.level >= self.level))
+    {
+		act ("$3e might object to that... better not.",
+		A_SOMEONE, self, null, vict, TO_CHAR);
+		return;
     }
 
-
-  if (vict.level >= self.level)
-    {
-      act ("$3e might object to that... better not.",
-      A_SOMEONE, self, null, vict, TO_CHAR);
-      return;
-    }
-
-  if (isset (vict.pcflags, PC_NOTELLING))
-    {
-      sendtext ("You regain your telepathic ability.<br/>",vict);
-            sendtext("NOTELLING removed.<br/>",self);
-            unset (vict.pcflags,PC_NOTELLING);
-                }
-  else
-    {
-     sendtext ("Your telepathic ability fades away!<br/>",vict);
-           sendtext ("NOTELLING set.<br/>",self);
-                             set (vict.pcflags,PC_NOTELLING);
-    }
-
+	if (isset (vict.pcflags, PC_NOTELLING))
+	{
+		sendtext ("You regain your telepathic ability.<br/>",vict);
+		sendtext("Notelling removed.<br/>",self);
+		unset (vict.pcflags,PC_NOTELLING);
+	}
+	else
+	{
+		sendtext ("Your telepathic ability fades away!<br/>",vict);
+		sendtext ("NOTELLING set.<br/>",self);
+		set (vict.pcflags,PC_NOTELLING);
+	}
 return;
 }
-dilend
+dilend /* do_notell */
 
 
 
@@ -2585,7 +2599,7 @@ code
 
    start := "";
    if (self.level <= START_LEVEL)
-      start := "<br/><div class='score'>Try also the '<a cmd='#'>status</a>' command.</div>";
+      start := "<br/><div class='score'>Also try the '<a cmd='#'>status</a>' command.</div>";
     
    if (not isplayer(self.name))
 	{
@@ -2593,10 +2607,17 @@ code
       quit;
 	}
 
+
    slvl := "";
    if (self.exptol <= 0)
    {
-      slvl := "<b>You can advance a <a cmd='#'>level</a> now - congratulations!</b><br/>";
+      slvl := "<b>You can now advance a <a cmd='#'>level</a> - congratulations!</b><br/>";
+   }
+
+   if ((self.ability_points >= 10) or (self.skill_points >= 10))
+   {
+      // Override level now message
+      slvl := "<b>You have unspent practice points, you should <a cmd='#'>practice auto</a> now or go visit a teacher.</b><br/>";
    }
 
    if(arg=="")
@@ -2818,6 +2839,8 @@ if (targ.exptol==0)
 quit;
 }
 dilend
+
+
 dilbegin do_extinguish(arg:string);
 var
 torch : unitptr;
@@ -2899,10 +2922,46 @@ quit;
 dilend
 
 
-dilbegin do_practice (arg:string);
+dilbegin do_practice(arg:string);
+external
+   checkstand@basemove();
+
+var
+   exd : extraptr;
+   s : string;
+   t : string;
+   u : unitptr;
+   room : unitptr;
+
 code
 {
-   sendtext("You can only practice at a teacher.<br/>",self);
+   checkstand@basemove();
+
+   s := getword(arg);
+   if (s == "auto")
+   {
+      exd := "$autotrain" in self.quests;
+
+      u := findsymbolic(exd.names.[1]);
+      if (not u)
+      {
+         sendtext("A teacher is missing so you cannot auto practice right now.<br/>", self);
+      }
+      else
+      {
+         room := self.outside;
+         link(self, u.outside);
+         exec("practice auto", self);
+         link(self, room);
+      }
+   }
+   else
+   {
+      sendtext("To practice your skills, either type <a cmd='#'>practice auto</a> or find a teacher.<br/>"+
+               "You can find a teacher in Udgaard if you're a beginner. Or you can find your guild<br/>"+
+               "teachers. Use your guild medallion that you get from the statue of Odin to easily get to your guild.<br/>", self);
+   }
+
    quit;
 }
 dilend
@@ -3454,9 +3513,9 @@ else if(keyword == WEAR_WIELD)
 {
  hands := hands_used(ch);
  if (obj)
- two := two_handed(obj.value[0]);
+ two := two_handed(obj.value[0]); 
  else
- two:=FALSE;
+ two := FALSE;
 
  if(not (obj.manipulate & MANIPULATE_WIELD))
     errstr := "You can't wield that.";
@@ -6707,6 +6766,10 @@ while (item!=null){
      subaff(self, ID_BLESS);
    else   if (isaff(self, ID_NBLESS))
      subaff(self, ID_NBLESS);
+   else   if (isaff(self, ID_RAGE))
+     subaff(self, ID_RAGE);
+   else   if (isaff(self, ID_BERSERK))
+     subaff(self, ID_BERSERK);
    else if (isaff(self, ID_DETECT_ALIGN))
      subaff(self, ID_DETECT_ALIGN);
    else if (isaff(self, ID_DETECT_INVISIBLE))
@@ -7761,7 +7824,7 @@ quit;
 
 if(self.type != UNIT_ST_PC) quit;
 
-if ((self.level>200) or (self.name=="ginger"))
+if (self.level>200)
 	goto admin_delete;
 
 :char_delete:
@@ -7852,7 +7915,7 @@ send_done("motd",self,null,null,0,arg,null);
 
 quit;
 }
-dilend
+dilend /* do_delete */
 
 
 dilbegin dig(arg : string);
@@ -9288,7 +9351,7 @@ external
 code
 {
    return("You are a " + itoa((realtime - self.birth) / SECS_PER_MUD_YEAR) +
-          " years old " + genderstring() + " " + racestring(rce) + " at level " + 
+          " year old " + genderstring() + " " + racestring(rce) + " at level " + 
           itoa(self.vlevel) + ".<br/>");
 }
 dilend
@@ -9349,7 +9412,7 @@ code
    }
 
    if (tf!=TRUE)
-      time_str:=time_str+" Less than an hour.<br/>";
+      time_str:=time_str+" less than an hour.<br/>";
    else
       time_str:=time_str+".<br/>";
 
@@ -11408,74 +11471,54 @@ dilend
 dilbegin no_shout (arg : string);
 
 var
-   pc       : unitptr;
-
-   pcname   : string;
+   vict     : unitptr;
    time_str : string;
    type_str : string;
-
    i        : integer;
    ns_time  : integer;
 
 code
 {
-   block;
-   if ("New Player Helper" in self.quests) goto proceed;
+	block;
+	if (self.type!=UNIT_ST_PC)
+	return;
 
+	if ("New Player Helper" in self.quests) goto proceed;
 
-   if (self.level < 200)
-   {
-      act("Arglebargle, glop-glyf!?!",
-          A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
-
+	if (self.level < 200)
+	return;
+	
 :proceed:
-   pcname := getword(arg);
 
-   pc := findunit(self, pcname, FIND_UNIT_WORLD, null);
+	vict := findunit(self, arg, FIND_UNIT_WORLD, null, UNIT_ST_PC);
+	if ((vict == null) or (vict.minv > self.level))
+	{
+		sendtext ("No such player around.<br/>",self);
+		return;
+	}
+	if ((self.level < 200) and (vict.level > 20))
+	{
+		sendtext ("That person is not a newbie. This only works for level 20 and below.<br/>",self);
+		return;
+	}
 
-   if ((pc == null) or (pc.type != UNIT_ST_PC) or (pc.minv > self.level))
+	if ((self.level >= 200) and (vict.level >= self.level))
+	{
+		act ("$3e might object to that... better not.",
+		A_SOMEONE, self, null, vict, TO_CHAR);
+		return;
+	}
+
+   if (isset(vict.pcflags, PC_NOSHOUTING))
    {
-      act("No such PC in the world.",
-          A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
-if (self.name=="ginger")
- goto gingers;
-
-   if (self.level <= pc.level)
-   {
-      act("I don't think $3e would appreciate that.",A_ALWAYS, self, null,
-pc, TO_CHAR);
-      quit;
-   }
- if (("New Player Helper" in self.quests) and (pc.level > 20))
-  {
- act ("that person is not a newbie this only works for level 20 and down.",
-  A_ALWAYS, self, null, null, TO_CHAR);
- quit;
- }
-
-:gingers:
-   if ((self.level <200) and (pc.level>=200))
-   {
-      act("I don't think $3e would appreciate that.",A_ALWAYS, self, null,
-pc, TO_CHAR);
-      quit;
-   }
-
-   if (isset(pc.pcflags, PC_NOSHOUTING))
-   {
-      act("Noshouting removed from $3n.",A_ALWAYS, self, null, pc, TO_CHAR);
-      act("Your sore throat suddenly clears up.",A_ALWAYS, pc, null, null,
-TO_CHAR);
-      subextra(pc.quests, "$noshout");
-      unset(pc.pcflags, PC_NOSHOUTING);
-      i := dildestroy("no_shouted@commands", pc);
-      log("NOSHOUT: " + self.name + " removed the noshout on " +
-          pc.name + ".");
-      quit;
+		sendtext ("Your sore throat suddenly clears up.<br/>",vict);
+		sendtext("Noshouting removed.<br/>",self);
+		subextra(vict.quests, "$noshout");
+		unset(vict.pcflags, PC_NOSHOUTING);
+		i := dildestroy("no_shouted@commands", vict);
+		log("NOSHOUT: " + self.name + " removed the noshout on " +
+          vict.name + ".");
+		quit;
    }
 
    time_str := getword(arg);
@@ -11514,12 +11557,12 @@ TO_CHAR);
 
 :no_shout:
 
-   set(pc.pcflags, PC_NOSHOUTING);
-   act("Noshouting set on $3n.",A_ALWAYS, self, null, pc, TO_CHAR);
-   act("You suddenly get a sore throat!",A_ALWAYS, pc, null, null, TO_CHAR);
-   dilcopy("no_shouted@commands(" + itoa(ns_time) + ")", pc);
-   addextra(pc.quests, {"$noshout"}, self.name + " " + asctime(realtime));
-   log("NOSHOUT: " + self.name + " noshouted " + pc.name + " for " +
+   set(vict.pcflags, PC_NOSHOUTING);
+   act("Noshouting set on $3n.",A_ALWAYS, self, null, vict, TO_CHAR);
+   act("You suddenly get a sore throat!",A_ALWAYS, vict, null, null, TO_CHAR);
+   dilcopy("no_shouted@commands(" + itoa(ns_time) + ")", vict);
+   addextra(vict.quests, {"$noshout"}, self.name + " " + asctime(realtime));
+   log("NOSHOUT: " + self.name + " noshouted " + vict.name + " for " +
        time_str + " " + type_str + ".");
 
    quit;
@@ -11530,7 +11573,7 @@ TO_CHAR);
 null, TO_CHAR);
       quit;
 }
-dilend /* revoke */
+dilend /* no_shout */
 
 dilbegin recall aware no_shouted (ns_time : integer);
 
@@ -12220,6 +12263,10 @@ code
 {
    if (isaff(self, ID_BLESS))
  addstring(spl_aff,"Bless<br/>");
+   if (isaff(self, ID_BERSERK))
+ addstring(spl_aff,"Berserk<br/>");
+   if (isaff(self, ID_RAGE))
+ addstring(spl_aff,"Enraged<br/>");
 if (isaff(self, ID_DETECT_ALIGN))
  addstring(spl_aff,"Detect Alignment<br/>");
 if (isaff(self, ID_DETECT_INVISIBLE))
@@ -12312,6 +12359,8 @@ if (isaff(self, ID_MIRE))
         addstring(spl_aff,"Mired<br/>");
 if (isaff(self, ID_CONDEMN))
         addstring(spl_aff,"Condemned<br/>");
+if (isset(self.outside.flags, UNIT_FL_SACRED))
+        addstring(spl_aff,"Sacred Room<br/>");
 
 ln:=length (spl_aff);
 
@@ -12732,22 +12781,21 @@ null, TO_CHAR);
 }
 dilend
 
-
+// do_evaluate
 dilbegin evaluate(arg : string);
-
 external
    string sizestring@commands(cm : integer);
    string weightstring@commands(cm : integer);
-
 var
    u : unitptr;
    s : string;
    degrade : integer;
+
 code
 {
    if (arg == "")
    {
-      act("What do you wish to evaluate?",A_SOMEONE, self, null,null,TO_CHAR);
+      act("What do you wish to evaluate?", A_SOMEONE, self, null,null,TO_CHAR);
       quit;
    }
 
@@ -12769,52 +12817,46 @@ code
    act("The $3N weighs "+s+".",A_SOMEONE, self, null, u, TO_CHAR);
 
    if ((u.manipulate & (MANIPULATE_WEAR_FINGER | MANIPULATE_WEAR_NECK  |
-   MANIPULATE_WEAR_BODY   | MANIPULATE_WEAR_HEAD  |
-   MANIPULATE_WEAR_LEGS   | MANIPULATE_WEAR_FEET  |
-   MANIPULATE_WEAR_HANDS  | MANIPULATE_WEAR_ARMS  |
-   MANIPULATE_WEAR_SHIELD | MANIPULATE_WEAR_ABOUT |
-   MANIPULATE_WEAR_WAIST  | MANIPULATE_WEAR_WRIST |
-   MANIPULATE_WIELD       | MANIPULATE_WEAR_EAR   |
-   MANIPULATE_WEAR_BACK   | MANIPULATE_WEAR_CHEST |
-   MANIPULATE_WEAR_ANKLE)) or
-       (u.objecttype == ITEM_WEAPON))
+         MANIPULATE_WEAR_BODY   | MANIPULATE_WEAR_HEAD  |
+         MANIPULATE_WEAR_LEGS   | MANIPULATE_WEAR_FEET  |
+         MANIPULATE_WEAR_HANDS  | MANIPULATE_WEAR_ARMS  |
+         MANIPULATE_WEAR_SHIELD | MANIPULATE_WEAR_ABOUT |
+         MANIPULATE_WEAR_WAIST  | MANIPULATE_WEAR_WRIST |
+         MANIPULATE_WIELD       | MANIPULATE_WEAR_EAR   |
+         MANIPULATE_WEAR_BACK   | MANIPULATE_WEAR_CHEST |
+         MANIPULATE_WEAR_ANKLE)) or (u.objecttype == ITEM_WEAPON))
    {
       s := sizestring@commands(u.height);
       act("$3e has been made to fit a person of "+s+".",
-	  A_SOMEONE, self,null, u, TO_CHAR);
+      	  A_SOMEONE, self,null, u, TO_CHAR);
    }
-   if (u.max_hp == -1)
-   {
- act("The $3N appears to be in godly condition.</div>",A_ALWAYS, self, null, u, TO_CHAR);
-   quit;
-   }
+
    if ((u.max_hp > 0) and (u.hp > 0))
    {
       degrade := (100*u.hp) / u.max_hp;
 
       if (degrade >= 90)
- s := "in an excellent condition.";
+         s := "in an excellent condition.";
       else if (degrade >= 75)
- s := "in a good condition.";
+         s := "in a good condition.";
       else if (degrade >= 50)
- s := "worn.";
+         s := "worn.";
       else if (degrade >= 30)
- s := "in a poor condition";
+         s := "in a poor condition";
       else if (degrade >= 10)
- s := "in a horrible condition.";
+         s := "in a horrible condition.";
       else
- s := "nearly broken.";
+         s := "nearly broken.";
    }
    else if (u.max_hp == -1) // indestructible (able?)
      s := "in godly condition.";
    else
      s := "broken.";
 
-   act("The $3N appears to be "+s,
-       A_ALWAYS, self, null, u, TO_CHAR);
+   act("The $3N appears to be "+s, A_ALWAYS, self, null, u, TO_CHAR);
 
-   if (u.objecttype == ITEM_ARMOR)
-     on u.value[0] goto clothes,leather,leather,metal,metal;
+   if (u.objecttype == ITEM_ARMOR) 
+      on u.value[0] goto clothes, leather, leather, metal, metal;
    else if (u.objecttype == ITEM_SHIELD)
      goto metal;
    else if (u.objecttype == ITEM_WEAPON)
@@ -12824,14 +12866,14 @@ code
    else
    {
       if ((u.manipulate & (MANIPULATE_WEAR_FINGER | MANIPULATE_WEAR_NECK  |
-        MANIPULATE_WEAR_BODY   | MANIPULATE_WEAR_HEAD  |
-        MANIPULATE_WEAR_LEGS   | MANIPULATE_WEAR_FEET  |
-        MANIPULATE_WEAR_HANDS  | MANIPULATE_WEAR_ARMS  |
-        MANIPULATE_WEAR_SHIELD | MANIPULATE_WEAR_ABOUT |
-        MANIPULATE_WEAR_WAIST  | MANIPULATE_WEAR_WRIST |
-        MANIPULATE_WIELD       | MANIPULATE_WEAR_EAR   |
-        MANIPULATE_WEAR_BACK   | MANIPULATE_WEAR_CHEST |
-        MANIPULATE_WEAR_ANKLE)) == 0)
+            MANIPULATE_WEAR_BODY   | MANIPULATE_WEAR_HEAD  |
+            MANIPULATE_WEAR_LEGS   | MANIPULATE_WEAR_FEET  |
+            MANIPULATE_WEAR_HANDS  | MANIPULATE_WEAR_ARMS  |
+            MANIPULATE_WEAR_SHIELD | MANIPULATE_WEAR_ABOUT |
+            MANIPULATE_WEAR_WAIST  | MANIPULATE_WEAR_WRIST |
+            MANIPULATE_WIELD       | MANIPULATE_WEAR_EAR   |
+            MANIPULATE_WEAR_BACK   | MANIPULATE_WEAR_CHEST |
+            MANIPULATE_WEAR_ANKLE)) == 0)
       {
          goto nextstep;
       }
@@ -12840,22 +12882,18 @@ code
    goto nextstep;
 
    :clothes:
-   act ("Refitting the size of it, requires tailoring
-skills.",A_ALWAYS,self,null, null,TO_CHAR);
+   act ("Refitting the size of it, requires tailoring skills.",A_ALWAYS,self,null, null,TO_CHAR);
    goto nextstep;
 
    :leather:
-   act ("Refitting the size of it, requires leather working
-skills.",A_ALWAYS,self,null, null,TO_CHAR);
+   act ("Refitting the size of it, requires leather working skills.",A_ALWAYS,self,null, null,TO_CHAR);
    goto nextstep;
 
    :metal:
-   act ("Refitting the size of it, requires metal
-skills.",A_ALWAYS,self,null, null,TO_CHAR);
+   act ("Refitting the size of it, requires metal skills.",A_ALWAYS,self,null, null,TO_CHAR);
    goto nextstep;
 
    :nextstep:
-
    /* Eventually add
 
       Material Lore
@@ -13301,6 +13339,264 @@ code
 }
 dilend
 
+
+// do_donate - (from clans)
+dilbegin donate(arg:string);
+var
+   clan:integer;
+   d_rooms:stringlist;
+   room_idx:string;
+   room:       unitptr;
+   item:       unitptr;
+   num:       integer;
+   i:integer;
+   here:unitptr;
+   x:extraptr;
+   amount:integer;
+   check:unitptr;
+
+code
+{
+   clan:=0;
+
+   :start:
+   d_rooms:={"udonate@udgaard","mdonate@midgaard","ndonate@nymgaard"};
+   room_idx:=self.outside.nameidx+"@"+self.outside.zoneidx;
+   if (room_idx in d_rooms)
+   {
+      act("You may not donate while in a donations room!",A_ALWAYS, self, null,null, TO_CHAR);
+      quit;
+   }
+
+   if (self.fighting != null)
+   {
+      sendtext("<div class='cpy'>Are you nuts! And take your mind off the battle at hand!?</div><div class='default'><br/></div>", self);
+      quit;
+   }
+
+   item:= findunit(self, arg, FIND_UNIT_INVEN, null);
+   if (not(item.type == UNIT_ST_OBJ))
+   {
+      act("You do not have anything like that in your inventory.", A_ALWAYS,self, null, null, TO_CHAR);
+      quit;
+   }
+   
+   if ((item.objecttype == ITEM_TRASH) or (item.objecttype == ITEM_TRAP))
+   {
+      act("You can not donate that! Who would want your junk!",   A_ALWAYS,self, null, null, TO_CHAR);
+      quit;
+   }
+  
+   if ("midgaard" in arg)
+      room := findroom("mdonate@midgaard");
+   else if ("nymgaard" in arg)
+      room := findroom("ndonate@nymgaard");
+   else if ("clan" in arg)
+   {
+      x:=CLAN_SYMBOLIC in self.extra;
+      if (x==null)
+      {
+         act ("<div class='clan'>You are not a member of a clan.</div>",A_ALWAYS,self,null,null,TO_CHAR);
+         quit;
+      }
+
+      room:=findsymbolic("dchest@"+x.descr);
+      if (room==null)
+      {
+         act ("<div class='clan'>Clan code error report to Admin.</div>",A_ALWAYS,self,null,null,TO_CHAR);
+         quit;
+      }
+
+      if (item.objecttype==ITEM_CONTAINER)
+      {
+         if (item.inside!=null)
+         {
+            act ("<div class='clan'>You can not donate a container that contains items, empty it and try again.</div>",
+            A_ALWAYS, self, null, null, TO_CHAR);
+            quit;
+         }
+      }
+
+      clan:=1;
+      amount:=0;
+      check:=room.inside;
+
+      while (check!=null)
+      {
+         if (check.minv!=253)
+            amount:=amount+1;
+         check:=check.next;
+      }
+
+      if (amount >=CLAN_MAX_DONATION)
+      {
+         act("<div class='clan'>You can't donate your clan Chest is full.</div>"
+         ,A_ALWAYS,self,null,null,TO_CHAR);
+         quit;
+      }
+   }
+   else
+      room := findroom("udonate@udgaard");
+   
+   if (clan!=1)
+   {
+      num := rnd(1, 200);
+      if (num > 195)
+      {
+         if (item.cost >= 75000)
+         {
+            experience(+75, self);
+            act("You are rewarded 75 experience for your act.",A_ALWAYS, self,null, null, TO_CHAR);
+         }
+         else if (item.cost >= 50000)
+         {
+            experience(+35, self);
+            act("You are rewarded 35 experience for your act.",A_ALWAYS, self,null, null, TO_CHAR);
+         }
+      }
+
+      i:=0;
+      here:=room.inside;
+
+      while ((here!=null) and (i<5))
+      {
+         if (here.idx==item.idx)
+            i:=i+1;
+         here:=here.next;
+      }
+
+      act("You donate $2n to those in need.",A_ALWAYS, self, item, null, TO_CHAR);
+      act("$1n donates $2n to those in need.",A_SOMEONE, self, item, null, TO_REST);
+
+      if (i < 5)
+      {
+         item.cost := 0;
+         link(item, room);
+         act("A Glowing red portal appears hovering in the air, $2n emerges from it and drops to the floor.",A_ALWAYS, room.inside, item,null, TO_ALL);
+      }
+      else
+         destroy (item);
+   }
+   else
+   {
+      act("<div class='clan'>You donate $2n to your clan.</div>",A_ALWAYS, self, item, null,TO_CHAR);
+      act("<div class='clan'>$1n donates $2n to $1s clan.</div>",A_SOMEONE, self, item, null,TO_REST);
+      link(item, room);
+      store (room,room.zoneidx+".dc",TRUE);
+   }
+   quit;
+}
+dilend
+
+
+
+dilbegin depre_donate(arg:string);
+var
+	clan	:		integer;
+	d_rooms	:		stringlist;
+	room_idx:		string;
+	room    :       unitptr;
+	item    :       unitptr;
+	x		:		extraptr;
+	amount	:		integer;
+	check	:		unitptr;
+code
+{
+	clan:=0;
+
+	:start:
+	d_rooms:={"udonate@udgaard","mdonate@midgaard","ndonate@nymgaard"};
+	room_idx:=self.outside.nameidx+"@"+self.outside.zoneidx;
+	if (room_idx in d_rooms)
+	{
+		act("You may not donate while in a donations room!",
+		A_ALWAYS, self, null, null, TO_CHAR);
+		quit;
+	}
+
+	item := findunit(self, arg, FIND_UNIT_INVEN, null);
+	if (not(item.type == UNIT_ST_OBJ))
+	{
+		act("You do not have anything like that in your inventory.",
+		A_ALWAYS, self, null, null, TO_CHAR);
+		quit;
+	}
+	if ("midgaard" in arg)
+		room := findroom("mdonate@midgaard");
+	else if ("nymgaard" in arg)
+		room := findroom("ndonate@nymgaard");
+	else if ("clan" in arg)
+	{
+		x:=CLAN_SYMBOLIC in self.extra;
+		if (x==null)
+		{
+			act ("&[clan]You are not a member of a clan.",
+			A_ALWAYS, self,null,null,TO_CHAR);
+			quit;
+		}
+		room:=findsymbolic(x.descr);
+		if (room==null)
+		{
+			act ("&[clan]Clan code error report to Admin.",
+			A_ALWAYS,self,null,null,TO_CHAR);
+			quit;
+		}
+		if (item.objecttype==ITEM_CONTAINER)
+		{
+			if (item.inside!=null)
+			{
+				act ("&[clan]You can not donate a container that contains items, empty it and try again.",
+				A_ALWAYS, self, null, null, TO_CHAR);
+				quit;
+			}
+		}
+		clan:=1;
+		amount:=0;
+		check:=room.inside;
+		while (check!=null)
+		{
+			if (check.minv!=253)
+				amount:=amount+1;
+			check:=check.next;
+		}
+
+		if (amount >=CLAN_MAX_DONATION)
+		{
+			act("&[clan]You can't donate your clan Chest is full.",
+			A_ALWAYS,self,null,null,TO_CHAR);
+			quit;
+		}
+	}
+	else
+		room := findroom("udonate@udgaard");
+	if (clan!=1)
+	{
+		act("You donate $2n to those in need.",
+		A_ALWAYS, self, item, null, TO_CHAR);
+		act("$1n donates $2n to those in need.",
+		A_SOMEONE, self, item, null, TO_REST);
+
+		item.cost := 0;
+		link(item, room);
+		act("A Glowing red portal appears hovering in the air, $2n"+
+		" emerges from it and drops to the floor.",
+		A_ALWAYS, room.inside, item, null, TO_ALL);
+		quit;
+
+	}
+	else
+	{
+		act("&[clan]You donate $2n to your clan.",
+			A_ALWAYS, self, item, null, TO_CHAR);
+		act("&[clan]$1n  donates $2n to $1s clan.",
+			A_SOMEONE, self, item, null, TO_REST);
+		link(item, room);
+		store (room,"d_c."+room.zoneidx,TRUE);
+		quit;
+	}
+	 /////quit;
+}
+dilend
 
 %rooms
 

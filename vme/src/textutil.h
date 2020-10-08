@@ -15,6 +15,7 @@
 
 int str_escape_format(const char *str, char *dest, int destlen, int format = TRUE);
 char *str_escape_format(const char *src, int formatting = TRUE);
+void str_correct_utf8(std::string &src);
 char *html_encode_utf8(const char *src);
 std::string scriptwrap(const char *str);
 void str_cescape_format(const char *src, char *dest);
@@ -39,6 +40,8 @@ int str_upper(char *s);
 int str_lower(const char *s, char *d, int nBufSize);
 
 char *spc(int n);
+char *str_repeatchar(int n, char c);
+
 char *str_line(const char *, char *);
 #ifdef DOS
 #define itoa(n) itoa_dos(n)
@@ -85,7 +88,10 @@ int getHTMLValue(const char *name, const char *p, char *pTag, int nTagMax);
 const char *getHTMLTag(const char *p, char *pTag, int nTagMax);
 
 
-#define str_delete(str, nDel, nStrLen) \
-   memmove(str, str + nDel, nStrLen - nDel + 1)
+std::string str_json(const char *lbl, ubit64 nInt);
+std::string str_json(const char *lbl, const char *str);
+std::string str_json(const char *lbl, const std::string &str);
+std::string str_jsonencode(const char *str);
+std::string str_json_encode_quote(const char *str);
 
 #endif /* _MUD_TEXTUTIL_H */

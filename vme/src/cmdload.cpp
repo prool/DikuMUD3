@@ -79,6 +79,7 @@ struct cmdload_struct cmdload[] = {
 
     {"wizlock", do_wizlock, 0, 0},
     {"wstat", do_wstat, 0, 0},
+    {"wedit", do_wedit, 0, 0},
     {"", NULL, 0, 0}};
 
 
@@ -95,34 +96,34 @@ void skill_dump(void)
 
         for (int i = 0; i < SKI_TREE_MAX; i++)
         {
-            if (ski_text[i] == NULL)
+            if (g_SkiColl.text[i] == NULL)
                 continue;
 
             str = "";
 
-            sprintf(buf, "%s,%s", ski_text[i], spc(20-strlen(ski_text[i])));
+            sprintf(buf, "%s,%s", g_SkiColl.text[i], spc(20-strlen(g_SkiColl.text[i])));
             str.append(buf);
 
             sprintf(buf, ".profession %s%s = %s%d\n", professions[j], spc(12-strlen(professions[j])),
-                (skill_prof_table[i].profession_cost[j] >= 0) ? "+" : "", skill_prof_table[i].profession_cost[j]);
+                (g_SkiColl.prof_table[i].profession_cost[j] >= 0) ? "+" : "", g_SkiColl.prof_table[i].profession_cost[j]);
             str.append(buf);
 
 
-            /*if (skill_prof_table[i].min_level > 0)
+            /*if (g_SkiColl.prof_table[i].min_level > 0)
             {
-                sprintf(buf, "restrict level          = %d\n", skill_prof_table[i].min_level);
+                sprintf(buf, "restrict level          = %d\n", g_SkiColl.prof_table[i].min_level);
                 str.append(buf);
             }
 
             for (int k=0; k < ABIL_TREE_MAX; k++)
-                if (skill_prof_table[i].min_abil[k] > 0)
+                if (g_SkiColl.prof_table[i].min_abil[k] > 0)
                 {
-                    sprintf(buf, "restrict %s%s    = %s%d\n", ski_text[i], spc(12-strlen(ski_text[i])),
-                        (skill_prof_table[i].min_abil[k] >= 0) ? "+" : "", skill_prof_table[i].min_abil[k]);
+                    sprintf(buf, "restrict %s%s    = %s%d\n", g_SkiColl.text[i], spc(12-strlen(g_SkiColl.text[i])),
+                        (g_SkiColl.prof_table[i].min_abil[k] >= 0) ? "+" : "", g_SkiColl.prof_table[i].min_abil[k]);
                     str.append(buf);
                 }*/
 
-            vect.push_back(std::make_pair(skill_prof_table[i].profession_cost[j], str));
+            vect.push_back(std::make_pair(g_SkiColl.prof_table[i].profession_cost[j], str));
         }
 
         std::sort(vect.begin(), vect.end(), pairISCompare);
@@ -276,12 +277,20 @@ void command_read(void)
 
         if (strncmp(pTmp, "name", 4) == 0)
         {
-            if (ski_text[idx])
+            if (g_SkiColl.text[idx])
             {
-                free((char *)ski_text[idx]);
-                ski_text[idx] = NULL;
+                free((char *)g_SkiColl.text[idx]);
+                g_SkiColl.text[idx] = NULL;
             }
-            ski_text[idx] = str_dup(pCh);
+            g_SkiColl.text[idx] = str_dup(pCh);
+            continue;
+        }
+
+        if (strncmp(pTmp, "auto train", 10) == 0)
+        {
+            dummy = atoi(pCh);
+            if (is_in(dummy, 0, 1))
+                g_SkiColl.tree[idx].bAutoTrain = dummy;
             continue;
         }
 
@@ -296,7 +305,7 @@ void command_read(void)
             if (ridx == -1)
                 slog(LOG_ALL, 0, "Skills: Illegal race in: %s", pTmp);
             else
-                racial_skills[ridx][idx] = dummy;
+                g_SkiColl.racial[ridx][idx] = dummy;
             continue;
         }
 
@@ -314,7 +323,7 @@ void command_read(void)
             if (ridx == -1)
                 slog(LOG_ALL, 0, "Skills: Illegal profession %s", pTmp);
             else
-                skill_prof_table[idx].profession_cost[ridx] = dummy;
+                g_SkiColl.prof_table[idx].profession_cost[ridx] = dummy;
             continue;
         }
         
@@ -329,16 +338,16 @@ void command_read(void)
 
             if (strncmp(pTmp+9, "level", 5) == 0)
             {
-                skill_prof_table[idx].min_level = dummy;
+                g_SkiColl.prof_table[idx].min_level = dummy;
             }
             else
             {
-                int ridx = search_block(pTmp + 9, abil_text, TRUE);
+                int ridx = search_block(pTmp + 9, g_AbiColl.text, TRUE);
 
                 if (ridx == -1)
                     slog(LOG_ALL, 0, "Weapons: Illegal restrict %s", pTmp);
                 else
-                    skill_prof_table[idx].min_abil[ridx] = dummy;
+                    g_SkiColl.prof_table[idx].min_abil[ridx] = dummy;
             }
             continue;
         }

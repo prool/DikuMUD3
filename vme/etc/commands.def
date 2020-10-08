@@ -617,8 +617,8 @@ name           = consider
 command        = consider
 minpos         = POSITION_RESTING
 turns          = PULSE_VIOLENCE/2
-internal = consider
-type = TYPE_SKILL
+internal       = consider
+type           = TYPE_SKILL
 race human     =   0
 race elf       =   0
 race dwarf     =   0
@@ -1073,8 +1073,8 @@ name           = scroll use
 command        = recite
 minpos         = POSITION_RESTING
 turns          = 2*PULSE_VIOLENCE
-func = ski_scroll_use@skills
-type = TYPE_SKILL
+func           = ski_scroll_use@skills
+type           = TYPE_SKILL
 race human     =   0
 race elf       =  +1
 race dwarf     =  -1
@@ -1290,8 +1290,8 @@ name           = backstab
 command        = backstab
 minpos         = POSITION_STANDING
 turns          = PULSE_VIOLENCE*3
-internal = backstab
-type = TYPE_SKILL
+internal       = backstab
+type           = TYPE_SKILL
 race human     =   0
 race elf       =  +0
 race dwarf     =  -1
@@ -1756,7 +1756,7 @@ profession thief        = +0
 
 index          = SKI_SHIELD
 name           = shield
-type = TYPE_SKILL
+type           = TYPE_SKILL
 race human     =   0
 race elf       =   0
 race dwarf     =   0
@@ -1921,8 +1921,8 @@ index          = SKI_SKIN
 name           = skin
 command        = skin
 minpos         = POSITION_STANDING
-func          =  skin@skills
-type = TYPE_SKILL
+func           =  skin@skills
+type           = TYPE_SKILL
 race human     =  -1
 race elf       =  +1
 race dwarf     =   0
@@ -2038,7 +2038,7 @@ name           = herbs
 command        = herbs
 minpos         = POSITION_STANDING
 func           = herbs@skills
-type = TYPE_SKILL
+type           = TYPE_SKILL
 race human     =  -2
 race elf       =  -2
 race dwarf     =  -1
@@ -2381,6 +2381,104 @@ race darkelf   =   0
 restrict level          = 22
 profession assassin     = +2
 
+/* Barbarian Skills */
+/* Original concepts and implementation by Sender */
+
+/* - - - - Yet another definition of a skill - - - - */
+
+index          = SKI_FRENZY
+name           = frenzy
+command        = frenzy
+minpos         = POSITION_FIGHTING
+turns          = 1
+func           = ski_frenzy@skills
+type           = TYPE_SKILL
+race human     =   0
+race elf       =   0
+race dwarf     =   0
+race halfling  =   0
+race gnome     =   0
+race half-orc  =   0
+race half-ogre =   0
+race half-elf  =   0
+race brownie   =   0
+race groll     =   0
+race darkelf   =   0
+restrict strength       = 100
+restrict constitution   = 80
+profession barbarian      = +5
+
+/* - - - - Yet another definition of a skill - - - - */
+
+index          = SKI_BERSERK
+name           = berserk
+command        = berserk
+minpos         = POSITION_STANDING
+func           = ski_berserk@skills
+type           = TYPE_SKILL
+race human     =   0
+race elf       =   0
+race dwarf     =   0
+race halfling  =   0
+race gnome     =   0
+race half-orc  =   0
+race half-ogre =   0
+race half-elf  =   0
+race brownie   =   0
+race groll     =   0
+race darkelf   =   0
+restrict constitution   = 50
+profession barbarian      = +5
+
+/* - - - - Yet another definition of a skill - - - - */
+
+index          = SKI_TAUNT
+name           = taunt
+command        = taunt
+minpos         = POSITION_FIGHTING
+turns          = 1
+turns          = PULSE_VIOLENCE/2
+func           = ski_taunt@skills
+type           = TYPE_SKILL
+race human     =   0
+race elf       =   0
+race dwarf     =   0
+race halfling  =   0
+race gnome     =   0
+race half-orc  =   0
+race half-ogre =   0
+race half-elf  =   0
+race brownie   =   0
+race groll     =   0
+race darkelf   =   0
+restrict strength       = 10
+restrict constitution   = 50
+profession barbarian      = +5
+
+/* - - - - Yet another definition of a skill - - - - */
+
+index          = SKI_RAGE
+name           = rage
+command        = rage
+minpos         = POSITION_STANDING
+func           = ski_rage@skills
+type           = TYPE_SKILL
+race human     =   0
+race elf       =   0
+race dwarf     =   0
+race halfling  =   0
+race gnome     =   0
+race half-orc  =   0
+race half-ogre =   0
+race half-elf  =   0
+race brownie   =   0
+race groll     =   0
+race darkelf   =   0
+restrict strength       = 30
+restrict constitution   = 30
+profession barbarian      = +5
+
+/* END Barbarian Skills */
 
 
 command = pat
@@ -2711,6 +2809,13 @@ internal = wstat
 minpos   = POSITION_DEAD
 minlevel = 215
 loglevel = 215
+type     = 0
+
+command  = wedit
+internal = wedit
+minpos   = POSITION_DEAD
+minlevel = 200
+loglevel = 200
 type     = 0
 
 command  = competition
@@ -3633,12 +3738,6 @@ minpos = POSITION_RESTING
 minlevel = 0
 type = TYPE_SOCIAL
 
-command = taunt
-func = taunt@socials
-minpos = POSITION_RESTING
-minlevel = 0
-type = TYPE_SOCIAL
-
 command = think
 func = think@socials
 minpos = POSITION_RESTING
@@ -4178,6 +4277,12 @@ minpos = POSITION_RESTING
 minlevel = 0
 type = TYPE_SOCIAL
 
+command  = donate
+func     = donate@commands
+minpos   = POSITION_SITTING
+minlevel = 0
+loglevel = 0
+type     = 0
 
 
 index          = SKI_ARM_LEATHER
@@ -4293,3 +4398,108 @@ profession mystic       = -7
 profession necromancer  = -7
 profession conjurer     = -7
 profession sorcerer     = -7
+
+
+/ ******************************** */
+/*  The commands below here are in */
+/*  Valhalla.com only              */
+/*  Some need to be cleaned up     */
+/* ******************************* */
+
+command       = moon
+func          = moon@valley3
+minpos        = POSITION_RESTING
+
+command       = morph
+func          = morph@rebirth
+minpos        = POSITION_RESTING
+
+command       = rebirth
+func          = rebirth_stat@rebirth
+minpos        = POSITION_RESTING
+
+command       = sacrifice
+func          = sacrifice@rebirth
+minpos        = POSITION_RESTING
+
+command       = crank
+func          = crank@clans
+minpos        = POSITION_RESTING
+
+command       = csrank
+func          = csrank@clans
+minpos        = POSITION_RESTING
+
+command       = ctitle
+func          = ctitle@clans
+minpos        = POSITION_RESTING
+
+command       = caccept
+func          = caccept@clans
+minpos        = POSITION_RESTING
+
+command       = cremove
+func          = cremove@clans
+minpos        = POSITION_RESTING
+
+command       = cdefect
+func          = cdefect@clans
+minpos        = POSITION_RESTING
+
+command       = cappoint
+func          = cappoint@clans
+minpos        = POSITION_RESTING
+
+command       = cdemote
+func          = cdemote@clans
+minpos        = POSITION_RESTING
+
+command       = cinfo
+func          = cinfo@clans
+minpos        = POSITION_RESTING
+
+command       = clist
+func          = clist@clans
+minpos        = POSITION_RESTING
+
+command       = cstart
+func          = cstart@clans
+minpos        = POSITION_RESTING
+
+command       = cdeposit
+func          = cdeposit@clans
+minpos        = POSITION_RESTING
+
+command       = cwithdraw
+func          = cwithdraw@clans
+minpos        = POSITION_RESTING
+
+command       = cbalance
+func          = cbalance@clans
+minpos        = POSITION_RESTING
+
+command       = cstore
+func          = cstore@clans
+minpos        = POSITION_RESTING
+
+command       = cunstore
+func          = cunstore@clans
+minpos        = POSITION_RESTING
+
+command       = cequipment
+func          = cequipment@clans
+minpos        = POSITION_RESTING
+
+command  = cdelete
+func     = cdelete@clans
+minpos   = POSITION_DEAD
+minlevel = 215
+loglevel = 215
+type     = 0
+
+command  = cstat
+func     = cstat@clans
+minpos   = POSITION_DEAD
+minlevel = 215
+loglevel = 215
+type     = 0

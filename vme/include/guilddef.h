@@ -73,7 +73,7 @@ $1n tells you, 'Remove all equipment, please.';
  18;  100; cook                          ;   9;  9000;  10;          0;
  20;  100; curare                        ;   9;  9000;   7;          0;
  23;   50; bash                          ;  19; 19000;  18;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;         0;
+  0;   75; armor soft leather            ;   4;  4000;   10;         0;
 "
 #elif defined(_WEAPON)
 
@@ -95,15 +95,6 @@ $1n tells you, 'Remove all equipment, please.';
  10;   70; club                          ;  18; 18000;  12;          0;
  10;   70; sling                         ;  20; 20000;  18;          0;
  12;   50; rapier                        ;  23; 23000;  15;          0;
- 15;   90; fighting staff                ;  23; 23000;  20;          0;
- 25;   70; machete                       ;  23; 23000;  15;          0;
- 25;   70; ball and chain mace           ;  23; 23000;  15;          0;
- 28;   70; cudgel                        ;  23; 23000;  15;          0;
- 30;   70; fauchard                      ;  23; 23000;  15;          0;
- 32;   70; spetum                        ;  23; 23000;  15;          0;
- 36;   70; gaff                          ;  23; 23000;  15;          0;
- 36;   70; military fork                 ;  23; 23000;  15;          0;
- 40;   70; fauchard fork                 ;  23; 23000;  15;          0;
 "
 #elif defined(_SPELL)
 
@@ -179,7 +170,8 @@ $1n tells you, 'Remove all equipment, please.';
   0;  100; Hitpoints                     ;   9;  9000;   8;       0;
   0;   70; Charisma                      ;  14; 14000;  13;       0;
   0;   50; Brain                         ;  23; 23000;  14;       0;
-  0;   70; Divine                        ;  14; 14000;  10;       0;"
+  0;   70; Divine                        ;  14; 14000;  10;       0;
+"
 
 /* Sum (max) 520, Average = 10.86 */
 
@@ -203,10 +195,10 @@ $1n tells you, 'Remove all equipment, please.';
   3;   80; bash                          ;   9;  9000;   8;          0;
   5;   70; turn undead                   ;  18; 18000;  15;          0;
  12;  100; leadership                    ;   4;  4000;   5; 10;      0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
-  0;   35; armor hard leather            ;   4;  4000;   10;      0;
-  0;   35; armor chain                   ;   4;  4000;   10;      0;
-  0;   35; armor plate                   ;   4;  4000;   10;      0;
+  0;   50; armor soft leather            ;   4;  4000;   10;      0;
+  7;   75; armor hard leather            ;   4;  4000;   10;      0;
+ 15;  100; armor chain                   ;   4;  4000;   10;      0;
+ 20;  100; armor plate                   ;   4;  4000;   10;      0;
 "
 #elif defined(_WEAPON)
 
@@ -354,9 +346,9 @@ $1n tells you, 'Remove all equipment, please.';
  28;  100; lay trap                      ;   4;  4000;   6;          0;
  40;  100; curare                        ;   9;  9000;   7;          0;
   6;   50; swimming                      ;  10; 14000;  14;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
-  0;   35; armor hard leather            ;   4;  4000;   10;      0;
-  0;   35; armor chain                   ;   4;  4000;   10;      0;
+  0;  100; armor soft leather            ;   4;  4000;   10;      0;
+  7;  100; armor hard leather            ;   4;  4000;   10;      0;
+ 15;   75; armor chain                   ;   4;  4000;   10;      0;
 "
 #elif defined(_WEAPON)
 
@@ -384,15 +376,6 @@ $1n tells you, 'Remove all equipment, please.';
  14;  100; spear                         ;   9;  9000;   9;          0;
  16;  100; long sword                    ;   9;  9000;   8;          0;
  20;  100; crossbow                      ;   9;  9000;  10;          0;
- 30;  100; machete                       ;   6;  6000;   8;          0;
- 38;  100; estoc                         ;   6;  6000;  12;          0;
- 10;  100; war axe                       ;   6;  6000;   8;          0;
- 20;  100; fauchard                      ;   6;  6000;  13;          0;
- 26;  100; fauchard fork                 ;   6; 16000;  10;          0;
- 32;  100; pole axe                      ;   6;  6000;   9;          0;
- 30;  100; spetum                        ;   6;  6000;  11;          0;
-  5;  100; hand hammer                   ;   6;  6000;   6;          0;
- 10;  100; military fork                 ;   6;  6000;  12;          0;
 "
 #elif defined(_SPELL)
 
@@ -486,8 +469,8 @@ $1n tells you, 'Remove all equipment, please.';
  15;   50; scroll use                    ;  23; 23000;  20;          0;
  19;   70; two weapon style              ;   9;  9000;  10;          0;
  25;  100; plant                         ;  10; 10000;  10;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
-  0;   35; armor hard leather            ;   4;  4000;   10;      0;
+  0;  100; armor soft leather            ;   4;  4000;   10;      0;
+  7;   75; armor hard leather            ;   4;  4000;   10;      0;
 "
 #elif defined(_WEAPON)
 
@@ -578,10 +561,10 @@ $1n tells you, 'Remove all equipment, please.';
   1;   70; rescue                        ;  14; 14000;  10;          0;
  10;  100; disarming                     ;   9;  9000;   8;          0;
  15;   50; leadership                    ;   9;  9000;   8;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
-  0;   35; armor hard leather            ;   4;  4000;   10;      0;
-  0;   35; armor chain                   ;   4;  4000;   10;      0;
-  0;   35; armor plate                   ;   4;  4000;   10;      0;
+  0;  100; armor soft leather            ;   4;  4000;   10;      0;
+  7;  100; armor hard leather            ;   4;  4000;   10;      0;
+ 15;  100; armor chain                   ;   4;  4000;   10;      0;
+ 20;  100; armor plate                   ;   4;  4000;   10;      0;
 "
 #elif defined(_WEAPON)
 
@@ -665,7 +648,7 @@ $1n tells you, 'Remove all equipment, please.';
   0;  100; scroll use                    ;   4;  4000;   5; 10;      0;
   0;  100; wand use                      ;   4;  4000;   5; 10;      0;
   0;   60; fleeing                       ;  14; 14000;  10;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
+  0;   75; armor soft leather            ;   4;  4000;   10;      0;
 "
 #elif defined(_WEAPON)
 
@@ -682,10 +665,7 @@ $1n tells you, 'Remove all equipment, please.';
   0;   80; dagger                        ;  18; 18000;  15;          0;
   8;   60; quarterstaff                  ;  18; 18000;  15;          0;
   4;   60; fist                          ;  23; 23000;  18;          0;
-  4;   60; cudgel                        ;  23; 23000;  18;          0;
- 14;   60; pole cleaver                  ;  23; 23000;  18;          0;
  12;   60; main gauche                   ;  23; 23000;  18;          0;
- 10;   60; baculus                       ;  23; 23000;  18;          0;
  20;   60; stiletto                      ;  23; 23000;  18;          0;
 
 "
@@ -726,6 +706,7 @@ $1n tells you, 'Remove all equipment, please.';
  17;  100; transport                     ;   9;  9000;   8;          0;
  17;   80; electricity resistance        ;  14; 14000;  10; 20;      0;
  18;  100; sun globe                     ;   9;  9000;   10;         0;
+ 18;  100; night globe                   ;   9;  9000;   10;         0;
  18;   80; poison resistance             ;  14; 14000;  10; 20;      0;
  18;  100; summon air                    ;   9;  9000;   10;         0;
  19;   80; acid resistance               ;  14; 14000;  10; 20;      0;
@@ -794,10 +775,10 @@ $1n tells you, 'Remove all equipment, please.';
   3;   80; scroll use                    ;   9;  9000;   8;          0;
   3;   80; consider                      ;   9;  9000;   8;          0;
   3;   80; shield                        ;  14; 14000;  10;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
-  0;   35; armor hard leather            ;   4;  4000;   10;      0;
-  0;   35; armor chain                   ;   4;  4000;   10;      0;
-  0;   35; armor plate                   ;   4;  4000;   10;      0;
+  0;   75; armor soft leather            ;   4;  4000;   10;      0;
+  7;   75; armor hard leather            ;   4;  4000;   10;      0;
+ 15;   75; armor chain                   ;   4;  4000;   10;      0;
+ 20;   50; armor plate                   ;   4;  4000;   10;      0;
 "
 #elif defined(_WEAPON)
 
@@ -817,7 +798,6 @@ $1n tells you, 'Remove all equipment, please.';
   6;   70; club                          ;  14; 14000;  14;          0;
   8;  100; quarterstaff                  ;  14; 14000;  10;          0;
  20;   70; morning star                  ;  18; 18000;  15;          0;
- 28;   80; fighting staff                ;  14; 14000;  20;          0;
  34;   70; flail                         ;  14; 14000;  10;          0;
  36;   70; battle club                   ;  14; 14000;  18;          0;
  48;   90; battle mace                   ;  14; 14000;  18;          0;
@@ -936,7 +916,7 @@ $1n tells you, 'Remove all equipment, please.';
   2;   80; scroll use                    ;   9;  9000;   8;          0;
   3;   80; leadership                    ;   9;  9000;  10;          0;
   5;   75; diagnostics                   ;   4;  4000;   5;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
+  0;   75; armor soft leather            ;   4;  4000;   10;      0;
 "
 
 #elif defined(_WEAPON)
@@ -960,7 +940,6 @@ $1n tells you, 'Remove all equipment, please.';
  12;   80; club                          ;  14; 14000;  10;          0;
  14;   70; flail                         ;  14; 14000;  10;          0;
  16;   80; hand axe                      ;  14; 14000;  10;          0;
- 18;  100; fighting staff                ;  14; 14000;  10;          0;
  20;  100; scythe                        ;  18; 18000;  15;          0;
  22;   90; morning star                  ;  18; 18000;  14;          0;
  25;   70; rapier                        ;  14; 14000;  12;          0;
@@ -968,17 +947,9 @@ $1n tells you, 'Remove all equipment, please.';
  35;   70; battle club                   ;  18; 18000;  15;          0;
  40;   80; battle mace                   ;  18; 18000;  14;          0;
  50;   90; maul                          ;  18; 18000;  14;          0;
- 55;   90; ball and chain mace           ;  18; 18000;  14;          0;
- 37;   90; fauchard                      ;  18; 18000;  14;          0;
- 22;   90; talwar                        ;  18; 18000;  14;          0;
  15;   90; stiletto                      ;  18; 18000;  14;          0;
- 29;   90; ranseur                       ;  18; 18000;  14;          0;
  40;   90; main gauche                   ;  18; 18000;  14;          0;
- 58;   90; pole cleaver                  ;  18; 18000;  14;          0;
-  5;   90; hand hammer                   ;  18; 18000;  14;          0;
  10;   90; brass knuckles                ;  18; 18000;  14;          0;
- 11;   90; ice pick                      ;  18; 18000;  14;          0;
- 37;   90; fauchard fork                 ;  18; 18000;  14;          0;
 "
 
 #elif defined(_SPELL)
@@ -1090,10 +1061,10 @@ $1n tells you, 'Remove all equipment, please.';
   3;   80; bash                          ;   9;  9000;   8;          0;
   5;   70; turn undead                   ;  18; 18000;  15;          0;
  12;  100; leadership                    ;   4;  4000;   5; 10;      0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
-  0;   35; armor hard leather            ;   4;  4000;   10;      0;
-  0;   35; armor chain                   ;   4;  4000;   10;      0;
-  0;   35; armor plate                   ;   4;  4000;   10;      0;
+  0;   50; armor soft leather            ;   4;  4000;   10;      0;
+  7;   70; armor hard leather            ;   4;  4000;   10;      0;
+ 15;  100; armor chain                   ;   4;  4000;   10;      0;
+ 20;  100; armor plate                   ;   4;  4000;   10;      0;
 "
 #elif defined(_WEAPON)
 
@@ -1210,7 +1181,6 @@ ERROR NO TYPE IN MIDGAARD PALADIN
  35;   80; knee                          ;  25; 25000;  20; 40;      0;
  36;   80; sappara                       ;  25; 25000;  20;          0;
  14;   70; kick                          ;  25; 25000;  20;          0;
- 38;   80; fighting staff                ;  15; 15000;  10;          0;
  40;   80; shamshir                      ;  20; 20000;  15;          0;
  42;   70; pilum                         ;  20; 20000;  15;          0;
  46;   80; partisan                      ;  25; 25000;  20; 40;      0;
@@ -1272,6 +1242,71 @@ ERROR NO TYPE IN MYSTIC GUILD
 
 #endif
 
+#elif defined(_GUILD_BARBARIAN)
+
+#if defined(_ABILITY)
+
+  0;  100; Strength                      ;   5; 15000;  10; 20;      0;
+  0;  100; Dexterity                     ;   5; 15000;  10; 20;      0;
+  0;   90; Constitution                  ;   10; 15000;  10; 20;      0;
+  0;  100; Hitpoints                     ;   9; 15000;  10; 20;      0;
+  0;   60; Charisma                      ;  15;  5000;   5; 10;      0;
+  0;   60; Brain                         ;  15; 10000;   8; 16;      0;
+ 
+#elif defined(_SKILL)
+
+  0;  100; consider                      ;  14; 14000;  10; 20;      0;
+  0;  100; diagnostics                   ;  14; 14000;  10; 20;      0;
+  0;   70; fleeing                       ;  14; 14000;  10;          0;
+  0;  100; bash                          ;   9;  9000;   8;          0;
+  0;  100; shield                        ;   4;  4000;   5; 10;      0;
+  1;  100; rescue                        ;  14; 14000;  10;          0;
+  5;   50; swimming                      ;  14; 14000;  10;          0;
+ 10;  100; two weapon style              ;   9;  9000;   8;          0;
+ 10;  100; disarming                     ;   9;  9000;   8;          0;
+ 15;   70; leadership                    ;   9;  9000;   8;          0;
+  0;  100; armor soft leather            ;   4;  4000;   10;      0;
+  7;  100; armor hard leather            ;   4;  4000;   10;      0;
+ 15;  100; armor chain                   ;   4;  4000;   10;      0;
+ 20;  100; armor plate                   ;   4;  4000;   10;      0;
+
+#elif defined(_WEAPON)
+
+  0;  100; fist                          ;   9;  9000;   8;          0;
+  0;  100; club                          ;   4;  4000;   5;          0;
+  0;  100; hand axe                      ;   9;  9000;   8;          0;
+  1;  100; rapier                        ;   9;  9000;   8;          0;
+  2;  100; spear                         ;   9;  9000;   8;          0;
+  4;   80; kick                          ;   4;  4000;  12;          0;
+  4;  100; mace                          ;   9;  9000;   8;          0;
+  4;  100; short sword                   ;   9;  9000;   8;          0;
+  5;   80; brass knuckles                ;  25; 25000;  10;          0;
+  5;   80; knee                          ;  25; 25000;  20; 40;      0;
+  8;  100; war hammer                    ;   9;  9000;   8;          0;
+  8;  100; elbow                         ;  25; 25000;  12;          0;
+ 10;  100; brass knuckles                ;  15; 15000;  12;          0;
+ 12;  100; morning star                  ;  14;  9000;  10;          0;
+ 14;  100; flail                         ;  14; 14000;  10;          0;
+ 14;   70; kick                          ;  25; 25000;  20;          0;
+ 16;  100; long sword                    ;   9;  9000;   8;          0;
+ 16;   80; trident                       ;  18; 18000;  15;          0;
+ 16;  100; battle club                   ;  14; 14000;  10;          0;
+ 18;  100; battle mace                   ;  14; 14000;  10;          0;
+ 18;  100; bardiche                      ;  18; 18000;  15;          0;
+ 22;  100; battle axe                    ;  14; 14000;  15;          0;
+ 25;  100; war mattock                   ;  18; 18000;  15;          0;
+ 24;  100; maul                          ;  12; 12000;  10;          0;
+ 25;  100; great sword                   ;   9;  9000;  10;          0;
+ 30;  100; halberd                       ;  18; 18000;  15;          0;
+ 
+ 
+#else
+
+ERROR NO TYPE IN BARBARIAN GUILD
+
+#endif // barbarian
+
+
 #elif defined(_GUILD_MIDGAARD_SORCERER)
 
 #if defined(_ABILITY)
@@ -1314,7 +1349,7 @@ $1n tells you, 'Remove all, then we proceed!';
   1;  100; scroll use                    ;   4;  4000;   5; 10;      0;
   3;   60; consider                      ;   9;  9000;  10;          0;
  12;   35; weather watching              ;   4;  4000;   5;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
+  0;   75; armor soft leather            ;   4;  4000;   10;      0;
 "
 
 #elif defined(_WEAPON)
@@ -1332,11 +1367,6 @@ $1n tells you, 'Remove it all, then we proceed!';
   0;   70; dagger                        ;  15; 15000;  10;          0;
   0;   50; quarterstaff                  ;  20; 20000;  15;          0;
   8;   50; short sword                   ;  20; 20000;  15;          0;
- 16;   50; scimitar                      ;  25; 25000;  20;          0;
- 17;   70; baculus                       ;  15; 15000;  10;          0;
- 19;   50; main gauche                   ;  20; 20000;  15;          0;
- 25;   50; pole cleaver                  ;  20; 20000;  15;          0;
- 30;   50; cudgel                        ;  25; 25000;  20;          0;
 "
 #elif defined(_SPELL)
 
@@ -1387,6 +1417,7 @@ $1n tells you, 'Remove it all, then we proceed!';
  20;  100; repair                        ;   9;  9000;   8;          0;
  24;  100; bone skin                     ;  18; 18000;  15;          0;
  25;   75; sun globe                     ;  14; 14000;  15;          0;
+ 25;   75; night globe                   ;  14; 14000;  15;          0;
  25;  100; drowse                        ;  18; 18000;  15;          0;
  27;  100; hold monster                  ;  14; 14000;  10;          0;
  28;  100; improved identify             ;  23; 23000;  20;          0;
@@ -1469,8 +1500,8 @@ $1n tells you, 'Stand before me as you entered the world.';
  10;  100; two weapon style              ;   9;  9000;   8;          0;
  13;   70; scroll use                    ;  18; 18000;  15;          0;
  22;  100; stalk                         ;   9;  9000;   8;          0;
-  0;   35; armor soft leather            ;   4;  4000;   10;      0;
-  0;   35; armor hard leather            ;   4;  4000;   10;      0;
+  0;  100; armor soft leather            ;   4;  4000;   10;      0;
+  7;  100; armor hard leather            ;   4;  4000;   10;      0;
 "
 
 
@@ -1490,33 +1521,16 @@ $1n hisses, 'What you wear interferes with what I teach.';
   0;  100; fist                          ;   4;  4000;   5;          0;
   0;  100; claw                          ;   4;  4000;   5;          0;
   1;  100; short sword                   ;   9; 10000;   8;          0;
-  2;  100; wakizashi                     ;   9; 14000;  10;          0;
   4;   80; rapier                        ;  14; 14000;  10;          0;
-  8;  100; kopesh                        ;  14; 14000;  10;          0;
   8;   80; falchion                      ;  14; 14000;  10;          0;
  10;   80; spear                         ;  18; 18000;  15;          0;
  12;   90; kick                          ;  18; 18000;  15;          0;
- 14;  100; katana                        ;   9;  9000;   8;          0;
  16;  100; hand axe                      ;  18; 18000;  15;          0;
  20;   90; long sword                    ;  18; 18000;  15;          0;
  25;  100; quarterstaff                  ;   4;  4000;   8;          0;
- 35;   90; saber                         ;  14; 14000;  10;          0;
- 40;   90; cutlass                       ;  12; 12000;  10;          0;
  12;   90; brass knuckles                ;  18; 18000;  15;          0;
- 14;  100; ice pick                      ;   9;  9000;   8;          0;
- 16;  100; military fork                 ;  18; 18000;  15;          0;
- 20;   90; gaff                          ;  18; 18000;  15;          0;
- 25;  100; guisarme                      ;   4;  4000;   8;          0;
- 35;   90; talwar                        ;  14; 14000;  10;          0;
  40;   90; stiletto                      ;  12; 12000;  10;          0;
- 12;   90; ranseur                       ;  18; 18000;  15;          0;
  14;  100; main gauche                   ;   9;  9000;   8;          0;
- 16;  100; cudgel                        ;  18; 18000;  15;          0;
- 20;   90; war axe                       ;  18; 18000;  15;          0;
- 25;  100; voulge                        ;   4;  4000;   8;          0;
- 35;   90; estoc                         ;  14; 14000;  10;          0;
- 40;   90; bill guisarme                 ;  12; 12000;  10;          0;
- 24;   70; naginata                      ;  25; 25000;  20;          0;
 "
 
 #elif defined(_SPELL)
@@ -1556,8 +1570,8 @@ $1n tells you, 'I can not teach you any more, you are my equal in this.';
 $1n tells you, 'You must be without magical aura in order to learn.';
 $1n tells you, 'You must remove all that you wear.';
 
-  5;  100; locate wanted          ;  25; 2500;  20;          0;
- 10;  100; find wanted            ;  25; 2500;  20;          0;
+  0;  100; locate wanted          ;  25; 2500;  20;          0;
+  0;  100; find wanted            ;  25; 2500;  20;          0;
 "
 #elif defined(_SKILL)
 special SFUN_TEACH_INIT
@@ -1570,7 +1584,7 @@ $1n tells you, 'We are equals in that now.';
 $1n tells you, 'You must have no traces of magic about you to learn.';
 $1n tells you, 'Stand before me as you entered the world.';
 
-  0;  100; hand cuffing                   ;   5;  5000;   20;          0;
+  0;  100; hand cuffing                   ;   5;  2500;   20;          0;
 "
 #endif
 

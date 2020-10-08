@@ -57,38 +57,49 @@ END HEADER*/
 
 #define POLICE_ACADEMY    "$Police Member"
 #define POLICE_BANNED     "$Police Banned"
-#define GUILD_UDG_FIGHTER "Udgaard Fighter"
-#define GUILD_UDG_THIEF   "Udgaard Thief"
-#define GUILD_UDG_CLERIC  "Udgaard Healer"
-#define GUILD_UDG_MAGE    "Udgaard Conjurer"
-#define GUILD_PALADIN     "Midgaard Paladin"
-#define GUILD_SORCERER    "Midgaard Sorcerer"
-#define GUILD_ASSASSIN    "Khorsabad Assassin"
-#define GUILD_MYSTIC      "Midgaard Mystic"
-#define GUILD_NECROMANCER "Necromancer"
-#define GUILD_NYM_RANGER  "Nymgaard Ranger"
-#define GUILD_NYM_DRUID   "Nymgaard Druid"
+
+#define GUILD_UDG_FIGHTER     "Udgaard Fighter"
+#define GUILD_UDG_FIGHTER_ATL "jones@fightersguild","lancelot@fightersguild","robin@fightersguild" //  Abi, Wpn, Ski
+
 #define GUILD_KNIGHT      "Midgaard Dark Knight"
+#define GUILD_KNIGHT_ATL  "matthew@knight", "aramand@knight", "hilary@knight", "soroth@knight" //  Abi, Wpn, Spl, Ski
 
-#define QUEST_WW              "Wight warrens quest"
-#define QUEST_WELMAR          "King Welmar Quest"
-#define QUEST_RABBIT_ONGOING  "Rabbit Stew Ongoing"
-#define QUEST_RABBIT_COMPLETE "Rabbit Stew Complete"
-#define QUEST_POT_COMPLETE    "Mary's Pot Retrieved"
+#define GUILD_PALADIN     "Midgaard Paladin"
+#define GUILD_PALADIN_ATL  "joan@paladin_guild", "edmund@paladin_guild", "alex@paladin_guild", "corbin@paladin_guild" //  Abi, Wpn, Spl, Ski
 
-#define MIN_HUMANOID_PC      0
-#define RACE_HUMAN           0     /* PC race */
-#define RACE_ELF             1     /* PC race */
-#define RACE_DWARF           2     /* PC race */
-#define RACE_HALFLING        3     /* PC race */
-#define RACE_GNOME           4     /* PC race */
-#define RACE_HALF_ORC        5
-#define RACE_HALF_OGRE       6
-#define RACE_HALF_ELF        7
-#define RACE_BROWNIE         8
-#define RACE_GROLL           9
-#define RACE_DARK_ELF       10
-#define MAX_HUMANOID_PC     100
+#define GUILD_NYM_RANGER  "Nymgaard Ranger"
+#define GUILD_RANGER_ATL  "mountain_man@ranger", "justifier@ranger", "guardian@ranger", "pathfinder@ranger" //  Abi, Wpn, Spl, Ski
+
+#define GUILD_UDG_THIEF   "Udgaard Thief"
+#define GUILD_THIEF_ATL   "bisse@thievesguild","pirate@thievesguild","gryma@thievesguild" //  Abi, Wpn, Ski
+
+#define GUILD_ASSASSIN     "Khorsabad Assassin"
+#define GUILD_ASSASSIN_ATL "ability_trainer@assassin", "weapon_trainer@assassin", "spell_trainer@assassin", "skill_trainer@assassin" //  Abi, Wpn, Spl, Ski
+
+#define GUILD_UDG_CLERIC  "Udgaard Healer"
+#define GUILD_CLERIC_ATL  "tack@clericguild", "tick@clericguild", "isabella@clericguild", "bartholomew@clericguild" //  Abi, Wpn, Spl, Ski
+
+#define GUILD_NYM_DRUID   "Nymgaard Druid"
+#define GUILD_DRUID_ATL   "oak@druid", "elm@druid", "maple@druid", "willow@druid" //  Abi, Wpn, Spl, Ski
+
+#define GUILD_MYSTIC      "Midgaard Mystic"
+#define GUILD_MYSTIC_ATL  "", "", "", "" //  Abi, Wpn, Spl, Ski
+
+#define GUILD_NECROMANCER "Necromancer"
+#define GUILD_NECROMANCER_ATL  "kadiya@necro_guild", "krain@necro_guild", "murdock@necro_guild", "meclor@necro_guild" //  Abi, Spl, Wpn, Ski
+
+
+#define GUILD_UDG_MAGE    "Udgaard Conjurer"
+#define GUILD_MAGE_ATL    "merlin@mageguild", "zofax@mageguild", "caval@mageguild", "fifiz@mageguild" //  Abi, Spl, Wpn, Ski
+
+#define GUILD_SORCERER     "Midgaard Sorcerer"
+#define GUILD_SORCERER_ATL "calastran@sorcerer", "lasheetah@sorcerer","claudius@sorcerer", "forbin@sorcerer" // Ability, Weapon, Spell, Skill 
+
+
+#define GUILD_SL   {GUILD_UDG_FIGHTER, GUILD_KNIGHT, GUILD_PALADIN, GUILD_NYM_RANGER,   \
+	                GUILD_UDG_THIEF, GUILD_ASSASSIN, GUILD_UDG_CLERIC, GUILD_NYM_DRUID, \
+	                GUILD_MYSTIC, GUILD_NECROMANCER, GUILD_UDG_MAGE, GUILD_SORCERER}
+#define GUILD_INIT_SL  {"F", "DK", "P",  "R", "T", "A", "H", "D", "M", "N",  "C", "S"}
 
 
 //
@@ -110,10 +121,33 @@ END HEADER*/
 #define PROFESSION_NECROMANCER  9
 #define PROFESSION_CONJURER    10
 #define PROFESSION_SORCERER    11
-#define PROFESSION_MAX         12 /* 11+1 */
+#define PROFESSION_BARBARIAN   12
+#define PROFESSION_MAX         13 /* 11+1 */
 
 #define PROFESSION_STRINGS "Fighter", "Knight", "Paladin", "Ranger", "Thief", "Assassin", \
-                           "Priest", "Druid", "Mystic","Necromancer", "Conjurer", "Mage"
+                           "Priest", "Druid", "Mystic","Necromancer", "Conjurer", "Mage", "Barbarian"
+
+
+#define QUEST_WW              "Wight warrens quest"
+#define QUEST_WELMAR          "King Welmar Quest"
+#define QUEST_RABBIT_ONGOING  "Rabbit Stew Ongoing"
+#define QUEST_RABBIT_COMPLETE "Rabbit Stew Complete"
+#define QUEST_POT_COMPLETE    "Mary's Pot Retrieved"
+
+#define MIN_HUMANOID_PC      0
+#define RACE_HUMAN           0     /* PC race */
+#define RACE_ELF             1     /* PC race */
+#define RACE_DWARF           2     /* PC race */
+#define RACE_HALFLING        3     /* PC race */
+#define RACE_GNOME           4     /* PC race */
+#define RACE_HALF_ORC        5
+#define RACE_HALF_OGRE       6
+#define RACE_HALF_ELF        7
+#define RACE_BROWNIE         8
+#define RACE_GROLL           9
+#define RACE_DARK_ELF       10
+#define MAX_HUMANOID_PC     100
+
 
 
 /*Insert any new definitions here... */
@@ -374,6 +408,10 @@ END HEADER*/
 #define SKI_ARM_HLEATHER      61
 #define SKI_ARM_CHAIN         62
 #define SKI_ARM_PLATE         63
+#define SKI_FRENZY			  64
+#define SKI_BERSERK		      65
+#define SKI_RAGE              66
+#define SKI_TAUNT             67
 
 #define LAST_SKILL            75
 
@@ -619,8 +657,8 @@ END HEADER*/
 #define SPL_LAVA_3           232
 #define SPL_LAVA_4           233
 #define SPL_MIRE             234
-#define SPL_WEB              235
-#define LAST_SPELL           235
+#define SPL_NIGHT_GLOBE      235
+#define LAST_SPELL           236
 /* Just insert any new spells here... just keep incrementing by one */
 
 /* keep in mind if you need more ask the vme coders.*/
@@ -978,15 +1016,15 @@ END HEADER*/
 /* keep in mind if you need more ask the vme coders.*/
 #define CLAN_MASTER    "$clan_master"
 #define  CLAN_MEMBER  "$clan_member"
-#define  CLAN_TATOO  "clan tatoo"
+#define  CLAN_TATTOO  "clan_taTtoo"
 #define CLAN_NAME "$clan_name"
-#define CLAN_LIST "$clan-_list"
-#define CLAN_SYMBOLIC "$clan-_symbolic"
-#define CLAN_TREASURY "$clan-_treasury"
-#define CLAN_QUARTERMASTER "$clan-_quartermaster"
-#define CLAN_MONEY "$clan-_money"
-#define CLAN_STORAGE "$clan-_storage"
-#define CLAN_DONATION "$clan-_donation"
+#define CLAN_LIST "$clan_list"
+#define CLAN_SYMBOLIC "$clan_symbolic"
+#define CLAN_TREASURY "$clan_treasury"
+#define CLAN_QUARTERMASTER "$clan_quartermaster"
+#define CLAN_MONEY "$clan_money"
+#define CLAN_STORAGE "$clan_storage"
+#define CLAN_DONATION "$clan_donation"
 #define CLAN_MAX_STORAGE  25
 #define CLAN_MAX_DONATION  50
 #define CLAN_RANK   "$clan_rank"
@@ -1102,6 +1140,8 @@ capacity capac
 #define SPELL_R "$spell_restrict"
 #define SKILL_R "$skill_restrict"
 #define PLAYER_R "$player_restrict"
+#define PROFESSION_R "$profession_restrict"
+#define ANTI_PROFESSION_R "$anti_profession_restrict"
 
 
 #define QUEST_RESTRICT(QUEST,DAMAGE,PERCENT,ACTION) \
@@ -1162,7 +1202,7 @@ ACTION
 #define DIL_GINT_REQXP      1  // return the required_xp(i) for level i using the INT parameter i
 #define DIL_GINT_LEVELXP    2  // return the level_xp(i) (XP needed for level i->i+1)
 #define DIL_GINT_DESCRIPTOR 3  // returns 0 if PC has no descriptor. 1 for all else
-
+#define DIL_GINT_CALLGUARDS 4  // Call the guards for DIL blow_whistle
 
 
 #endif /* _MUD_VALUES_H */

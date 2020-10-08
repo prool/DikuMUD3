@@ -293,7 +293,7 @@ return;
 then parses
    the argument, seeing which of the work dils it needs to call. */
 
-dilbegin do_look (arg:string);
+dilbegin do_look(arg:string);
 external
    string is_dir (s:string);
    look_blank(l2 : unitptr, arg:string);
@@ -359,9 +359,9 @@ code
    if ((arg1 == "in") or (arg1 == "i"))
    {
       if (temp != "")
-         look_in (self, temp);
+         look_in(self, temp);
       else
-         look_at (self, arg);
+         look_at(self, arg);
       quit;
    }
 
@@ -550,13 +550,13 @@ dilend
 
 
 
-dilbegin unitptr find_equip(looker:unitptr,arg:string);
+dilbegin unitptr find_equip(looker:unitptr, arg:string);
 var
    item:unitptr;
 
 code
 {
-   item := findunit(looker, arg, FIND_UNIT_INVEN, null);
+   item := findunit(looker, arg, FIND_UNIT_EQUIP, null);
    return(item);
 
    // MS2020 we really have to use the standard functions to avoid code mismatch
@@ -570,7 +570,7 @@ dilend
 
 /* look_in : This allows a player to look inside of a container, a boat, a vehicle or a water container. */
 
-dilbegin look_in (looker : unitptr, arg:string);
+dilbegin look_in(looker : unitptr, arg:string);
 
 external
 	string obj_content (l : unitptr, u:unitptr);
@@ -582,97 +582,100 @@ var
      u         :  unitptr;
      i         :  integer;
 
-code{
+code
+{
+   u := find_here(looker, arg);
 
-u:=find_here(looker,arg);
+   if ((u == null) or (not visible(looker, u)))
+   {
+      act ("No such thing here.", A_ALWAYS, looker, null, null, TO_CHAR);
+      quit;
+   }
 
-if ((u == null) or (not visible(looker, u)))
-    {act ("No such thing here.", A_ALWAYS, looker, null, null, TO_CHAR);
-     quit;
-    }
+   if ((u.type ==UNIT_ST_PC) or (u.type==UNIT_ST_NPC))
+   {
+      act ("Well, if you kill $3m you could look inside of $3m.",
+            A_ALWAYS,looker, null, u, TO_CHAR);
+      quit;
+   }
 
-if ((u.type ==UNIT_ST_PC) or (u.type==UNIT_ST_NPC))
-    {act ("Well, if you kill $3m you could look inside of $3m.",
-	 A_ALWAYS,looker, null, u, TO_CHAR);
-     quit;
-    }
-
-if ((u.nameidx=="portal") and (u.zoneidx=="spells"))
- goto portal;
-
-
-if ((u.nameidx=="moot_buck") and (u.zoneidx=="udgaard"))
- goto gold_bucket;
-
- if ((u.nameidx=="gate") and (u.zoneidx=="spells"))
- goto portal;
-
-if ((u.objecttype != ITEM_CONTAINER) and (u.objecttype != ITEM_BOAT)
-    and (u.objecttype != ITEM_DRINKCON) and (u.objecttype != ITEM_VEHICLE))
-    {act ("It doesn't appear to be able to contain anything.",
-	 A_ALWAYS,looker, null, null, TO_CHAR);
-     quit;
-    }
-
-if (isset (u.openflags, EX_CLOSED))
-    {act ("It is closed.", A_ALWAYS, looker, null, null, TO_CHAR);
-     quit;
-    }
-
-if (u.objecttype == ITEM_DRINKCON)
-   goto drink_cont;
+   if ((u.nameidx=="portal") and (u.zoneidx=="spells"))
+      goto portal;
 
 
-t_object := "<div class='obj_title'>$2n ";
+   //if ((u.nameidx=="moot_buck") and (u.zoneidx=="udgaard"))
+   //   goto gold_bucket;
 
-if ((u.outside == looker) and (u.equip != 0))
+   if ((u.nameidx=="gate") and (u.zoneidx=="spells"))
+      goto portal;
+
+   if ((u.objecttype != ITEM_CONTAINER) and (u.objecttype != ITEM_BOAT)
+      and (u.objecttype != ITEM_DRINKCON) and (u.objecttype != ITEM_VEHICLE))
+   {
+      act ("It doesn't appear to be able to contain anything.",
+            A_ALWAYS,looker, null, null, TO_CHAR);
+      quit;
+   }
+
+   if (isset (u.openflags, EX_CLOSED))
+   {
+      act ("It is closed.", A_ALWAYS, looker, null, null, TO_CHAR);
+      quit;
+   }
+
+   if (u.objecttype == ITEM_DRINKCON)
+      goto drink_cont;
+
+
+   t_object := "<div class='obj_title'>$2n ";
+
+   if ((u.outside == looker) and (u.equip != 0))
       t_object := t_object + "(worn):</div>";
-else if (u.outside == looker)
+   else if (u.outside == looker)
       t_object := t_object + "(carried):</div>";
-else
+   else
       t_object := t_object + "(here):</div>";
 
-act(t_object, A_ALWAYS, looker, u, null, TO_CHAR);
+   act(t_object, A_ALWAYS, looker, u, null, TO_CHAR);
 
-buff := obj_content (looker, u);
+   buff := obj_content (looker, u);
 
-if (looker.type == UNIT_ST_PC)
-    sendtext(buff, looker);
-else
-    sendtext(buff, looker);
-quit;
+   if (looker.type == UNIT_ST_PC)
+      sendtext(buff, looker);
+   else
+      sendtext(buff, looker);
+   quit;
+
 	:portal:
-sendto ("lookin",u);
-quit;
-
+   sendto("lookin",u);
+   quit;
 
 	:Gold_bucket:
-sendto ("lookin",u);
-quit;
+   sendto("lookin",u);
+   quit;
 
-:drink_cont:
+   :drink_cont:
+   if (u.extra.["$drink_color"])
+      buff := u.extra.["$drink_color"].descr;
+   else
+      buff := "";
 
-if (u.extra.["$drink_color"])
-   buff := u.extra.["$drink_color"].descr;
-else
-   buff := "";
+   if (u.value[0] >= u.capacity)
+      act("It is full of a $2t liquid.", A_ALWAYS, self, buff, null, TO_CHAR);
+   else if (u.value[0] > (u.capacity / 2))
+      act("It is more than half full of a $2t liquid.",
+         A_ALWAYS, self, buff,null, TO_CHAR);
+   else if (u.value[0] > 0)
+      act("It is less than half full of a $2t liquid.",
+          A_ALWAYS, self, buff,null, TO_CHAR);
+   else
+      act("It is empty.", A_ALWAYS, self, null, null, TO_CHAR);
 
-if (u.value[0] >= u.capacity)
-   act("It is full of a $2t liquid.", A_ALWAYS, self, buff, null, TO_CHAR);
-else if (u.value[0] > (u.capacity / 2))
-   act("It is more than half full of a $2t liquid.",
-        A_ALWAYS, self, buff,null, TO_CHAR);
-else if (u.value[0] > 0)
-   act("It is less than half full of a $2t liquid.",
-        A_ALWAYS, self, buff,null, TO_CHAR);
-else
-   act("It is empty.", A_ALWAYS, self, null, null, TO_CHAR);
+   send_done ("look", looker, null, u, 0, "", null);
 
-send_done ("look", looker, null, u, 0, "", null);
-
-quit;
-
-}dilend
+   quit;
+}
+dilend
 
 
 
@@ -693,7 +696,7 @@ as we will have to scan all items in this order :
      11) extra on looker
 */
 
-dilbegin look_at (looker : unitptr, arg:string);
+dilbegin look_at(looker : unitptr, arg:string);
 external
    unitptr find_here(u:unitptr,s:string);
    unitptr find_equip(u:unitptr,s:string);
@@ -715,7 +718,7 @@ code
    if (right(temp, 2) == "'s")     /* Looking at temp's someting, so we need to concentrate on temp */
    {
       temp := left(temp, (length(temp) - 2));  /* Get temp's real name */
-      pc := find_here(looker,temp);
+      pc := find_here(looker, temp);
 
       if ((pc == null) or (not visible(looker, pc)))
       {
@@ -729,7 +732,7 @@ code
          quit;
       }
 
-      item := find_equip (pc,arg1);
+      item := findunit(pc, arg1, FIND_UNIT_EQUIP, null);
 
 	   /* See if temp has something named arg1 */
       if (item == null) /* If not, search for an extra on temp */
@@ -746,7 +749,7 @@ code
          else
          {
 		      act("$3n does not seem to have a $2t.", A_ALWAYS, looker, arg1,pc, TO_CHAR);   /* doesnt have anything name arg1 */
-            send_done ("look", looker, item, pc, 1, arg, null);
+            send_done("look", looker, item, pc, 1, arg, null);
             quit;
          }
       }
@@ -754,14 +757,13 @@ code
       {
          if (pc == looker)
             act("You look at your $2n.", A_ALWAYS, looker, item, pc, TO_CHAR);
-         else if (item.equip!=0)
+         else if (item.equip)
             act("You look at $3n's $2n.", A_ALWAYS, looker, item, pc,TO_CHAR);
 		   else
 		   {
             act("$3n does not seem to have a $2t.", A_ALWAYS, looker, arg1,pc, TO_CHAR);   /* doesnt have anything name arg1 */
             quit;
          }
-
 
          if (item.extra.[""]) /* this is for the extra{} on the item */
             temp := "<div class='obj_descr'>" + item.extra.[""].descr;
@@ -770,13 +772,14 @@ code
          else
             temp := "<div class='obj_descr'>You see nothing special.";   /* NOthing to describe for item */
 
-         temp := temp + "</div>";
+         temp := temp + "</div><br/>";
 
          if (item.objecttype == ITEM_WEAPON)
          {
             temp1 := weapon_name(item.value[0]);
-            temp := temp + "The " + item.name + " clearly requires a " +temp1 + " fighting style.</div>";
+            temp := temp + "The " + item.name + " requires a " +temp1 + " fighting style.<br/>";
          }
+
          sendtext(temp,looker);
 
          act("$1n looks at $3n's $2N.", A_ALWAYS, looker, item, pc,TO_NOTVICT);
@@ -1954,7 +1957,7 @@ while(i < length(exit_list))             /* generate the string from the stringl
    i := i + 1;
   }
 
-exit_str := exit_str + "</div>";
+exit_str := exit_str + "</div><br/>";
 
 return (exit_str);
 
