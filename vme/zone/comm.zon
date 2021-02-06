@@ -21,6 +21,94 @@ Original base code conversion by Telemachos, revamped by Mesmer."
 
 %dil
 
+dilbegin string whostring();
+var
+  u : unitptr;
+  gld : string;
+  buff : string;
+  final : string;
+code
+{
+   u := ghead();
+   final := "";
+
+   while (u.type==UNIT_ST_PC)
+   {
+      if (u.minv < 1) // Check not wizi
+      {
+         if (u.level >= OVERSEER_LEVEL)
+            gld:="(Admin)";
+         else if (u.level>=CREATOR_LEVEL)
+            gld:="(Creator)";
+         else if (u.level>IMMORTAL_LEVEL)
+            gld:="(Immortal)";
+         else
+            gld:="";
+
+         buff := u.name + " "+gld;
+
+         if ("valhalla builder" in u.quests)
+            buff:=buff+" * Builder *";
+         if ("valhalla friend" in u.quests)
+            buff:=buff+" * Friend *";  
+         if ("New Player Helper" in u.quests)
+         {
+            buff:=buff+" * Guide *";
+         }
+         buff := buff + "&&";
+
+         final := final + buff;
+      }
+      u:=u.gnext;
+   }
+
+   if (final == "")
+   {
+      final := "No (visible) players online at this time.";
+   }
+
+   return(final);
+}
+dilend
+
+
+// Gets called with the string 'arg' when the MUD server receives
+// a line via pipeMUD
+//
+dilbegin dispatcher(arg : string);
+external
+   string whostring();
+
+var
+   w : string;
+   o : string;
+code
+{
+   w := getword(arg);
+   if (w == "discord")
+   {
+      if ("'#'" in arg)
+      {
+        log("Dispatcher for discord got who command " + arg);
+        w := whostring();
+        dispatch("discord who " + w); // Send to dispatcher.py via pipeDispatcher
+      }
+      else
+      {
+        //log("Dispatcher for discord got : " + arg);
+
+        arg := "CHANNEL " + arg;
+        log("Dispatcher for discord seding message : [" + arg +"]");
+        sendtoalldil(arg, "channel@function");
+      }
+   }
+   else
+      log("Dispatcher got unidentified message: [" + w + "] " + arg);
+   quit;
+}
+dilend
+
+
 dilbegin integer is_ignored(ch : unitptr,victim : unitptr);
 var
 ex : extraptr;
@@ -49,7 +137,7 @@ dilend
 
 dilbegin do_ignore(arg : string);
 external
-	stringlist shell@commands(s:stringlist);
+	stringlist dilshell@commands(s:stringlist);
 var
 ex : extraptr;
 ch : unitptr;
@@ -80,7 +168,7 @@ if(length(ex.names) <= 1)
 
   lst := ex.names;
   substring(lst,"$ignore_list");
-  lst := shell@commands(lst);
+  lst := dilshell@commands(lst);
 
   sendtext("<u>You are ignoring the following people.</u><br/>",self);
   i := 0;
@@ -513,8 +601,7 @@ pc := findunit(self,person.descr,FIND_UNIT_HERE,null,UNIT_ST_NPC);
 
 if (pc==null)
 {
-act ("<div class='respond'>No one to respond
-to.</div>",A_ALWAYS,self,null,null,TO_CHAR);
+act ("<div class='respond'>No one to respond to.</div>",A_ALWAYS,self,null,null,TO_CHAR);
 quit;
  }
 
@@ -550,37 +637,35 @@ quit;
 
 punct:=exclaim_ask(arg);
 
-if (visible(self,pc))
-sendtext("<div class='respond'>You respond to "+pc.name+" "+punct+"'"+arg+"'</div>", self);
-else
-{
-if ((pc.sex==SEX_MALE) or (pc.sex==SEX_FEMALE))
-sx:="Someone";
-else
-sx:="Something";
-sendtext("<div class='respond'>You respond to "+sx+" "+punct+"'"+arg+"'</div>",
-self);
-}
+   if (visible(self,pc))
+      sendtext("<div class='respond'>You respond to "+pc.name+" "+punct+"'"+arg+"'</div><br/>", self);
+   else
+   {
+      if ((pc.sex==SEX_MALE) or (pc.sex==SEX_FEMALE))
+         sx:="Someone";
+      else
+         sx:="Something";
+      sendtext("<div class='respond'>You respond to "+sx+" "+punct+"'"+arg+"'</div><br/>", self);
+   }
 
-if (visible (pc,self))
-{
-sendtext("<div class='respond'>"+self.name+" responds "+punct+"'"+arg+"'</div>",pc);
- 	add_history(pc,"<div class='respond'>"+self.name+" responds "+punct+"'"+arg+"'</div>");
+   if (visible (pc,self))
+   {
+      sendtext("<div class='respond'>"+self.name+" responds "+punct+"'"+arg+"'</div><br/>",pc);
+      add_history(pc,"<div class='respond'>"+self.name+" responds "+punct+"'"+arg+"'</div>");
 	}
-else
-{
-if ((self.sex==SEX_MALE) or (self.sex==SEX_FEMALE))
-sx:="Someone";
-else
-sx:="Something";
-sendtext("<div class='respond'>"+sx+" responds "+punct+"'"+arg+"'</div>",pc);
-add_history(pc,"<div class='respond'>"+sx+" responds "+punct+"'"+arg+"'</div>");
-}
+   else
+   {
+      if ((self.sex==SEX_MALE) or (self.sex==SEX_FEMALE))
+         sx:="Someone";
+      else
+         sx:="Something";
+      sendtext("<div class='respond'>"+sx+" responds "+punct+"'"+arg+"'</div><br/>",pc);
+      add_history(pc,"<div class='respond'>"+sx+" responds "+punct+"'"+arg+"'</div>");
+   }
 
-subextra (pc.quests,"$reply");
-addextra (pc.quests,{"$reply"},self.name);
-quit;
-
+   subextra (pc.quests,"$reply");
+   addextra (pc.quests,{"$reply"},self.name);
+   quit;
 }
 dilend
 

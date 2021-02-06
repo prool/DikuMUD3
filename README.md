@@ -5,6 +5,10 @@ D-Day June 21, 2020
 
 Get in touch if you'd like to contribute. Check out the issues on Git. There are a few broader issues at the bottom of this file. Everything from non-programming to HTML to C(++). Drop a mail to seifert at dikumud.com. Look at the end of this file for a few items.
 
+Join us on Discord:
+
+https://discord.gg/vmha2rGRA2
+
 Documentation goes here:
 
 https://wiki.dikumud.net/wiki/DikuMUD
@@ -15,7 +19,7 @@ Pre-requisites:
    * gcc/g++
    * flex/bison (sudo apt-get install bison flex)
    * boost devel (sudo apt-get install libboost-all-dev)
-
+   * Debian users look here for flex: https://github.com/Seifert69/DikuMUD3/issues?q=70
 
 
 How to build & launch
@@ -48,7 +52,7 @@ And then `telnet localhost 4242`. But telnet is best for debugging
 
 5) To open the client
 
-       cd ../www/
+       cd ../www/client/
        firefox index.html
 
 Set the host to your fqdn or localhost and set the port to match mplex (4280 if you used that)

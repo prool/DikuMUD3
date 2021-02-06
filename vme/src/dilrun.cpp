@@ -118,8 +118,8 @@ extern void special_event(void *p1, void *p2);
  *
  * *********************************************************************** */
 
-class dilprg *dil_list = NULL;
-class dilprg *dil_list_nextdude = NULL;
+//class dilprg *dil_list = NULL;
+//class dilprg *dil_list_nextdude = NULL;
 
 void dil_edit_done(class descriptor_data *d)
 {
@@ -489,6 +489,47 @@ int dil_sub_secure(struct dilframe *frm, class unit_data *sup, int bForeach)
    exec(), send() and sendto().
    ********************************************************************* */
 
+
+/* Clears all extra pointers equal to a removed extra            */
+void dil_clear_extras(register class dilprg *prg, class extra_descr_data *exd)
+{
+    register int i;
+    struct dilframe *frm;
+
+    if (!prg->frame)
+    {
+        slog(LOG_ALL, 0, "tried to clean empty frame");
+        return;
+    }
+
+    for (frm = prg->frame; frm <= prg->fp; frm++)
+    {
+        for (i = 0; i < frm->tmpl->varc; i++)
+        {
+            if (frm->vars[i].type == DILV_EDP)
+            {
+                if (frm->vars[i].val.extraptr == exd)
+                    frm->vars[i].val.extraptr = NULL;
+            }
+        }
+    }
+
+    // Guess this might be needed when calling remote routines. Not tested... :-/
+    for (i = 0; i < prg->stack.length(); i++)
+    {
+        if (prg->stack[i]->atyp == DILV_EDPR)
+        {
+            if (*((class extra_descr_data **)prg->stack[i]->ref) == exd)
+                prg->stack[i]->ref = NULL;
+        }
+        else if (prg->stack[i]->atyp == DILV_EDP)
+        {
+            if (prg->stack[i]->val.ptr == exd)
+                prg->stack[i]->val.ptr = NULL;
+        }
+    }
+}
+
 /* Clears all variables that are not secured! Called at every activation */
 /* of a DIL program (after secures are tested for!).			 */
 void dil_clear_non_secured(register class dilprg *prg)
@@ -671,14 +712,14 @@ struct dil_func_type dilfe_func[DILI_MAX + 1] = {
     {dilfe_atoi},
     {dilfe_itoa},
     {dilfe_rnd},
-    {dilfe_fndu},
-    {dilfe_fndr}, /* 25 */
+    {dilfe_fndu},  // findunit
+    {dilfe_fndr},  // 25 findroom
     {dilfe_load},
     {dilfe_iss},
     {dilfe_getw},
     {dilfe_isa},
     {dilfe_cmds}, /* 30 */
-    {dilfe_fnds},
+    {dilfe_fnds}, // findsymbolic
 
     {dilfe_acti},
     {dilfe_argm},
@@ -751,7 +792,7 @@ struct dil_func_type dilfe_func[DILI_MAX + 1] = {
     {dilfe_intr},
     {dilfi_cli},
     {dilfi_sbt},
-    {dilfi_swt},
+    {dilfi_set_weight_base},
     {dilfe_fndru}, /* 100 */
     {dilfe_visi},
     {dilfe_atsp},
@@ -776,7 +817,7 @@ struct dil_func_type dilfe_func[DILI_MAX + 1] = {
     {dilfi_lcri},
     {dilfe_fits},
     {dilfe_cary},
-    {dilfe_fnds2},
+    {dilfe_fnds2}, // findsymbolic(#,#)
     {dilfe_path}, /* 125  */
     {dilfe_mons},
     {dilfe_splx},
@@ -848,9 +889,14 @@ struct dil_func_type dilfe_func[DILI_MAX + 1] = {
     {dilfe_phead},
     {dilfe_fndu2},
     {dilfe_gfol},
-    {dilfe_sact}, // 195
-    {dilfe_gint}
-};
+    {dilfe_sact}, // 196
+    {dilfe_gint},
+    {dilfe_shell},
+    {dilfi_set_weight},
+    {dilfi_dispatch},
+    {dilfe_fndz},
+    {dilfe_fndsidx}    
+ };
 
 
 static int check_interrupt(class dilprg *prg)
@@ -1061,12 +1107,13 @@ int run_dil(struct spec_arg *sarg)
     /* For evaluating expressions */
     prg->sarg = sarg;
 
+    /* This is not correct. If it's the last element in the list it is also NULL.
     if (prg->next == NULL)
     {
         slog(LOG_ALL, 0, "already destroyed DIL");
         prg->nest--;
         return SFR_SHARE;
-    }
+    }*/
 
 
     /* A MEGA HACK! The DIL activated spells will not be tested for
@@ -1472,7 +1519,7 @@ class dilprg *dil_copy_template(struct diltemplate *tmpl,
         }
     }
 
-    prg = new EMPLACE(dilprg) dilprg(u,true);
+    prg = new EMPLACE(dilprg) dilprg(u, tmpl);
     membug_verify(prg);
 
     prg->fp->tmpl = tmpl;

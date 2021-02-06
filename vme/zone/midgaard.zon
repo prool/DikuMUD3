@@ -5,7 +5,7 @@ changedby   Ratlin
 EmailAdd
 request     compile
 version     34
-END HEADER*/
+END HEADER */
 
 #include <macros.h>
 
@@ -94,6 +94,34 @@ Zone by Papi and Quifael </pre>"
 %dil
 
 
+// Call this function for CHAR 'self' to cuff targ
+//  cuffs must be the unitptr to the handcuffs to be used.
+//
+dilbegin cuff_target(deputy : unitptr, targ : unitptr, cuffs : unitptr);
+var
+   depname: string;
+
+code
+{
+   act("You cuff $3n.", A_SOMEONE, deputy, null, targ, TO_CHAR);
+   act("$1n surprises you and put $2n around your wrists.", A_SOMEONE, deputy, cuffs, targ, TO_VICT);
+   act("$1n puts $2n around $3N's wrists.", A_SOMEONE, deputy, cuffs, targ, TO_NOTVICT);
+
+   follow(targ, deputy);
+   depname := deputy.name;
+   link(cuffs, targ);
+   unequip(equipment(targ, WEAR_WRIST_R));
+   addequip(cuffs, WEAR_WRIST_R);
+   dilcopy("cuffed@midgaard("+depname+")", targ);
+   dilcopy("cuffed2@midgaard("+depname+")", targ);
+
+   exec("sigh", targ); /* Do this to activate the DILs */
+   return;
+}
+dilend
+
+
+
 //
 // MS2020 Making guards react to whistle again
 //
@@ -122,15 +150,14 @@ code
    :torescue:
    priority;
    tf:=walk_room@function(roomto, 5);
-   nopriority;
 
    // Stay a little
-   act("$1n alertly scans $1s surroundings.",
-         A_ALWAYS, self, null, null, TO_ALL);
-
+   act("$1n alertly scans $1s surroundings.",A_ALWAYS, self, null, null, TO_ALL);
    heartbeat := PULSE_SEC*4;
+   nopriority;
 
    :nowwhat:
+   // Let the other DIL programs take control (no priority above)
    pause;
    pause;
    pause;
@@ -141,7 +168,7 @@ code
    priority;
    tf:=walk_room@function(roomorg, 8);
    nopriority;
-   quit;
+   return;
 }
 dilend
 
@@ -967,19 +994,51 @@ dilend
 
 
 dilbegin fnpri(FN_PRI_RESCUE-1) jailstay(du : integer);
-var
-   i : integer;
+external
+   jailbreak@justice(criminal : unitptr);
+   rem_db_entry@justice(criminal : unitptr, extra_type : string);
+   getfrom_safe(prisoner : unitptr);
 
+var
+   sn : string;
+   sz : string;
+   jd : unitptr;
+   id : string;
+  
 code
 {
    heartbeat := PULSE_SEC * SECS_PER_MUD_HOUR;
-   i := self.outside.idx;
+   
+   sn := self.outside.nameidx;
+   sz := self.outside.zoneidx;
+   jd := findsymbolic("database@justice");
 
-   :loop:
+   // Change player arrest descr to reflect that the char is in jail.
+   //
+   if("$arrest" in self.extra)
+   {
+      id := self.extra.["$arrest"].names.[1];
+      jd.extra.[id].descr := self.name+" is currently serving time in jail.";
+   }
+
+ 
+  :loop:
    pause;
 
-   if (i != self.outside.idx)
-     quit;
+   if (sn != self.outside.nameidx)
+   {  
+      //player has escaped from jail
+      jailbreak@justice(self);
+      quit;
+   }
+
+   if("$arrest" in self.extra)
+   {
+      jd := findsymbolic("database@justice"); 
+      id := self.extra.["$arrest"].names.[1];
+      log(id);    
+      jd.extra.[id].descr := self.name+" is currently serving time in jail. "+itoa(du)+" hours remaining";
+   }
 
    if ((du % 4) == 0)
      send("jailfood");
@@ -998,23 +1057,22 @@ code
      goto release;
    else
    {
-      act("You make another mark on the wall. Only "+itoa(du)+
-	  " hours till freedom!",
+      act("You make another mark on the wall. Only "+itoa(du)+" hours till freedom!",
           A_ALWAYS, self, null, null, TO_CHAR);
    }
-
+   
    du := du - 1;
-
    goto loop;
 
 
    /* Get thrown out of jail */
    :release:
-
    act("Your term is over! You are thrown out of the jail and sent home.",
        A_ALWAYS, self, null, null, TO_CHAR);
-   link(self, findroom(self.hometown));
+   getfrom_safe(self);
+   link(self, findroom("accuse_room@" + sz));
    self.crimes := self.crimes / 2;
+   rem_db_entry@justice(self, "$arrest");
    set(self.charflags, CHAR_PROTECTED);
    unset(self.charflags, CHAR_OUTLAW);
    quit;
@@ -1025,14 +1083,12 @@ dilend
 dilbegin fnpri(FN_PRI_RESCUE-1) guard_arrest(office : string, prisoner : unitptr);
 external
    unitptr unit_room@function(u : unitptr);
-
-integer walk_room@function (s:string,i:integer);
-
+   integer walk_room@function (s:string,i:integer);
 var
-tf:integer;
-  u : unitptr;
-  i : integer;
-  wasin : string;
+   tf:integer;
+   u : unitptr;
+   i : integer;
+   wasin : string;
 code
 {
    on_activation((self.position <= POSITION_SLEEPING) or
@@ -1073,7 +1129,8 @@ dilend
 
 dilbegin fnpri(FN_PRI_RESCUE-1) arrest_check(office : string);
 external
-  guard_arrest(office : string, prisoner : unitptr);
+   guard_arrest(office : string, prisoner : unitptr);
+   cuff_target(deputy : unitptr, targ : unitptr, cuffs : unitptr);
 var
   u : unitptr;
 code
@@ -1083,6 +1140,8 @@ code
 
    :loop:
    wait(SFB_CMD, activator.charflags & CHAR_OUTLAW);
+   if (activator == self)
+      goto loop;
 
    u := equipment(activator,  WEAR_WRIST_R);
 
@@ -1092,26 +1151,18 @@ code
 
    if (activator.charflags & CHAR_PROTECTED)
    {
-      unequip(u);
-
-      act("$3n arrests $1n and cuffs $1m.",
-	  A_SOMEONE, activator, null, self, TO_ROOM);
-
-      act("You are handcuffed and arrested by $3n.",
-	  A_SOMEONE, activator, null, self, TO_CHAR);
-
-      follow(activator, self);
-
       u := load("cuffs@midgaard");
-      link(u, activator);
-      addequip(u, WEAR_WRIST_R);
+
+      cuff_target(self, activator, u);
 
       guard_arrest@midgaard(office, activator);
    }
    else
    {
       unset(activator.charflags, CHAR_SELF_DEFENCE);
-      exec("kill "+activator.name, self);
+      // If we have several chars with the same name, this causes havoc
+      //     exec("kill "+activator.name, self);
+      set_fighting(self, activator);
    }
 
    goto loop;
@@ -1120,18 +1171,138 @@ dilend
 
 
 
+// self can be different things
+// prisoner is ... the prisoner
+//
+dilbegin getfrom_safe(prisoner : unitptr);
+var
+   vr : unitptr;
+   u : unitptr;
+   nextu : unitptr;
+   safe : unitptr;
+   i : integer;
+
+code
+{
+   log("getfromsafe()");
+   safe := findsymbolic(prisoner, "safe@justice", FIND_UNIT_IN_ME);
+   if (safe == null)
+   {
+      log("no safe found");
+      return; // There was nothing stored
+   }
+
+   vr := findsymbolic("void@basis");
+
+   link(safe, vr); // Place in room OK to mess up weight
+
+   i := 0;
+   u := safe.inside;
+
+   while (u)
+   {
+      nextu := u.next;
+
+      link(u, prisoner);
+      i := i + 1;
+
+      u := nextu;
+   }
+
+   act("You get your posessions back.", A_SOMEONE, prisoner, null, null, TO_CHAR);
+
+   if (safe.inside == null)
+      destroy(safe);
+   else
+   {
+      // Shouldn't happen
+      link(safe, prisoner);
+      log("Safe not empty for " + prisoner.name);
+   }
+
+   return;
+}
+dilend
+
+
+
+// self is captain
+// prisoner is ... the prisoner
+//
+dilbegin putin_safe(prisoner : unitptr);
+var
+   vr : unitptr;
+   u : unitptr;
+   nextu : unitptr;
+   safe : unitptr;
+   i : integer;
+
+code
+{
+   vr := findsymbolic("void@basis");
+   safe := load("safe@justice");
+   link(safe, vr); // Place it in a room OK to mess up weight
+
+   i := 0;
+   u := prisoner.inside;
+
+   while (u)
+   {
+      nextu := u.next;
+
+      if (u.minv < 1)
+      {
+         link(u, safe);
+         i := i + 1;
+      }
+
+      u := nextu;
+   }
+
+   if (i < 1)
+   {
+      destroy(safe);
+   }
+   else
+   {
+      set_weight_base(safe, 0);
+      set_weight(safe, 0);
+      link(safe, prisoner);
+
+      if (safe == null)
+      {
+         act("$1n takes all $3n's possessions.",
+            A_SOMEONE, self, null, prisoner, TO_NOTVICT);
+         act("$1n takes all your possessions.",
+            A_SOMEONE, self, null, prisoner, TO_VICT);
+      }
+      else
+      {
+         act("$1n puts all $3n's possessions in the safe.",
+            A_SOMEONE, self, safe, prisoner, TO_NOTVICT);
+         act("$1n puts all your possessions in the safe.",
+            A_SOMEONE, self, safe, prisoner, TO_VICT);
+      }
+   }
+
+   return;
+}
+dilend
+
+
 dilbegin captain(jailname : string);
 external
- integer walk_room@function (s:string,i:integer);
+   integer walk_room@function (s:string,i:integer);
+   putin_safe(prisoner : unitptr);
 
 var
-tf:integer;
-  prisoner : unitptr;
-  u : unitptr;
-  nextu : unitptr;
-  safe : unitptr;
-  cuffs : unitptr;
-  c : string;
+   tf:integer;
+   prisoner : unitptr;
+   u : unitptr;
+   nextu : unitptr;
+   safe : unitptr;
+   cuffs : unitptr;
+   c : string;
 
 code
 {
@@ -1166,32 +1337,7 @@ code
    goto loop;
 
    :gotone:
-   u := prisoner.inside;
-
-   while (u)
-   {
-      nextu := u.next;
-
-
-      if (visible (self,u) )
-         link(u, safe);
-      u := nextu;
-   }
-
-   if (safe == null)
-   {
-      act("$1n takes all $3n's possessions.",
-	  A_SOMEONE, self, null, prisoner, TO_NOTVICT);
-      act("$1n takes all your possessions.",
-	  A_SOMEONE, self, null, prisoner, TO_VICT);
-   }
-   else
-   {
-      act("$1n puts all $3n's possessions in $2n.",
-	  A_SOMEONE, self, safe, prisoner, TO_NOTVICT);
-      act("$1n puts all your possessions in $2n.",
-	  A_SOMEONE, self, safe, prisoner, TO_VICT);
-   }
+   putin_safe(prisoner);
 
    act("$3n opens the jail door, and pushes $1n through.",
        A_SOMEONE, prisoner, null, self, TO_NOTVICT);
@@ -1211,7 +1357,10 @@ code
 dilend
 
 
-dilbegin aware cuffed(depname : string);
+// Make sure the handcuffs blocks execution of other DILs.
+// So it's one worse priority than "cuffed2"
+//
+dilbegin fnpri(FN_PRI_RESCUE) aware unique cuffed(depname : string);
 var
    cuffs  : unitptr;
    deputy : unitptr;
@@ -1247,17 +1396,18 @@ dilend
 
 
 
-dilbegin aware cuffed2(depname : string);
+dilbegin fnpri(FN_PRI_RESCUE-1) aware unique cuffed2(depname : string);
 var
    i      : integer;
    u      : unitptr;
 code
 {
    interrupt(SFB_COM, activator == self, broken);
+
    :loop:
    wait(SFB_CMD, TRUE);
-   :postloop:
 
+   :postloop:
    if (activator == self.master)
    {
       if (activator.position < POSITION_STANDING)
@@ -1266,32 +1416,32 @@ code
       /* Do this trickery to allow the cuffed person to follow! */
 
       if (command("north") or command("east") or command("south") or
-	  command("west") or command("up") or command("down"))
+          command("west") or command("up") or command("down"))
       {
-	 wait(SFB_CMD, TRUE);
+         wait(SFB_CMD, TRUE);
          if (activator == self)
-	 {
-	    if (command("north") or command("east") or
-		command("south") or command("west") or
-		command("up") or command("down"))
-	    {
-	       goto loop;
-	    }
-	 }
-	 goto postloop;
+         {
+            if (command("north") or command("east") or
+               command("south") or command("west") or
+               command("up") or command("down"))
+            {
+               goto loop;
+            }
+         }
+         goto postloop;
       }
       goto loop;
    }
    else if (activator == self)
    {
       if (command("look") or command("say") or
-	  command("ask") or command("tell"))
+          command("ask") or command("tell"))
         goto loop;
       else
       {
-	 block;
-	 act(depname + " prevents you from removing the hand cuffs.",
-	     A_ALWAYS, self, null, null, TO_CHAR);
+         block;
+         act(depname + " prevents you from removing the hand cuffs.",
+            A_ALWAYS, self, null, null, TO_CHAR);
       }
    }
    goto loop;
@@ -5202,9 +5352,8 @@ descr
 hundreds of small drawers line the  walls in neat rows.  The room glitters
 with the polished bronze and steal that make up the Thief proof deposit boxes.
 The marble floors shine like nothing you have ever seen and the profesional
-way
-the room is kept makes you feel safe with putting your most prized possessions
-here for safe keeping."
+way the room is kept makes you feel safe with putting your most prized 
+possessions here for safe keeping."
 
 extra {"drawers","drawer"}
 "These drawers look to have been made by a master blacksmith.  There
@@ -5785,7 +5934,7 @@ dilcopy shopkeepernew@function(
  "$1n says, 'Here you are, some delicious $2n.'",
  "$1n says, 'I might be able to sell this $2n.'",
  "$1n says, 'I don't have that many right now, maybe of you come back later.'"},
-{ITEM_FOOD}, 110, 10, 2*PLATINUM_MULT);
+{ITEM_FOOD}, 110, 10, 2*PLATINUM_MULT, TRUE);
 dilcopy evaluate@function(64);
 
 
@@ -5823,7 +5972,7 @@ dilcopy shopkeepernew@function(
  "$1n says, 'I might be able to sell this.",
  "$1n says, 'I don't have that many $2n in my stock right now.",
  "$1n says, '."
-}, {ITEM_FOOD}, 130, 10,2*PLATINUM_MULT);
+}, {ITEM_FOOD}, 130, 10,2*PLATINUM_MULT, TRUE);
 end
 
 
@@ -5859,7 +6008,7 @@ dilcopy shopkeepernew@function(
  "$1n says, 'Here you $3n, some $2n'",
  "$1n says, 'Did you kill this yourself, $3n? Cleaned is it? Well, I'll buy it then.'",
  "$1n says, 'Seems like i have to prepare some more meat, i don't have that many right now.'"
-}, {ITEM_FOOD}, 110, 10,2*PLATINUM_MULT);
+}, {ITEM_FOOD}, 110, 10,2*PLATINUM_MULT, TRUE);
 end
 
 
@@ -5899,7 +6048,7 @@ dilcopy shopkeepernew@function(
  "$1n says, 'Here you are.'",
  "$1n says, 'Thank you $3n, this is a nice $2n.'",
  "$1n says, ''"},
- {ITEM_LIGHT, ITEM_OTHER, ITEM_CONTAINER, ITEM_NOTE, ITEM_DRINKCON, ITEM_KEY, ITEM_PEN}, 120, 80,2*PLATINUM_MULT);
+ {ITEM_LIGHT, ITEM_OTHER, ITEM_CONTAINER, ITEM_NOTE, ITEM_DRINKCON, ITEM_KEY, ITEM_PEN}, 120, 80,2*PLATINUM_MULT, TRUE);
 
 end
 
@@ -5933,7 +6082,7 @@ dilcopy shopkeepernew@function(
  "$1n says, 'Here you are.'",
  "$1n says, 'Thank you $3n, this is a nice $2n.'",
  "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
- {ITEM_FOOD}, 110, 10,2*PLATINUM_MULT);
+ {ITEM_FOOD}, 110, 10,2*PLATINUM_MULT, TRUE);
 end
 
 
@@ -5976,7 +6125,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_WEAPON, ITEM_FIREWEAPON}, 110,60,286720);
+{ITEM_WEAPON, ITEM_FIREWEAPON}, 110,60,286720, TRUE);
 end
 
 
@@ -5997,7 +6146,6 @@ default POSITION_SITTING
 flags {UNIT_FL_NO_TELEPORT}
 
 dilcopy blow_whistle@justice();
-dilcopy protect_lawful@justice();
 dilcopy evaluate@function(64);
 
 dilcopy opening_hours@function({4,12,13,23}, {"list", "buy", "sell", "value", "request"}, 
@@ -6023,7 +6171,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_ARMOR, ITEM_SHIELD}, 110,60,286720);
+{ITEM_ARMOR, ITEM_SHIELD}, 110,60,286720, TRUE);
 end
 
 
@@ -6061,7 +6209,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
- {ITEM_WORN}, 110, 60, 286720);
+ {ITEM_WORN}, 110, 60, 286720, TRUE);
 
 dilcopy resize_func@midgaard (ITEM_ARMOR,ITEM_WORN,ITEM_WORN,
                               ARM_CLOTHES,ARM_CLOTHES,IRON_MULT,"tailor");
@@ -6127,7 +6275,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_ARMOR}, 110,60,286720);
+{ITEM_ARMOR}, 110,60,286720, TRUE);
 
 dilcopy resize_func@midgaard (ITEM_ARMOR, ITEM_WORN, ITEM_WORN,
 ARM_LEATHER,ARM_HLEATHER,3*IRON_MULT,"leather worker");
@@ -6184,7 +6332,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_SCROLL, ITEM_WAND, ITEM_POTION, ITEM_STAFF}, 110,60,286720);
+{ITEM_SCROLL, ITEM_WAND, ITEM_POTION, ITEM_STAFF}, 110,60,286720, TRUE);
 
 end
 
@@ -6223,7 +6371,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_TREASURE}, 110, 60, 286720);
+{ITEM_TREASURE}, 110, 60, 286720, TRUE);
 
 dilcopy resize_func@midgaard (ITEM_TREASURE,ITEM_OTHER,ITEM_WORN,
                               ARM_CLOTHES,ARM_CLOTHES,SILVER_MULT,
@@ -6264,7 +6412,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_BOAT}, 110, 60, 286720);
+{ITEM_BOAT}, 110, 60, 286720, TRUE);
 end
 
 
@@ -6308,7 +6456,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_CONTAINER}, 110, 60, 286720);
+{ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 
 end
 
@@ -6439,7 +6587,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_CONTAINER}, 110, 60, 286720);
+{ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 
 end
 
@@ -6474,7 +6622,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_CONTAINER}, 110, 60, 286720);
+{ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 end
 
 
@@ -6520,7 +6668,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_CONTAINER}, 110, 60, 286720);
+{ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 end
 
 
@@ -6550,7 +6698,7 @@ dilcopy shopkeepernew@function(
 "$1n says, 'Here you are.'",
 "$1n says, 'Thank you $3n, this is a nice $2n.'",
 "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
-{ITEM_CONTAINER}, 110, 60, 286720);
+{ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 end
 
 
@@ -6570,9 +6718,6 @@ M_HUMAN_MAGE_ELECTRICITY(85,SEX_FEMALE, "lightning bolt")
 alignment 1000
 flags {UNIT_FL_NO_TELEPORT}
 dilcopy blow_whistle@justice();
-dilcopy rescue@function("guard / mayor");
-dilcopy protect_lawful@justice();
-special SFUN_ACCUSE
 
 dilcopy deputy_check@function();
 dilcopy teach_q_block@function(POLICE_ACADEMY, "say Deputies only!");
@@ -6600,10 +6745,6 @@ M_HUMAN_THIEF_POLE(82, SEX_MALE)
 alignment 1000
 
 dilcopy blow_whistle@justice();
-dilcopy rescue@function("guard / mayor");
-dilcopy protect_lawful@justice();
-special SFUN_ACCUSE
-
 dilcopy deputy_check@function();
 dilcopy teach_q_block@function(POLICE_ACADEMY, "say Deputies only!");
 
@@ -6630,10 +6771,11 @@ M_HUMAN_WARRIOR_SWORD(87,SEX_MALE)
 alignment 1000
 
 dilcopy blow_whistle@justice();
-dilcopy protect_lawful@justice();
+dilcopy protect_lawful@justice(); 
 dilcopy rescue@function("guard / mayor");
+
 dilcopy reward_give@function();
-special SFUN_ACCUSE
+dilcopy accuse@justice();
 dilcopy guard_dir@function("west", null, {""}, "");
 dilcopy guard_door@function(WEST,
 "$1n stops you.",
@@ -6707,6 +6849,7 @@ alignment 400
 money 2 IRON_PIECE
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -6729,6 +6872,7 @@ alignment 400
 money 5 IRON_PIECE
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -6751,6 +6895,7 @@ alignment 400  /* Just above neutral */
 money 3 IRON_PIECE
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -6819,6 +6964,7 @@ money 6 IRON_PIECE
 exp 0
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -6841,6 +6987,7 @@ exp 0
 position POSITION_SLEEPING
 default POSITION_SITTING
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
 dilbegin guard1();
@@ -6941,6 +7088,7 @@ position POSITION_SLEEPING
 default POSITION_SITTING
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -7042,6 +7190,7 @@ default POSITION_SITTING
 exp 0
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -7065,6 +7214,7 @@ position POSITION_SLEEPING
 default POSITION_SITTING
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -7088,6 +7238,7 @@ default POSITION_SITTING
 exp 0
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -7111,6 +7262,7 @@ position POSITION_SLEEPING
 default POSITION_SITTING
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -7135,6 +7287,7 @@ position POSITION_SLEEPING
 default POSITION_SITTING
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -7158,6 +7311,7 @@ position POSITION_SLEEPING
 default POSITION_SITTING
 
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
@@ -7525,7 +7679,9 @@ alignment 0  /* Just above neutral */
 money 5 IRON_PIECE
 exp 0
 
+dilcopy attack_evil@justice();
 dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
 dilbegin temple_guard();
@@ -7992,9 +8148,9 @@ dilcopy reward_give@function();
 
 #define GUILD_NAMES  {"Udgaard Fighter", "Udgaard Thief", "Udgaard Healer", \
                "Udgaard Conjurer", "Nymgaard Ranger", "Midgaard Paladin", "Midgaard Sorcerer", \
-               "Khorsabad Assassin", "Necromancer", "Nymgaard Druid", "Midgaard Dark Knight" } 
-#define GUILD_LETTERS  {"F", "T", "H",  "C", "R", "P",   "S", "A", "N",  "D", "K"};
-#define GUILD_EXCL     {"",  "P", "N",   "",  "",  "ANK", "",  "P", "PRD", "N", "PD"};
+               "Khorsabad Assassin", "Necromancer", "Nymgaard Druid", "Midgaard Dark Knight", "Barbarian" } 
+#define GUILD_LETTERS  {"F", "T", "H",  "C", "R", "P",   "S", "A", "N",  "D", "K", "B"};
+#define GUILD_EXCL     {"",  "P", "N",   "",  "",  "ANK", "",  "P", "PRD", "N", "PD", ""};
 
 /* Lists the characters current guilds and returns how many they are a member of */
 dilbegin aware integer guild_choose();
@@ -8372,14 +8528,15 @@ dilbegin cuffs();
 external
    integer skillresist@function(aa : integer, ad : integer,
                              sa : integer, sd : integer);
+   cuff_target(deputy : unitptr, targ : unitptr, cuffs : unitptr);
 
 var
-  deputy : unitptr;
-  targ   : unitptr;
-  skilla : integer;
-  skilld : integer;
-  hm     : integer;
-  depname: string;
+   deputy : unitptr;
+   targ   : unitptr;
+   skilla : integer;
+   skilld : integer;
+   hm     : integer;
+   depname: string;
 code
 {
    :loop:
@@ -8466,27 +8623,13 @@ code
       goto loop;
    }
 
-   act("You cuff $3n.", A_SOMEONE, deputy, null, targ, TO_CHAR);
-   act("$1n surprises you and put $2n around your wrists.",
-       A_SOMEONE, deputy, self, targ, TO_VICT);
-   act("$1n puts $2n around $3N's wrists.",
-       A_SOMEONE, deputy, self, targ, TO_NOTVICT);
-
-   follow(targ, deputy);
-   depname := deputy.name;
-   unsecure(deputy);
-   link(self, targ);
-   unequip(equipment(self.outside, WEAR_WRIST_R));
-   addequip(self, WEAR_WRIST_R);
-   dilcopy("cuffed@midgaard("+depname+")", self.outside);
-   dilcopy("cuffed2@midgaard("+depname+")", self.outside);
-
-   exec("sigh", self.outside); /* Do this to activate the DILs */
-
+   cuff_target(activator, targ, self);
    /* targ is secured, when broken we reset to loop */
+
    :cuffed:
    wait(SFB_CMD, self.equip != WEAR_WRIST_R);
-   goto cuffed;
+   // Cuffs are no longer on the wrist, start over
+   goto loop;
 }
 dilend
 

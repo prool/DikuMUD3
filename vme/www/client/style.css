@@ -175,6 +175,9 @@
         html,body {
             height: 100%; margin: 0px; padding: 0px;
         }
+
+        pre { white-space: pre-wrap; }
+
         a:link {
             color:currentColor;
         }
@@ -258,6 +261,7 @@
         .who_inv     { display: inline; }
 
         .xpgain         { display: inline; color:firebrick; font-weight: bold;}
+		.hint		 { display: inline; color:lime; }
 
         .converse    { list-style: none; } 
         .colh2       { border: 0px solid black; margin:0; } /* Table class */

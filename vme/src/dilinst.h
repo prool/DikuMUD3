@@ -59,7 +59,8 @@ void dilfi_dlc (class dilprg *);
 void dilfi_on (class dilprg *);
 void dilfi_rsproc (class dilprg *);
 void dilfi_rsfunc (class dilprg *);
-void dilfi_swt (class dilprg *);
+void dilfi_set_weight(class dilprg *p);
+void dilfi_set_weight_base(class dilprg *p);
 void dilfi_sbt (class dilprg *);
 void dilfi_cli (class dilprg *);
 void dilfi_foe (class dilprg *);
@@ -79,5 +80,6 @@ void dilfi_reboot (class dilprg *);
 void dilfi_kedit (class dilprg *);
 void dilfe_sact (class dilprg *);
 void dilfe_gint (class dilprg *);
-
+void dilfe_shell (class dilprg *);
+void dilfi_dispatch(class dilprg *);
 #endif

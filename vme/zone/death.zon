@@ -165,7 +165,7 @@ unitptr find_here@commands (s:string);
 var
    item      : unitptr;
    corpse    : unitptr;
-
+ reward_exp : extraptr;
 
    temp_lst  : stringlist;
 	 temp_str2:string;
@@ -223,42 +223,49 @@ heartbeat:=3;
    item := load("head@death");
    addextra (item.extra,{"$head_time"},itoa(realtime));
    dilcopy ("rot_head@death",item);
+   // If corpse has a reward on it copy it to the head.
+  
+ reward_exp := "$reward" in corpse.extra;
+ if (reward_exp)
+ {
+   addextra(item.extra, reward_exp.names,reward_exp.descr);
+ }    
    item.minv := 200;
    link(item, self.outside);
 
-  chk := (corpse.value[4]);
- if ((chk > RACE_ARTHROPODA_MIN) and (chk <= RACE_ARTHROPODA_MAX)) 
-  {
-  item.baseweight:= corpse.baseweight/70;
-  }
-  else
+   chk := (corpse.value[4]);
+   if ((chk > RACE_ARTHROPODA_MIN) and (chk <= RACE_ARTHROPODA_MAX)) 
+   {
+      set_weight_base(item, corpse.baseweight/70);
+   }
+   else
+      set_weight_base(item, corpse.baseweight/30);
 
- item.baseweight:= corpse.baseweight/30;
-if (item.baseweight > 100)
-{
-item.baseweight := 100;
-}
+   if (item.baseweight > 100)
+   {
+      set_weight_base(item, 100);
+   }
 
-if (item.baseweight < 1)
-{
-item.baseweight := 1;
-}
+   if (item.baseweight < 1)
+   {
+      set_weight_base(item, 1);
+   }
 
-item.weight:=item.baseweight;
-item.minv := 0;
-  temp_str2 :=corpse.outside_descr;
+   set_weight_base(item, item.baseweight);
+   item.minv := 0;
+   temp_str2 :=corpse.outside_descr;
    temp_str := getword(temp_str2);
    temp_str := getword(temp_str2);
    temp_str := getword(temp_str2);
-	 temp_str:=temp_str2;
+   temp_str:=temp_str2;
    item.outside_descr := "The decapitated head of " + temp_str ;
    headless:=left(corpse.title,length(corpse.title)-6);
-	 corpse.title:=headless+"headless corpse";
+   corpse.title:=headless+"headless corpse";
 
-	 corpse.outside_descr:="The headless corpse of "+temp_str;
+   corpse.outside_descr:="The headless corpse of "+temp_str;
    item.value[2] := corpse.value[2];
    item.value[3] := corpse.value[3];
-					quit;
+   quit;
 }
 dilend /* decapitate */
 
@@ -698,9 +705,8 @@ dilend
 
 
 /* Corpse data is as follows:
- *   corpse.baseweight set to char's weight
+ *   corpse.baseweight and corpse.weight set to self's baseweight
  *   corpse.height set to char's height
- *   corpse.weight set to char's weight
  *   value[2] is 0 if PC 1 if NPC
  *   value[3] is the char's level
  *   value[4] is the char's race
@@ -708,12 +714,19 @@ dilend
 dilbegin make_corpse();
 external
    string findcrproom(u:unitptr);
+
 var
    rltime:integer;
    corpseroom:string;
    crp:unitptr;
    item:unitptr;
    temp:unitptr;
+   reward_exp : extraptr;
+   r_id : string;
+   jd: unitptr;
+   r_key : string;
+   jd_ptr : extraptr;
+
 code
 {
    heartbeat := PULSE_SEC;
@@ -721,6 +734,13 @@ code
    crp := load("corpse@death");
 
    substring(crp.names, crp.names.[0]);
+   
+   if(self.symname == "familiar2@g_q")
+   {
+		act("The familiar's magic unwinds and it fades from this plane of existance.",
+			A_ALWAYS,self,null,null,TO_ALL);
+		return;
+   }
 
    if (self.type==UNIT_ST_NPC)
       addstring (crp.names,"corpse of "+self.title);
@@ -734,9 +754,10 @@ code
    else
       crp.title:=self.title+"'s corpse";
   
-  crp.baseweight:=self.baseweight;
-  crp.weight:=crp.baseweight;
-  crp.height:=self.height;
+   set_weight_base(crp, self.baseweight);
+   set_weight(crp, self.baseweight);
+
+   crp.height:=self.height;
   
    if (self.type==UNIT_ST_NPC)
    {
@@ -753,16 +774,16 @@ code
    crp.value[4] := self.race;
    
    if (isset(self.pcflags, PC_PK_RELAXED))
-      addextra (crp.extra,{"$BOB"},"");
+      addextra(crp.extra,{"$BOB"},"");
    
-   item:=self.inside;
-   while (item!=null)
+   item := self.inside;
+   while (item != null)
    {
       unequip(item);
       if ((item.zoneidx!="treasure") and (item.minv<51))
       {
          temp:=item.next;
-         link (item, crp);
+         link(item, crp);
          item:=temp;
       }
       else
@@ -770,6 +791,27 @@ code
          item.minv:=200;
          item:=item.next;
       }
+   } 
+
+   //load Justice Database 
+   jd := findsymbolic("database@justice");
+  
+   //transfer reward infor to corpse if found. 
+   reward_exp := "$reward" in self.extra;
+   if (reward_exp)
+   {
+     r_id := reward_exp.names.[1];
+     r_key := r_id;
+     jd_ptr := r_key in jd.extra;
+     if(jd_ptr)
+      {
+        addextra(crp.extra, jd_ptr.names,jd_ptr.descr);
+        subextra(jd.extra, r_key);
+      }
+    else
+     log("Justice: Unmatched reward extra found on "+self.name);
+
+     subextra(self.extra, "$reward");
    }
 
    rltime:=realtime;
@@ -783,6 +825,9 @@ code
       addextra(crp.extra, {CORPSE_TIME}, itoa(rltime));
       store (crp,"corpse_"+self.name+"."+itoa(rltime),TRUE);
       dilcopy("partial_get@death",crp);
+      
+      //remove all entreis from the justice database
+      subextra(jd.extra, self.name);
    }
    else
       addextra (crp.extra,{CORPSE_TIME}, itoa(rltime));
@@ -790,15 +835,17 @@ code
    dilcopy("remove_corpse@death",crp);
 
    link(crp, self.outside);
-   item := self.outside;
-   while ((item!=null) and (item.type!=UNIT_ST_ROOM))
+
+   /* item := self.outside;
+    while ((item!=null) and (item.type!=UNIT_ST_ROOM))
    {
       item.weight := item.weight+crp.weight;
       item := item.outside;
-   }
+   }*/
    return;
 }
 dilend
+
 
 dilbegin aware partial_get();
 code
@@ -811,36 +858,43 @@ goto start;
 }
 dilend
 
+
 dilbegin remove_aff();
 var
- I:integer;
+   i:integer;
 code
 {
-heartbeat:=3;
-i:=0;
-while (i<100)
-  {
-  if (isaff(self,i))
-  {
-     subaff(self,i);
-	 continue;
-	 }
-	 i:=i+1;
-	 }
-while (dilfind("panic@spells",self))
-	I:=dildestroy("panic@spells",self);
-while (dilfind("spl_poison@spells",self))
-	I:=dildestroy("spl_poison@spells",self);
-	while (dilfind("hammer@spells",self))
-  i:=dildestroy("hammer@spells",self);
-while (dilfind("no_flee@spells",self))
-  i:=dildestroy("no_flee@spells",self);
-while (dilfind("spl_madness@spells",self))
-  i:=dildestroy("spl_madness@spells",self);
-while (dilfind("spl_sleep@spells",self))
-  i:=dildestroy("spl_sleep@spells",self);
+   heartbeat:=3;
+   i:=0;
+   while (i<100)
+   {
+      if (isaff(self,i))
+      {
+         subaff(self,i);
+         continue;
+      }
+      i:=i+1;
+   }
 
-return;
+   while (dilfind("panic@spells",self))
+      i:=dildestroy("panic@spells",self);
+
+   while (dilfind("spl_poison@spells",self))
+      i:=dildestroy("spl_poison@spells",self);
+
+   while (dilfind("hammer@spells",self))
+      i:=dildestroy("hammer@spells",self);
+
+   while (dilfind("no_flee@spells",self))
+      i:=dildestroy("no_flee@spells",self);
+
+   while (dilfind("spl_madness@spells",self))
+      i:=dildestroy("spl_madness@spells",self);
+
+   while (dilfind("spl_sleep@spells",self))
+      i:=dildestroy("spl_sleep@spells",self);
+
+   return;
 }
 dilend
 
@@ -849,42 +903,44 @@ dilend
 
 dilbegin raw_kill ();
 external
-  make_corpse ();
-  remove_aff();
-	death_cry();
+   make_corpse ();
+   remove_aff();
+   death_cry();
+   rem_db_entry@justice(criminal : unitptr, extra_type : string);
+
 code
 {
-    heartbeat:=3;
+   heartbeat:=3;
 
-    if (self.type==UNIT_ST_PC)
-    {
-        set(self.pcflags,PC_SPIRIT);
-        dilcopy ("noaction@death",self);
-        // No such room any more... dilcopy ("death_bell@death("+self.name+")",findroom("moot_nowe@udgaard")); 
+   if (self.type==UNIT_ST_PC)
+   {
+      set(self.pcflags,PC_SPIRIT);
+      dilcopy("noaction@death",self);
+      // No such room any more... dilcopy ("death_bell@death("+self.name+")",findroom("moot_nowe@udgaard")); 
 
-        if ("$TOTAL_DEATHS" in self.extra)
-            self.extra.["$TOTAL_DEATHS"].vals.[0]:=self.extra.["$TOTAL_DEATHS"].vals.[0]+1;
-        else
-            addextra(self.extra,{"$TOTAL_DEATHS"},itoa(realtime),{1});
-    }
+      if ("$TOTAL_DEATHS" in self.extra)
+         self.extra.["$TOTAL_DEATHS"].vals.[0]:=self.extra.["$TOTAL_DEATHS"].vals.[0]+1;
+      else
+         addextra(self.extra,{"$TOTAL_DEATHS"},itoa(realtime),{1});
+   }
 
-    sendtext("You are dead. R.I.P.<br/>",self);
-    death_cry();
-    make_corpse();
+   sendtext("You are dead. R.I.P.<br/>",self);
+   death_cry();
+   make_corpse();
 
-    stop_fighting(self, null);
-    self.position:=POSITION_DEAD;
+   stop_fighting(self, null);
+   self.position:=POSITION_DEAD;
 
-    if (self.type==UNIT_ST_NPC)
-    destroy (self);
-    else
-    {
-        remove_aff();
-        self.weight:=self.baseweight;
-        link (self,findroom("deathseq_room@basis"));
-        dilcopy ("death_seq@death",self);
-    }
-    return;
+   if (self.type==UNIT_ST_NPC)
+      destroy(self);
+   else
+   {
+      remove_aff();
+      // self.weight:=self.baseweight;
+      link(self, findroom("deathseq_room@basis"));
+      dilcopy("death_seq@death", self);
+   }
+   return;
 }
 dilend
 
@@ -898,51 +954,59 @@ external
 
 var
 	loss:integer;
-	i:integer;
+	l0:integer; // XP required to your current level
+	l1:integer; // XP required to your current level+1
 
 code
 {
    heartbeat:=3;
-   if (self.type!=UNIT_ST_PC)
+   if (u.type != UNIT_ST_PC)
+      return(0);
+
+   /* Up to level 3 is sacred experience                          */
+   if (u.vlevel <= 3)
       return(0);
 
    /* This first line takes care of any xp earned above required level. */
-   i := getinteger(DIL_GINT_LEVELXP, null, u.vlevel);
-   loss := max(0, (u.exp-i)/2);
+   l0 := getinteger(DIL_GINT_REQXP, null, u.vlevel);
+   l1 := getinteger(DIL_GINT_REQXP, null, u.vlevel+1);
+   log("l1 = " + itoa(l1) + "   l0 = " + itoa(l0) + "   l1-l0 = " + itoa(l1-l0));
+
+   // Lose half the XP earned above your current level (you should level up)
+   loss := max(0, (u.exp-l0)/2);
+   log("loss 1 = " + itoa(loss));
 
    /* This line makes sure, that you lose at most half a level...       */
-   loss := min(loss, getinteger(DIL_GINT_LEVELXP, null, u.vlevel)/2);
+   loss := min(loss, (l1-l0)/2);
+   log("loss 2 = " + itoa(loss));
 
    /* This line takes care of the case where you have less or almost    */
    /* equal XP to your required. You thus lose at least 1/5th your      */
    /* level.                                                            */
-   loss := max(loss, getinteger(DIL_GINT_LEVELXP, null, u.vlevel)/5);
-
-   /* This line takes care of newbies, setting the lower bound... */
-   /* Up to level 3 is sacred experience                          */
-   i := getinteger(DIL_GINT_REQXP, null, 3);
-   i := max(0, (self.exp-i) / 2);
-
-   if (loss > i)
-      loss := i;
+   loss := max(loss, (l1-l0)/5);
+   log("loss 3 = " + itoa(loss));
 
    if (loss < 0)
       loss:=0;
 
-   return (loss);
+   log("loss result = " + itoa(loss));
+
+   return(loss);
 }
 dilend
 
 
 
-dilbegin death(arg:string);
+dilbegin death();
 external
    raw_kill ();
    integer lose_exp(u:unitptr);
    gain_exp(u:unitptr,gain:integer);
+   integer  valid_extra@justice(criminal : unitptr, extra_type : string);
+   rem_db_entry@justice(criminal : unitptr, extra_type : string);
 var
 	gain:integer;
-
+        i:integer;
 code
 {
    heartbeat:=3;
@@ -958,14 +1022,20 @@ code
       dilcopy ("arena_death@arena()",self);
       quit;
    }
+    // If the character has a $arrest extra...delete it from the justice database
+    if(valid_extra@justice(self,"$arrest"))
+           rem_db_entry@justice(self,"$arrest");
 
    if (self.type==UNIT_ST_PC)
-	{
-      while (isaff(self, ID_REWARD))
-         subaff(self, ID_REWARD);
+   {
+        if(not(isset(self.charflags, CHAR_PROTECTED)))
+           set(self.charflags, CHAR_PROTECTED);
+   	if(isset(self.charflags, CHAR_OUTLAW))
+           unset(self.charflags,CHAR_OUTLAW);
+        if(dilfind("jailstay@midgaard", self))
+          i := dildestroy("jailstay@midgaard", self); //Kill the jalstay DIL if they die in jail.
 
-   	unset(self.charflags,CHAR_OUTLAW);
-	}
+   }
    if (isset(self.charflags,CHAR_KILL_SELF))
 	{
       raw_kill();
@@ -986,22 +1056,23 @@ dilend
 dilbegin death_cry ();
 var
 	dir:integer;
+
 code
 {
-heartbeat:=PULSE_SEC*3;
-act ("<div class='death'>Your blood freezes as you hear $1n's death cry.</div>",
-A_SOMEONE, self,null,null,TO_REST);
+   heartbeat:=PULSE_SEC*3;
+   act("<div class='death'>Your blood freezes as you hear $1n's death cry.</div>",
+      A_SOMEONE, self,null,null,TO_REST);
 
-dir:=0;
-while (dir<=MAX_EXIT)
+   dir:=0;
+   while (dir<=MAX_EXIT)
 	{
-if (self.outside.exit_to[dir])
-act("<div class='death'>Your blood freezes as you hear someones death cry.",
-	A_ALWAYS,self.outside.exit_to[dir].inside,null,null,TO_ROOM);
-	dir:=dir+1;
+      if (self.outside.exit_to[dir])
+      act("<div class='death'>Your blood freezes as you hear someones death cry.",
+         A_ALWAYS,self.outside.exit_to[dir].inside,null,null,TO_ROOM);
+         dir:=dir+1;
 	}
 
-return ;
+   return;
 }
 dilend
 
@@ -1068,6 +1139,16 @@ weight 1
 end
 
 
+                                     rewardhead
+names {"head"}
+title "a bloody reward test head"
+descr "The decapitated head of CrashTestDummy is here"
+type ITEM_TRASH
+manipulate {MANIPULATE_TAKE}
+weight 1
+extra {"$reward", "2500", "1024", "$udgaard"}
+"This is a fake head to test rewards."
+end
                                      corpse
 names {"corpse"}
 title "corpse"

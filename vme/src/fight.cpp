@@ -733,8 +733,9 @@ static void person_gain(class unit_data *ch, class unit_data *dead,
    {
       if (share > 0)
       {
-         if (IS_SET(CHAR_FLAGS(ch), CHAR_WIMPY))
-            share /= 2; /* Only 50% in wimpy */
+         /* No need to reduce XP since flee is now a skill
+            if (IS_SET(CHAR_FLAGS(ch), CHAR_WIMPY))
+            share /= 2; // Only 50% in wimpy */
 
          if (CHAR_LEVEL(ch) < maxlevel - 5)
             share -=
@@ -867,27 +868,28 @@ static void exp_align_gain(class unit_data *ch, class unit_data *victim)
    }
 }
 
+/*
 int lose_exp(class unit_data *ch)
 {
    int loss, i;
 
    assert(IS_PC(ch));
 
-   /* This first line takes care of any xp earned above required level. */
+   // This first line takes care of any xp earned above required level.
 
    loss = MAX(0, (CHAR_EXP(ch) - required_xp(PC_VIRTUAL_LEVEL(ch))) / 2);
 
-   /* This line makes sure, that you lose at most half a level...       */
+   // This line makes sure, that you lose at most half a level...      
 
    loss = MIN(loss, level_xp(PC_VIRTUAL_LEVEL(ch)) / 2);
 
-   /* This line takes care of the case where you have less or almost    */
-   /* equal XP to your required. You thus lose at least 1/5th your      */
-   /* level.                                                            */
+   // This line takes care of the case where you have less or almost  
+   // equal XP to your required. You thus lose at least 1/5th your    
+   // level.                                                          
 
    loss = MAX(loss, level_xp(PC_VIRTUAL_LEVEL(ch)) / 5);
 
-   /* This line takes care of newbies, setting the lower bound... */
+   // This line takes care of newbies, setting the lower bound..
    i = MAX(0, (CHAR_EXP(ch) - required_xp(START_LEVEL)) / 2);
 
    if (loss > i)
@@ -897,6 +899,7 @@ int lose_exp(class unit_data *ch)
 
    return loss;
 }
+*/
 
 /* Die is only called when a PC or NPC is killed for real, causing XP loss
    and transfer of rewards */
@@ -1157,8 +1160,7 @@ void damage(class unit_data *ch, class unit_data *victim,
             else
             {
                if (IS_SET(CHAR_FLAGS(victim), CHAR_PROTECTED))
-
-                  log_crime(NULL, victim, CRIME_MURDER);
+                  log_crime(ch, victim, CRIME_MURDER);
             }
          }
       }
@@ -1300,8 +1302,27 @@ static int check_combat(class unit_data *ch)
 }
 
 
-/* -1 if fails, >= 0 amount of damage */
+// Above level 50 a e.g. 100 roll becomes (with / 18):
+//  L51 -> 117
+//  L60 -> 167
+//  L70 -> 222
+//  L100 -> 389
+//  L150 -> 667
+//  L200 -> 944
+//  L250 -> 1222
+//
+//  I've started with / 25 to not give everyone on the game a huge chock.
+//
+int roll_boost(int roll, int level)
+{
+   if (level <= 50)
+      return roll;
+   else
+      return roll * (level-30) / 25;   // / 18;
+}
 
+
+/* -1 if fails, >= 0 amount of damage */
 int one_hit(class unit_data *att, class unit_data *def,
             int bonus, int att_weapon_type, int primary, int attack)
 {
@@ -1364,7 +1385,7 @@ int one_hit(class unit_data *att, class unit_data *def,
    else
    {
       roll_description(att, "hit", roll);
-      hm += roll;
+      hm += roll_boost(roll, CHAR_LEVEL(att));
    }
 
    if (CHAR_COMBAT(att))

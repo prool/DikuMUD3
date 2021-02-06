@@ -10,6 +10,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <map>
 
 #ifdef _WINDOWS
 #include <winsock2.h>
@@ -91,7 +92,6 @@ static void stat_world_count(const class unit_data *ch, char *arg)
 static void stat_world_extra(const class unit_data *ch)
 {
     char buf[MAX_STRING_LENGTH];
-    class zone_type *zp;
     int i;
     std::string mystr;
 
@@ -100,9 +100,11 @@ static void stat_world_extra(const class unit_data *ch)
     mystr.append(buf);
 
     mystr = "<div class='fourcol'>";
-    for (i = 1, zp = zone_info.zone_list; zp; zp = zp->next, i++)
+
+    auto zp = zone_info.mmp.begin();
+    for (i = 1; zp != zone_info.mmp.end(); zp++, i++)
     {
-        sprintf(buf, "<a cmd='goto #'>%s</a><br/>", zp->name);
+        sprintf(buf, "<a cmd='goto #'>%s</a><br/>", zp->second->name);
         mystr.append(buf);
     }
     mystr.append("</div><br/>");
@@ -132,6 +134,21 @@ static void stat_memory(class unit_data *ch)
     //  system_memory (ch);
     //  memory_status (buf);
     //  send_to_char (buf, ch);
+
+    // Also do a unit sanity check here, not memory related, just a hack
+    //
+
+    class unit_data *u;
+
+    for (u = unit_list; u; u = u->next)
+    {
+        if (UNIT_TYPE(u) != UNIT_ST_ROOM)
+            if (UNIT_IN(u) == NULL)
+            {
+                sprintf(buf, "%s@%s is not in a room<br/>", UNIT_FI_NAME(u), UNIT_FI_ZONENAME(u));
+                send_to_char(buf, ch);
+            }
+    }
 }
 
 static void stat_world(class unit_data *ch)
@@ -309,9 +326,8 @@ static void stat_creators(class unit_data *ch, char *arg)
     char tmp[1024];
     int found;
     char *cname;
-    class zone_type *z;
-    if (str_is_empty(arg))
 
+    if (str_is_empty(arg))
     {
         send_to_char("Requires name of creator.<br/>", ch);
         return;
@@ -328,11 +344,11 @@ static void stat_creators(class unit_data *ch, char *arg)
 
         found = FALSE;
 
-        for (z = zone_info.zone_list; z; z = z->next)
+        for (auto it = zone_info.mmp.begin(); it != zone_info.mmp.end(); it++)
         {
-            cname = z->creators.catnames();
+            cname = it->second->creators.catnames();
 
-            sprintf(b, "%-15s   %s<br/>", z->name, cname);
+            sprintf(b, "%-15s   %s<br/>", it->second->name, cname);
             FREE(cname);
             TAIL(b);
             found = TRUE;
@@ -346,11 +362,11 @@ static void stat_creators(class unit_data *ch, char *arg)
     TAIL(b);
 
     found = FALSE;
-    for (z = zone_info.zone_list; z; z = z->next)
+    for (auto it = zone_info.mmp.begin(); it != zone_info.mmp.end(); it++)
     {
-        if (z->creators.IsName(tmp))
+        if (it->second->creators.IsName(tmp))
         {
-            sprintf(b, "%-15s   File: %s.zon<br/>", z->name, z->filename);
+            sprintf(b, "%-15s   File: %s.zon<br/>", it->second->name, it->second->filename);
             TAIL(b);
             found = TRUE;
         }
@@ -368,15 +384,17 @@ static void stat_dil(class unit_data *ch, class zone_type *zone)
 {
     char buf[MAX_STRING_LENGTH];
     std::string mystr;
-    struct diltemplate *tmpl;
+    // struct diltemplate *tmpl;
 
     sprintf(buf, "<u>List of DIL in zone %s (CPU secs, name, #activations, #instructions):</u><br/>", zone->name);
     send_to_char(buf, ch);
 
     mystr = "<div class='twocol'>";
-    for (*buf = 0, tmpl = zone->tmpl; tmpl; tmpl = tmpl->next)
+    *buf = 0;
+
+    for (auto tmpl = zone->mmp_tmpl.begin(); tmpl != zone->mmp_tmpl.end(); tmpl++)
     {
-        sprintf(buf, "%.2fs %s [%d t / %d i]<br/>", tmpl->fCPU/1000.0, tmpl->prgname, tmpl->nTriggers, tmpl->nInstructions);
+        sprintf(buf, "%.2fs %s [%d t / %d i]<br/>", tmpl->second->fCPU/1000.0, tmpl->second->prgname, tmpl->second->nTriggers, tmpl->second->nInstructions);
         mystr.append(buf);
     }
 
@@ -388,19 +406,20 @@ static void stat_global_dil(class unit_data *ch, ubit32 nCount)
 {
     char buf[MAX_STRING_LENGTH];
     std::string mystr;
-    struct diltemplate *tmpl;
-    class zone_type *z;
+    // struct diltemplate *tmpl;
 
     sprintf(buf, "<u>List of global DIL in all zones running for more than %dms:</u><br/>", nCount);
     send_to_char(buf, ch);
 
     mystr = "<div class='twocol'>";
-    for (z = zone_info.zone_list; z; z = z->next)
+
+    for (auto z = zone_info.mmp.begin(); z != zone_info.mmp.end(); z++)
     {
-        for (*buf = 0, tmpl = z->tmpl; tmpl; tmpl = tmpl->next)
+        *buf = 0;
+        for (auto tmpl = z->second->mmp_tmpl.begin(); tmpl != z->second->mmp_tmpl.end(); tmpl++)
         {
-            if (tmpl->fCPU >= nCount){
-                sprintf(buf, "%.2fs %s@%s [%d t / %d i]<br/>", tmpl->fCPU/1000.0, tmpl->prgname, tmpl->zone->name, tmpl->nTriggers, tmpl->nInstructions);
+            if (tmpl->second->fCPU >= nCount){
+                sprintf(buf, "%.2fs %s@%s [%d t / %d i]<br/>", tmpl->second->fCPU/1000.0, tmpl->second->prgname, tmpl->second->zone->name, tmpl->second->nTriggers, tmpl->second->nInstructions);
                 mystr.append(buf);
             }
         }        
@@ -415,7 +434,6 @@ static void extra_stat_zone(class unit_data *ch, char *arg, class zone_type *zon
     char buf[MAX_STRING_LENGTH], filename[128];
     std::string mystr;
     int argno;
-    class file_index_type *fi;
     int search_type = 0;
 
     //  void stat_dijkstraa (class unit_data * ch, class zone_type *z);
@@ -513,13 +531,15 @@ static void extra_stat_zone(class unit_data *ch, char *arg, class zone_type *zon
 
     /* Search for mobs/objs/rooms and line in columns */
     mystr = "<div class='threecol'>";
-    for (*buf = 0, fi = zone->fi; fi; fi = fi->next)
-        if (fi->type == search_type)
+    // for (*buf = 0, fi = zone->fi; fi; fi = fi->next)
+    *buf = 0;
+    for ( auto fi = zone->mmp_fi.begin(); fi != zone->mmp_fi.end(); fi++)
+        if (fi->second->type == search_type)
         {
-            if ((fi->type == UNIT_ST_OBJ) || (fi->type == UNIT_ST_NPC))
-                sprintf(buf, "<a cmd='load #'>%s</a><br/>", fi->name);
+            if ((fi->second->type == UNIT_ST_OBJ) || (fi->second->type == UNIT_ST_NPC))
+                sprintf(buf, "<a cmd='load #'>%s</a><br/>", fi->second->name);
             else
-                sprintf(buf, "%s<br/>", fi->name);
+                sprintf(buf, "%s<br/>", fi->second->name);
             mystr.append(buf); //MS2020
         }
 
@@ -567,7 +587,7 @@ static void stat_spell(const class unit_data *ch, class unit_data *u)
         return;
     }
 
-    strcpy(b, "Char magic skill<br/>");
+    strcpy(b, "Char magic skill<br/><pre>");
     TAIL(b);
 
     max = IS_NPC(u) ? SPL_GROUP_MAX : SPL_TREE_MAX;
@@ -596,6 +616,7 @@ static void stat_spell(const class unit_data *ch, class unit_data *u)
         TAIL(b);
     }
 
+    strcpy(b, "</pre>");
     page_string(CHAR_DESCRIPTOR(ch), buf);
     assert(strlen(buf) < sizeof(buf));
 }
@@ -800,6 +821,9 @@ static void stat_extra(const class unit_data *ch, class extra_list &elist, char 
     /* MS: We used to do a TAIL here... bad idea as newspaper is VERY HUGE */
     /* This isn't nice either, but it works... */
     char *cname;
+    string str;
+
+    str = "";
 
     if (!elist.isempty())
     {
@@ -812,57 +836,61 @@ static void stat_extra(const class unit_data *ch, class extra_list &elist, char 
             {
                 if (!found)
                 {
-                    send_to_char("Extra descriptions:<br/>-------------------<br/>", ch);
+                    str.append("Extra descriptions:<br/>-------------------<br/>");
                     found = true;
                 }
+                str.append("Names ");
                 cname = ed->names.catnames();
-                send_to_char("Names ", ch);
-                send_to_char(cname, ch);
+                str.append(ed->names.catnames());
                 FREE(cname);
-                send_to_char("<br/>", ch);
+                str.append("<br/>");
                 if (ed->vals.Length() > 0)
                 {
+                    str.append("Values ");
                     cname = ed->vals.catnames();
-                    send_to_char("Values ", ch);
-                    send_to_char(cname, ch);
-                    send_to_char("<br/>\"", ch);
+                    str.append(cname);
                     FREE(cname);
+                    str.append("<br/>\"");
                 }
                 else
-                    send_to_char("\"", ch);
-                send_to_char(ed->descr.c_str(), ch);
-                send_to_char("\"<br/>-------------------<br/>", ch);
+                    str.append("\"");
+                str.append(ed->descr.c_str());
+                str.append("\"<br/>-------------------<br/>");
             }
             else if (!(*buf))
             {
                 if (!found)
                 {
-                    send_to_char("Extra descriptions:<br/>-------------------<br/>", ch);
+                    str.append("Extra descriptions:<br/>-------------------<br/>");
                     found = true;
                 }
+
+                str.append("Names ");
                 cname = ed->names.catnames();
-                send_to_char("Names ", ch);
-                send_to_char(cname, ch);
+                str.append(cname);
                 FREE(cname);
-                send_to_char("<br/>", ch);
+                str.append("<br/>");
+
                 if (ed->vals.Length() > 0)
                 {
+                    str.append("Values ");
                     cname = ed->vals.catnames();
-                    send_to_char("Values ", ch);
-                    send_to_char(cname, ch);
-                    send_to_char("<br/>\"", ch);
+                    str.append(cname);
                     FREE(cname);
+                    str.append("<br/>\"");
                 }
                 else
-                    send_to_char("\"", ch);
-                send_to_char(ed->descr.c_str(), ch);
-                send_to_char("\"<br/>-------------------<br/>", ch);
+                    str.append("\"");
+                str.append(ed->descr.c_str());
+                str.append("\"<br/>-------------------<br/>");
             }
         }
     }
 
     if (!found)
         send_to_char("None.<br/>", ch);
+    else
+        send_to_char(str.c_str(), ch);
 }
 
 static void stat_extra_descr(const class unit_data *ch, class unit_data *u, char *grp)
@@ -921,9 +949,9 @@ static void stat_ip(const class unit_data *ch, class unit_data *u)
 }
 
 #define STR_DATA(num) \
-    (obj_data[idx].v[num] == 0 ? int_str[num] : (obj_data[idx].v[num] == 1 ? (OBJ_VALUE(u, num) ? sprinttype(NULL, OBJ_VALUE(u, num), g_SplColl.text) : "None") : (obj_data[idx].v[num] == 2 ? sprinttype(NULL, OBJ_VALUE(u, num), g_WpnColl.text) : "")))
+    (pobjdata[idx].v[num] == 0 ? int_str[num] : (pobjdata[idx].v[num] == 1 ? (OBJ_VALUE(u, num) ? sprinttype(NULL, OBJ_VALUE(u, num), g_SplColl.text) : "None") : (pobjdata[idx].v[num] == 2 ? sprinttype(NULL, OBJ_VALUE(u, num), g_WpnColl.text) : "")))
 
-char *stat_obj_data(class unit_data *u, struct obj_type_t *obj_data)
+char *stat_obj_data(class unit_data *u, struct obj_type_t *pobjdata)
 {
     static char result[512];
     char *special_str = NULL, int_str[5][32];
@@ -954,7 +982,7 @@ char *stat_obj_data(class unit_data *u, struct obj_type_t *obj_data)
     for (i = 0; i < 5; ++i) /* Init obj-value strings */
         sprintf(int_str[i], "%ld", (signed long)OBJ_VALUE(u, i));
 
-    sprintf(result, obj_data[idx].fmt,
+    sprintf(result, pobjdata[idx].fmt,
             STR_DATA(0), STR_DATA(1), STR_DATA(2), STR_DATA(3),
             STR_DATA(4), special_str);
 
@@ -1348,8 +1376,8 @@ void do_wstat(class unit_data *ch, char *argument, const struct command_info *cm
 
             if (fi)
             {
-                if (fi->unit)
-                    u = fi->unit;
+                if (fi->type == UNIT_ST_ROOM)
+                    u = fi->fi_unit_list.front(); // Shouldn't be empty
                 else
                 {
                     if (fi->no_in_mem == 0)
@@ -1359,7 +1387,7 @@ void do_wstat(class unit_data *ch, char *argument, const struct command_info *cm
                         else
                             do_load(ch, argument, cmd);
                     }
-                    u = find_symbolic_instance(fi);
+                    u = fi->find_symbolic_instance();
                 }
             }
         }
@@ -1411,6 +1439,8 @@ void do_wstat(class unit_data *ch, char *argument, const struct command_info *cm
         stat_bank(ch, u);
     else if (!strncmp(buf, "combat", strlen(buf)))
         stat_combat(ch, u, argument);
+    else if (!strncmp(buf, "splcombat", strlen(buf)))
+        stat_spell(ch, u, argument);
     else if (!strncmp(buf, "info", strlen(buf)))
         stat_extra_info(ch, u, argument);
     else if (!strncmp(buf, "ip", strlen(buf)))

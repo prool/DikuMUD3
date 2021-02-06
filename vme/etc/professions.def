@@ -38,16 +38,16 @@ index           = PROFESSION_DRUID
 name            = druid
 
 index           = PROFESSION_MYSTIC
-name            = mystic
-
-index           = PROFESSION_BARBARIAN
-name            = barbarian
+name            = obsolete
 
 index           = PROFESSION_NECROMANCER
 name            = necromancer
 
 index           = PROFESSION_CONJURER
-name            = conjurer
+name            = mage
 
 index           = PROFESSION_SORCERER
 name            = sorcerer
+
+index           = PROFESSION_BARBARIAN
+name            = barbarian

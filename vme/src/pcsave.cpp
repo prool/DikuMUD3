@@ -32,6 +32,26 @@ sbit32 player_id = 1; // Looks to me like it needs to begin with 1 (crash on sta
 class descriptor_data *find_descriptor(const char *name,
                                        class descriptor_data *except);
 
+void assign_player_file_index(unit_data *pc)
+{
+    zone_type *z = find_zone(player_zone);
+    auto it = z->mmp_fi.find(PC_FILENAME(pc));
+
+    if (it != z->mmp_fi.end())
+        UNIT_FILE_INDEX(pc) = it->second;
+    else
+    {
+        class file_index_type *fi = new file_index_type();
+
+        fi->name = str_dup(PC_FILENAME(pc));
+        fi->zone = z;
+
+        z->mmp_fi.insert(make_pair(fi->name, fi));
+
+        UNIT_FILE_INDEX(pc) = fi;
+    }
+}
+
 char *PlayerFileName(const char *pName)
 {
     static char Buf[MAX_INPUT_LENGTH + 1 + 512];
@@ -229,7 +249,7 @@ void save_player_file(class unit_data *pc)
         PC_TIME(pc).played++;
 
     /* PRIMITIVE SANITY CHECK */
-    slog(LOG_ALL, 0, "pc id =%d", PC_ID(pc));
+    slog(LOG_ALL, 0, "Saving PC %s id =%d", UNIT_NAME(pc), PC_ID(pc));
     assert(PC_ID(pc) >= 0 && PC_ID(pc) <= 1000000);
 
     if (UNIT_IN(pc) && !IS_SET(UNIT_FLAGS(unit_room(pc)), UNIT_FL_NOSAVE))
@@ -388,7 +408,7 @@ void save_player(class unit_data *pc)
 class unit_data *load_player_file(FILE *pFile)
 {
     class unit_data *pc;
-    int nPlyLen, n;
+    ubit32 nPlyLen, n;
     sbit32 id;
     CByteBuffer *pBuf;
 
@@ -437,6 +457,7 @@ class unit_data *load_player(const char *pName)
         return NULL;
 
     pc = load_player_file(pFile);
+    assign_player_file_index(pc);
 
     fclose(pFile);
 

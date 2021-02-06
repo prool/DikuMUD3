@@ -243,6 +243,12 @@ int cConHook::IsHooked(void)
 
 void cConHook::Unhook(void)
 {
+    if (IsHooked())
+    {
+        slog(LOG_OFF, 0, "Unhooking player connection");
+        CaptainHook.Unhook(this);
+    }
+
     if (this->m_pWebsServer == 0)
         cHook::Unhook();
 }
@@ -484,7 +490,7 @@ void cConHook::Input(int nFlags)
         strcpy((char *)buf, b);
 #endif
 #if defined(LINUX)
-        int n = read(this->tfd(), buf, sizeof(buf) - 1);
+        int n = ::read(this->tfd(), buf, sizeof(buf) - 1);
 #endif
 
         if (n == -1)
@@ -824,6 +830,7 @@ void cConHook::StripHTML(char *dest, const char *src)
     }
 
     const char *p;
+    const char *t;
 
     p = src;
 
@@ -841,7 +848,7 @@ void cConHook::StripHTML(char *dest, const char *src)
             // We got a HTML tag
             if (strcmp(aTag, "br")==0 || strcmp(aTag, "br/")==0)
             {
-                if (*p == '\n' || *(p+1)=='\n') // If the next is \n\r then dont add it
+                if (*p == '\n' || *(p+1)=='\n') // If the next is \n then dont add <br>
                     continue;
 
                 // the <br/> tag was not followed by \n\r so add \n\r
@@ -862,11 +869,14 @@ void cConHook::StripHTML(char *dest, const char *src)
                     Control_Echo_Off(this, &dest, 0);
                     p += 12;
                 }
-                else if (strncasecmp(p, "PasswordOff()", 13)==0)
+                else if (strncasecmp(p, "PasswordOff(", 12)==0)
                 {
                     Control_Echo_On(this, &dest, 0);
-                    p += 13;
+                    p += 12;
                 }
+                t = strstr(p, "</script>");
+                if (t)
+                    p = t + 9;
                 continue;
             }
             else if (strncmp(aTag, "/div", 4)==0)
@@ -947,12 +957,25 @@ void cConHook::StripHTML(char *dest, const char *src)
                 *dest++ = ' ';
                 p += 6;
             }
+            else if (strncasecmp(p, "&quot;", 6)==0)
+            {
+                *dest++ = '\"';
+                p += 6;
+            }
             else
                 *dest++ = *p++;
               
             continue;
         }
-        *dest++ = *p++;
+
+        if (*p == '\n' && *(p+1) != '\r')
+        {
+            *dest++ = '\n';
+            *dest++ = '\r';
+            p++;
+        }
+        else
+            *dest++ = *p++;
     }
     *dest = 0;
 }
@@ -1398,6 +1421,9 @@ cConHook::cConHook(void)
 
     strncpy(m_aHost, hostname, sizeof(m_aHost) - 1);
     *(m_aHost + sizeof(m_aHost) - 1) = '\0';
+
+    if (this->tfd() != -1)
+        slog(LOG_ALL, 0, "cConHook() called with a non -1 fd.");
 
     CaptainHook.Hook(fd, this);
 

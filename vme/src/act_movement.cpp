@@ -43,6 +43,7 @@
 
 #include "structs.h"
 #include "utils.h"
+#include "utility.h"
 #include "skills.h"
 #include "textutil.h"
 #include "comm.h"
@@ -53,7 +54,7 @@
 #include "affect.h"
 #include "movement.h"
 #include "constants.h"
-#include "limits.h"
+#include "vmelimits.h"
 #include "main.h"
 #include "account.h"
 #include "common.h"
@@ -76,7 +77,8 @@ const char *single_unit_messg(class unit_data *unit,
 {
    class extra_descr_data *exd = UNIT_EXTRA(unit).m_pList;
 
-   exd = exd->find_raw(type);
+   if (exd)
+      exd = exd->find_raw(type);
 
    if (exd && exd->descr.c_str())
    {
@@ -208,7 +210,9 @@ int room_move(class unit_data *ch, class unit_data *mover, class unit_data *room
       if ((mover != ch) ||  !CHAR_HAS_FLAG(ch, CHAR_SNEAK))
          act(pArrOther, A_HIDEINV, UNIT_CONTAINS(room_to), ch, mover, TO_ALL);
    }
-   // REMOVE_BIT(CHAR_FLAGS(ch), CHAR_LEGAL_TARGET | CHAR_SELF_DEFENCE); // ? wooot ? MS2020
+
+   // These two volatile flags are removed when you move.
+   REMOVE_BIT(CHAR_FLAGS(ch), CHAR_LEGAL_TARGET | CHAR_SELF_DEFENCE);
 
    unit_to_unit(mover, room_to);
 
@@ -550,6 +554,14 @@ int generic_move(class unit_data *ch, class unit_data *mover, int direction, int
           (movement_loss[ROOM_LANDSCAPE(room_from)] +
            movement_loss[ROOM_LANDSCAPE(room_to)]) / 2;
 
+      int overweight = UNIT_CONTAINING_W(ch) - char_carry_w_limit(mover);
+
+      if (overweight > 0)
+      {
+         send_to_char("You're carrying more than you can and it is exhausting.<br/>", mover);
+         need_movement += 1 + (overweight / 10);
+      }
+
       if (CHAR_ENDURANCE(mover) < need_movement)
       {
          if (!following)
@@ -859,7 +871,7 @@ int do_simple_move(class unit_data *ch, int direction, int following)
 
    unit_from_unit(ch);
 
-   REMOVE_BIT(CHAR_FLAGS(ch), CHAR_LEGAL_TARGET | CHAR_SELF_DEFENCE); // ?
+   REMOVE_BIT(CHAR_FLAGS(ch), CHAR_LEGAL_TARGET | CHAR_SELF_DEFENCE);
 
    unit_to_unit(ch, to);
 

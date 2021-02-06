@@ -20,6 +20,7 @@ extern const char *professions[PROFESSION_MAX+1];
 class skill_collection
 {
    public:
+   const char **gettext(void);
    skill_collection(int nSize);
 
    struct profession_cost *prof_table;
@@ -124,6 +125,7 @@ struct tree_type
     int parent;
     ubit8 isleaf;
     ubit1 bAutoTrain;
+    ubit1 bAutoTeacherNoAdd;
 };
 
 /* Tree has a pointer to parent for each node. 0 pointer from root */

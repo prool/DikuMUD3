@@ -37,7 +37,6 @@ END HEADER*/
  #define IS_CORPSE(ITEM) \
    ((ITEM.nameidx=="corpse") and (ITEM.zoneidx=="death"))
 
-
  #define IS_HEAD(ITEM) \
    ((ITEM.nameidx=="head") and (ITEM.zoneidx=="death"))
 
@@ -60,46 +59,60 @@ END HEADER*/
 
 #define GUILD_UDG_FIGHTER     "Udgaard Fighter"
 #define GUILD_UDG_FIGHTER_ATL "jones@fightersguild","lancelot@fightersguild","robin@fightersguild" //  Abi, Wpn, Ski
+#define GUILD_UDG_FIGHTER_EXCL {}
 
 #define GUILD_KNIGHT      "Midgaard Dark Knight"
 #define GUILD_KNIGHT_ATL  "matthew@knight", "aramand@knight", "hilary@knight", "soroth@knight" //  Abi, Wpn, Spl, Ski
+#define GUILD_KNIGHT_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER}
 
 #define GUILD_PALADIN     "Midgaard Paladin"
 #define GUILD_PALADIN_ATL  "joan@paladin_guild", "edmund@paladin_guild", "alex@paladin_guild", "corbin@paladin_guild" //  Abi, Wpn, Spl, Ski
+#define GUILD_PALADIN_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_KNIGHT, GUILD_ASSASSIN, GUILD_UDG_THIEF}
 
 #define GUILD_NYM_RANGER  "Nymgaard Ranger"
 #define GUILD_RANGER_ATL  "mountain_man@ranger", "justifier@ranger", "guardian@ranger", "pathfinder@ranger" //  Abi, Wpn, Spl, Ski
+#define GUILD_KNIGHT_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER}
 
 #define GUILD_UDG_THIEF   "Udgaard Thief"
 #define GUILD_THIEF_ATL   "bisse@thievesguild","pirate@thievesguild","gryma@thievesguild" //  Abi, Wpn, Ski
+#define GUILD_THIEF_EXCL  {}
 
 #define GUILD_ASSASSIN     "Khorsabad Assassin"
 #define GUILD_ASSASSIN_ATL "ability_trainer@assassin", "weapon_trainer@assassin", "spell_trainer@assassin", "skill_trainer@assassin" //  Abi, Wpn, Spl, Ski
+#define GUILD_ASSASSIN_EXCL  {}
 
 #define GUILD_UDG_CLERIC  "Udgaard Healer"
 #define GUILD_CLERIC_ATL  "tack@clericguild", "tick@clericguild", "isabella@clericguild", "bartholomew@clericguild" //  Abi, Wpn, Spl, Ski
+#define GUILD_CLERIC_EXCL  {GUILD_UDG_MAGE, GUILD_SORCERER}
 
 #define GUILD_NYM_DRUID   "Nymgaard Druid"
 #define GUILD_DRUID_ATL   "oak@druid", "elm@druid", "maple@druid", "willow@druid" //  Abi, Wpn, Spl, Ski
+#define GUILD_DRUID_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER}
 
-#define GUILD_MYSTIC      "Midgaard Mystic"
+#define GUILD_MYSTIC      "obsolete"
 #define GUILD_MYSTIC_ATL  "", "", "", "" //  Abi, Wpn, Spl, Ski
 
 #define GUILD_NECROMANCER "Necromancer"
 #define GUILD_NECROMANCER_ATL  "kadiya@necro_guild", "krain@necro_guild", "murdock@necro_guild", "meclor@necro_guild" //  Abi, Spl, Wpn, Ski
-
+#define GUILD_NECROMANCER_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER}
 
 #define GUILD_UDG_MAGE    "Udgaard Conjurer"
 #define GUILD_MAGE_ATL    "merlin@mageguild", "zofax@mageguild", "caval@mageguild", "fifiz@mageguild" //  Abi, Spl, Wpn, Ski
+#define GUILD_MAGE_EXCL   {GUILD_UDG_CLERIC, GUILD_NYM_DRUID, GUILD_NECROMANCER, GUILD_PALADIN, GUILD_KNIGHT, GUILD_NYM_RANGER}
 
 #define GUILD_SORCERER     "Midgaard Sorcerer"
 #define GUILD_SORCERER_ATL "calastran@sorcerer", "lasheetah@sorcerer","claudius@sorcerer", "forbin@sorcerer" // Ability, Weapon, Spell, Skill 
+#define GUILD_SORCERER_EXCL   {GUILD_UDG_CLERIC, GUILD_NYM_DRUID, GUILD_NECROMANCER, GUILD_PALADIN, GUILD_KNIGHT, GUILD_NYM_RANGER}
+
+#define GUILD_BARBARIAN       "Barbarian"
+#define GUILD_BARBARIAN_ATL   "ethror@barbarian","faeld@barbarian","monn@barbarian" // Ability, Weapon, Skill 
+#define GUILD_BARBARIAN_EXCL  {GUILD_UDG_CLERIC, GUILD_NYM_DRUID, GUILD_NECROMANCER, GUILD_PALADIN, GUILD_KNIGHT, GUILD_NYM_RANGER}
 
 
 #define GUILD_SL   {GUILD_UDG_FIGHTER, GUILD_KNIGHT, GUILD_PALADIN, GUILD_NYM_RANGER,   \
 	                GUILD_UDG_THIEF, GUILD_ASSASSIN, GUILD_UDG_CLERIC, GUILD_NYM_DRUID, \
-	                GUILD_MYSTIC, GUILD_NECROMANCER, GUILD_UDG_MAGE, GUILD_SORCERER}
-#define GUILD_INIT_SL  {"F", "DK", "P",  "R", "T", "A", "H", "D", "M", "N",  "C", "S"}
+	                GUILD_MYSTIC, GUILD_NECROMANCER, GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_BARBARIAN}
+#define GUILD_INIT_SL  {"F", "DK", "P",  "R", "T", "A", "H", "D", "M", "N", "C", "S", "B"}
 
 
 //
@@ -122,10 +135,11 @@ END HEADER*/
 #define PROFESSION_CONJURER    10
 #define PROFESSION_SORCERER    11
 #define PROFESSION_BARBARIAN   12
-#define PROFESSION_MAX         13 /* 11+1 */
+#define PROFESSION_MAX         13 /* 12+1 */
 
 #define PROFESSION_STRINGS "Fighter", "Knight", "Paladin", "Ranger", "Thief", "Assassin", \
-                           "Priest", "Druid", "Mystic","Necromancer", "Conjurer", "Mage", "Barbarian"
+                           "Priest", "Druid", "Obsolete - Do Not Select","Necromancer", "Mage", "Sorcerer", \
+						   "Barbarian"
 
 
 #define QUEST_WW              "Wight warrens quest"
@@ -188,6 +202,8 @@ END HEADER*/
 
 #define WPN_GREAT_SWORD  11  /* Two Handed Sword */
 #define WPN_LONG_SWORD   17  /* One handed sword */
+#define WPN_BROAD_SWORD  16  // 1H
+#define WPN_CLAYMORE     53  // 2H
 #define WPN_SCIMITAR     12  /* One handed, slim curved blade */
 #define WPN_FALCHION     14  /* One handed, broad curved blade */
 #define WPN_SHORT_SWORD  19
@@ -236,7 +252,6 @@ END HEADER*/
 // Map the old surplus weapons to the more generic weapon types.
 // E.g. the broad sword is the same skill category as long sword.
 
-#define WPN_BROAD_SWORD  WPN_LONG_SWORD
 #define WPN_LUCERN_HAMMER WPN_HALBERD
 #define WPN_KATANA WPN_SCIMITAR
 #define WPN_WAKIZASHI WPN_SCIMITAR
@@ -257,7 +272,6 @@ END HEADER*/
 #define WPN_BALL_CHAIN WPN_MORNING_STAR
 #define WPN_FOOT_LANCE WPN_LANCE
 #define WPN_POLE_AXE WPN_BARDICHE
-#define WPN_CLAYMORE WPN_LONG_SWORD
 #define WPN_DIRK WPN_DAGGER
 #define WPN_ICE_PICK WPN_HAND_AXE
 #define WPN_RANSEUR WPN_SPEAR
@@ -285,7 +299,6 @@ END HEADER*/
 // #define WPN_HAND_HAMMER  72  
 ///#define WPN_KATANA       13
 ///#define WPN_KOPESH       15
-///#define WPN_BROAD_SWORD  16
 ///#define WPN_WAKIZASHI    41
 /// #define WPN_FIGHTING_STAFF 45 /* Two handed */
 /// #define WPN_SABER        46
@@ -294,7 +307,6 @@ END HEADER*/
 ///#define WPN_SHOCK_LANCE  50
 /// #define WPN_PIKE         51
 ///#define WPN_GREAT_AXE    52
-///#define WPN_CLAYMORE     53
 ///#define WPN_FAUCHARD     57
 ///#define WPN_SAPPARA      58
 ///#define WPN_POLE_CLEAVER 59
@@ -412,6 +424,13 @@ END HEADER*/
 #define SKI_BERSERK		      65
 #define SKI_RAGE              66
 #define SKI_TAUNT             67
+#define SKI_CHARGE            68
+#define SKI_LEAP              69
+#define SKI_DEFEND            70
+#define SKI_WHIRL             71
+#define SKI_CLEAVE            72
+#define SKI_REND              73
+#define SKI_SLAM              74
 
 #define LAST_SKILL            75
 
@@ -658,7 +677,9 @@ END HEADER*/
 #define SPL_LAVA_4           233
 #define SPL_MIRE             234
 #define SPL_NIGHT_GLOBE      235
-#define LAST_SPELL           236
+#define SPL_UBLESS		     236
+#define LAST_SPELL           237
+
 /* Just insert any new spells here... just keep incrementing by one */
 
 /* keep in mind if you need more ask the vme coders.*/
@@ -1004,8 +1025,8 @@ END HEADER*/
 #define ID_FOCUS                 90
 #define ID_MIRE                  91
 #define ID_CONDEMN               92
-#define ID_BLANK4                93
-#define ID_BLANK5                94
+#define ID_BERSERK			     93
+#define ID_RAGE                  94
 #define ID_BLANK6                95
 #define ID_BLANK7                96
 #define ID_BLANK8                97
@@ -1014,22 +1035,22 @@ END HEADER*/
 #define ID_BLANK11              100
 /*check values.h for max number of id values*/
 /* keep in mind if you need more ask the vme coders.*/
-#define CLAN_MASTER    "$clan_master"
-#define  CLAN_MEMBER  "$clan_member"
-#define  CLAN_TATTOO  "clan_taTtoo"
-#define CLAN_NAME "$clan_name"
-#define CLAN_LIST "$clan_list"
-#define CLAN_SYMBOLIC "$clan_symbolic"
-#define CLAN_TREASURY "$clan_treasury"
-#define CLAN_QUARTERMASTER "$clan_quartermaster"
-#define CLAN_MONEY "$clan_money"
-#define CLAN_STORAGE "$clan_storage"
-#define CLAN_DONATION "$clan_donation"
-#define CLAN_MAX_STORAGE  25
-#define CLAN_MAX_DONATION  50
-#define CLAN_RANK   "$clan_rank"
-#define CLAN_ROST   "$clan_rost"
-#define CLAN_LORD   "$clan_LORD"
+#define CLAN_MASTER    			"$clan_master"
+#define CLAN_MEMBER  			"$clan_member"
+#define CLAN_TATTOO  			"clan_tattoo"
+#define CLAN_NAME 				"$clan_name"
+#define CLAN_LIST 				"$clan_list"
+#define CLAN_SYMBOLIC 			"$clan_symbolic"
+#define CLAN_TREASURY 			"$clan_treasury"
+#define CLAN_QUARTERMASTER 		"$clan_quartermaster"
+#define CLAN_MONEY 				"$clan_money"
+#define CLAN_STORAGE 			"$clan_storage"
+#define CLAN_DONATION 			"$clan_donation"
+#define CLAN_MAX_STORAGE  		25
+#define CLAN_MAX_DONATION  		50
+#define CLAN_RANK   			"$clan_rank"
+#define CLAN_ROST   			"$clan_rost"
+#define CLAN_LORD   			"$clan_LORD"
 
 /* added for new look move */
 
@@ -1202,7 +1223,7 @@ ACTION
 #define DIL_GINT_REQXP      1  // return the required_xp(i) for level i using the INT parameter i
 #define DIL_GINT_LEVELXP    2  // return the level_xp(i) (XP needed for level i->i+1)
 #define DIL_GINT_DESCRIPTOR 3  // returns 0 if PC has no descriptor. 1 for all else
-#define DIL_GINT_CALLGUARDS 4  // Call the guards for DIL blow_whistle
+#define DIL_GINT_CRIMENO    4  // returns the next crime_no
 
 
 #endif /* _MUD_VALUES_H */

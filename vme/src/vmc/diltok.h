@@ -66,6 +66,7 @@ struct symbols
     {"findunit",DILSE_FNDU},
     {"findsymbolic",DILSE_FNDS},
     {"findroom",DILSE_FNDR},
+    {"findzone",DILSE_FNDZ},
     {"findrndunit",DILSE_FNDRU},
     {"load",DILSE_LOAD},
     {"clone",DILSE_CLONE},
@@ -118,13 +119,13 @@ struct symbols
     {"flog", DILSE_FLOG},
     {"insert", DILSI_INSLST},
     {"remove", DILSI_REMLST},
-    {"flog", DILSE_FLOG},
     {"send_pre", DILSE_SENDPRE},
     {"strcmp", DILSE_STRCMP},
     {"strncmp", DILSE_STRNCMP},
     {"sact",DILSE_SACT}, // MS2020
     {"getinteger",DILSE_GINT}, // MS2020
-
+    {"shell",DILSE_SHELL},
+    
     /* DIL Symbol Inst (procedures) */
 
     {"follow",DILSI_FOLO},
@@ -140,7 +141,9 @@ struct symbols
     {"stop_fighting",DILSI_STOPF},
     {"change_speed",DILSI_CHAS},
 //   {"walkto",DILSI_WLK},
-    {"setweight",DILSI_SWT},
+    {"set_weight_base",DILSI_SET_W_BASE},
+    {"set_weight",DILSI_SET_W},
+    {"dispatch", DILSI_DISPATCH},
     {"setbright",DILSI_SBT},
     {"dilcopy",DILSI_DLC},
     {"pagestring",DILSI_PGSTR},
@@ -208,6 +211,7 @@ struct symbols
     {"follower", DILSF_FOL},
     {"zoneidx",DILSF_ZOI},
     {"nameidx",DILSF_NMI},
+    {"symname", DILSF_SYMNAME},
     {"editing",DILSF_EDT},
     {"switched",DILSF_SWT},
     {"idx",DILSF_IDX},

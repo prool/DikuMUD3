@@ -6,8 +6,15 @@ var sPaged = "";
 
 var g_crosshairs = new Image;
 
+var g_sPlyName = "";
 var g_sImage = "../img/logo.gif";
 var g_nLastSend = Math.round(Date.now() / 1000);
+
+const g_bDebugOutput = false; // Set to true to output HTML to console
+const g_nRowCountMax = 1000;  // Maximum history buffer
+
+var g_sComms = "<h1>Communications History</h1><br/>";  // Global string of communication
+var g_bCommsChanged = false; // Set to true if there's something to save
 
 var g_nHp = 1;
 var g_nHpMax = 1;
@@ -395,6 +402,18 @@ function modalHide() {
     InputFocus(null);
 }
 
+// Fill the paged area (stick text) with text (innerHTML)
+//
+function pagedSetText(mytext) {
+    var item2 = document.createElement("div");
+    item2.setAttribute("style", "display: inline");
+    item2.innerHTML = mytext;
+
+    document.getElementById("acp_text").firstChild.replaceWith(item2);
+}
+
+// Fill the paged area (sticky text) with an item
+//
 function pagedSet(item) {
     outputItem(item);
 
@@ -535,7 +554,7 @@ function outputReader(item) {
     list.appendChild(item);
 
     var chatContent = document.getElementById("converse");
-    if (nRowCount > 200)  // Max 200 list items
+    if (nRowCount > g_nRowCountMax)  // Max g_nRowCountMax list items
     {
         chatContent.removeChild(chatContent.childNodes[0]);
         nRowCount -= 1;
@@ -546,14 +565,14 @@ function outputReader(item) {
 function outputNormal(item) {
     var msgo = document.getElementById("converse");
 
-    if (nRowCount > 200)  // Max 200 child items 
+    if (nRowCount > g_nRowCountMax)  // Max g_nRowCountMax child items 
     {
         msgo.removeChild(msgo.childNodes[0]);
         nRowCount -= 1;
 
         // When it eventually overruns
-        if (msgo.childNodes.length > 250)
-            while (msgo.childNodes.length > 200)
+        if (msgo.childNodes.length > g_nRowCountMax+50)
+            while (msgo.childNodes.length > g_nRowCountMax)
                 msgo.removeChild(msgo.childNodes[0]);
     }
     //msgo.innerHTML += str;
@@ -572,10 +591,15 @@ function outputItem(item) {
     document.getElementById("al_text").scrollTop = document.getElementById("al_text").scrollHeight;
 }
 
+function setCommsText(mystr) {
+    g_sComms += mystr;
+    g_bCommsChanged = true;
+}
 
 // bParse parameter. If false then it skips all
 function outputText(str, bParse) {
-    //console.log("WS[" + str + "]");
+    if (g_bDebugOutput)
+        console.log("WS[" + str + "]");
 
     if (bParse)
     {
@@ -626,6 +650,27 @@ function outputText(str, bParse) {
         else if (str.slice(0, 28) == "<h1 class='room_title' zone=") {
             setExits(item.firstChild.getAttribute("exits"));
             setMap(item.firstChild.getAttribute("zone"), item.firstChild.getAttribute("map"));
+        }
+        else if (str.slice(0, 16) == "<div class='say_") {
+            setCommsText(item.firstChild.innerHTML + "<br/>");
+        }
+        else if (str.slice(0, 16) == "<div class='ask_") {
+            setCommsText(item.firstChild.innerHTML + "<br/>");
+        }
+        else if (str.slice(0, 16) == "<div class='ask_") {
+            setCommsText(item.firstChild.innerHTML + "<br/>");
+        }
+        else if (str.slice(0, 18) == "<div class='shout_") {
+            setCommsText(item.firstChild.innerHTML + "<br/>");
+        }
+        else if (str.slice(0, 19) == "<div class='whisper") {
+            setCommsText(item.firstChild.innerHTML + "<br/>");
+        }
+        else if (str.slice(0, 16) == "<div class='tell") {
+            setCommsText(item.firstChild.innerHTML + "<br/>");
+        }
+        else if (str.slice(0, 17) == "<div class='comm_") {
+            setCommsText(item.firstChild.innerHTML + "<br/>");
         }
         else if (str.slice(0, 8) == "<script>") {
             // For now I can't figure out a better method
@@ -810,6 +855,11 @@ function shSettings() {
     document.getElementById("myModal").style.display = "block";
 }
 
+function shHistory() {
+    pagedSetText(g_sComms);
+    modalShow();
+}
+
 function toggleSettings() {
   var d = document.getElementById("banner");
   if (d.style.display == "none") {
@@ -865,6 +915,16 @@ function onMainClick()
 
 function keepAlive()
 {
+    if (g_bCommsChanged)
+    {
+        if (g_sPlyName != "")
+        {
+            window.localStorage.setItem(g_sPlyName, g_sComms);
+            console.log("Saved local storage for " + g_sPlyName);
+        }
+        g_bCommsChanged = false;
+    }
+
     var sec = Math.round(Date.now() / 1000);
 
     if (sec-g_nLastSend < 250)

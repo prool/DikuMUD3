@@ -141,6 +141,12 @@ static const char *unit_field_names[MAX_SET_FIELDS + 1] = {
     "lifespan",
     "profession", NULL};
 
+// These are oddly placed here because they need to initialize before used below
+class skill_collection g_AbiColl(ABIL_TREE_MAX + 1);
+class skill_collection g_WpnColl(WPN_TREE_MAX + 1);
+class skill_collection g_SkiColl(SKI_TREE_MAX + 1);
+class skill_collection g_SplColl(SPL_TREE_MAX + 1);
+
 struct field_type unit_field_data[MAX_SET_FIELDS + 1] = {
     {UT_UNIT, AT_STR, 0, 200, 200, 253},                  /* add-name        */
     {UT_UNIT, AT_STR, 0, 200, 200, 253},                  /* del-name        */
@@ -191,14 +197,14 @@ struct field_type unit_field_data[MAX_SET_FIELDS + 1] = {
     {UT_CHAR, AT_BIT, char_flags, 200, 200, 253},         /* char-flags      */
     {UT_CHAR, AT_VAL, 0, 200, 200, 240},                  /* mana            */
     {UT_CHAR, AT_VAL, 0, 200, 200, 240},                  /* endurance       */
-    {UT_CHAR, AT_TYP, g_WpnColl.text, 200, 200, 253},     /* attack-type     */
+    {UT_CHAR, AT_TYP, g_WpnColl.gettext(), 200, 200, 253},     /* attack-type     */
     {UT_CHAR, AT_VAL, 0, 200, 200, 253},                  /* hand-quality    */
     {UT_UNIT, AT_VAL, 0, 200, 200, 230},                  /* height          */
     {UT_CHAR, AT_TYP, pc_races, 200, 200, 253},           /* race            */
     {UT_CHAR, AT_TYP, char_sex, 200, 200, 253},           /* sex             */
     {UT_NPC, AT_VAL, 0, 255, 255, 255},                   /* level           */
     {UT_CHAR, AT_TYP, char_pos, 200, 253, 253},           /* position        */
-    {UT_CHAR, AT_TYPVAL, g_AbiColl.text, 240, 253, 253},  /* ability         */
+    {UT_CHAR, AT_TYPVAL, g_AbiColl.gettext(), 240, 253, 253},  /* ability         */
     {UT_PC, AT_VAL, 0, 230, 253, 253},                    /* skill-points    */
     {UT_PC, AT_VAL, 0, 230, 253, 253},                    /* ability-points  */
     {UT_UNIT, AT_VAL, 0, 200, 230, 200},                  /* remove affects  */
@@ -209,7 +215,7 @@ struct field_type unit_field_data[MAX_SET_FIELDS + 1] = {
     {UT_PC, AT_STR, 0, 255, 254, 254},                    /* del-info        */
     {UT_PC, AT_VAL, 0, 255, 254, 254},                    /* access          */
     {UT_PC, AT_STR, 0, 200, 200, 200},                    /* promptstr       */
-    {UT_PC, AT_VAL, 0, 254, 255, 255},                    /* age             */
+    {UT_PC, AT_VAL, 0, 230, 230, 230},                    /* age             */
     {UT_PC, AT_VAL, 0, 254, 255, 255},                    /* lifespan        */
     {UT_PC, AT_VAL, 0, 254, 255, 255},                    /* profession      */
 };
@@ -253,6 +259,9 @@ void edit_inside_descr(class descriptor_data *d)
 int search_block_set(char *arg, const char **list, bool exact)
 {
     register int i, l;
+
+    if (list == NULL)
+        return -1;
 
     /* Substitute '_' and get length of string */
     for (l = 0; arg[l]; l++)
@@ -313,6 +322,9 @@ void show_fields(class unit_data *ch)
 void show_structure(const char *structure[], class unit_data *ch)
 {
     char **c, *cc, buf[MAX_STRING_LENGTH];
+
+    if (structure == NULL)
+        return;
 
     strcpy(buf, "Not defined yet.<br/>");
 
@@ -537,7 +549,7 @@ void do_set(class unit_data *ch, char *argument, const struct command_info *cmd)
         break;
 
     case AT_TYPVAL:
-        send_to_char("Arg:&lt;type&gt; <value><br/>", ch);
+        send_to_char("Arg:&lt;type&gt; &lt;value&gt;<br/>", ch);
         argument = str_next_word(argument, arg);
         if ((typarg = get_type(arg, unit_field_data[type].structure)) == -1)
         {
@@ -759,8 +771,26 @@ void do_set(class unit_data *ch, char *argument, const struct command_info *cmd)
         return;
 
     case 8: /* "weight" */
-        UNIT_BASE_WEIGHT(unt) = UNIT_WEIGHT(unt) = valarg;
-        return;
+        {
+            if (UNIT_CONTAINS(unt))
+            {
+                send_to_char("The unit isn't empty. Setting weight is supposed to happen on empty units only. Setting anyway<br/>", ch);
+            }
+
+            int dif = valarg - UNIT_BASE_WEIGHT(unt);
+
+            /* set new baseweight */
+            UNIT_BASE_WEIGHT(unt) = valarg;
+
+            /* update weight */
+            weight_change_unit(unt, dif);
+
+            // Now make weight and base weight equal            
+            dif = UNIT_BASE_WEIGHT(unt) - UNIT_WEIGHT(unt);
+            weight_change_unit(unt, dif);
+            // UNIT_BASE_WEIGHT(unt) = UNIT_WEIGHT(unt) = valarg;
+            return;
+        }
 
     case 9: /* "capacity" */
         UNIT_CAPACITY(unt) = valarg;
@@ -1022,7 +1052,8 @@ void do_set(class unit_data *ch, char *argument, const struct command_info *cmd)
         else
         {
             slog(LOG_ALL, 0, "PASSWORD: %s changed %s's password.", UNIT_NAME(ch), UNIT_NAME(unt));
-            strncpy(PC_PWD(unt), crypt(strarg, UNIT_NAME(unt)), 10);
+            strncpy(PC_PWD(unt), crypt(strarg, PC_FILENAME(unt)), PC_MAX_PASSWORD);
+            PC_PWD(unt)[PC_MAX_PASSWORD-1] = 0;
             send_to_char("The password has been set.<br/>", ch);
         }
         return;

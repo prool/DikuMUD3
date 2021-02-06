@@ -1,6 +1,6 @@
 /*
  $Author: All $
- $RCSfile: skills.cpp,v $
+ $RCSfile: s.cpp,v $
  $Date: 2003/11/29 03:31:16 $
  $Revision: 2.3 $
  */
@@ -81,35 +81,17 @@ struct race_info_type race_info[PC_RACE_MAX];
 
 struct damage_chart_type spell_chart[SPL_TREE_MAX];
 
-class skill_collection g_AbiColl(ABIL_TREE_MAX + 1);
-class skill_collection g_WpnColl(WPN_TREE_MAX + 1);
-class skill_collection g_SkiColl(SKI_TREE_MAX + 1);
-class skill_collection g_SplColl(SPL_TREE_MAX + 1);
-
 struct damage_chart_type weapon_chart[WPN_TREE_MAX];
 struct wpn_info_type wpn_info[WPN_TREE_MAX];
 
-/*
-struct profession_cost spell_prof_table[SPL_TREE_MAX + 1];
-const char *spl_text[SPL_TREE_MAX + 1];
-struct tree_type spl_tree[SPL_TREE_MAX + 1];
-sbit8 racial_spells[PC_RACE_MAX][SPL_TREE_MAX + 1];
+// I had to move these to modify.cpp of the member function was
+// called before the class constructor ! :-/ Yikes.
+//
+//class skill_collection g_AbiColl(ABIL_TREE_MAX + 1);
+//class skill_collection g_WpnColl(WPN_TREE_MAX + 1);
+//class skill_collection g_SkiColl(SKI_TREE_MAX + 1);
+//class skill_collection g_SplColl(SPL_TREE_MAX + 1);
 
-struct profession_cost skill_prof_table[SKI_TREE_MAX + 1];
-const char *ski_text[SKI_TREE_MAX + 1];
-struct tree_type ski_tree[SKI_TREE_MAX + 1];
-sbit8 racial_skills[PC_RACE_MAX][SKI_TREE_MAX + 1];
-
-struct profession_cost ability_prof_table[ABIL_TREE_MAX + 1];
-const char *abil_text[ABIL_TREE_MAX + 1];
-struct tree_type abil_tree[ABIL_TREE_MAX + 1];
-sbit8 racial_ability[PC_RACE_MAX][ABIL_TREE_MAX + 1];
-
-struct profession_cost weapon_prof_table[WPN_TREE_MAX + 1];
-const char *wpn_text[WPN_TREE_MAX + 1];
-struct tree_type wpn_tree[WPN_TREE_MAX + 1];
-sbit8 racial_weapons[PC_RACE_MAX][WPN_TREE_MAX + 1];
-*/
 
 /* ===================================================================== */
 
@@ -117,12 +99,17 @@ skill_collection::skill_collection(int nSize)
 {
    CREATE(prof_table, struct profession_cost, nSize);
    CREATE(text, const char *, nSize);
+   assert(this->text);
    CREATE(tree, tree_type, nSize);
 
    for (int i = 0; i < PC_RACE_MAX; i++)
       CREATE(racial[i], sbit8, nSize);
 }
 
+const char **skill_collection::gettext(void)
+{
+    return this->text;
+}
 
 /* ===================================================================== */
 
@@ -302,6 +289,7 @@ int chart_damage(int roll, struct damage_chart_element_type *element)
         return element->basedam + ((roll - element->offset) / element->alpha);
 }
 
+
 /* Size is for natural attacks to limit max damage for such */
 int chart_size_damage(int roll, struct damage_chart_element_type *element,
                       int lbs)
@@ -319,19 +307,23 @@ int chart_size_damage(int roll, struct damage_chart_element_type *element,
         switch (weight_size(lbs))
         {
         case SIZ_TINY:
-            roll = MIN(100, roll);
+            //roll = MIN(100, roll);
+            roll *= 0.5;
             break;
 
         case SIZ_SMALL:
-            roll = MIN(110, roll);
+            //roll = MIN(110, roll);
+            roll *= 0.6;
             break;
 
         case SIZ_MEDIUM:
-            roll = MIN(130, roll);
+            //roll = MIN(130, roll);
+            roll *= 0.7;
             break;
 
         case SIZ_LARGE:
-            roll = MIN(150, roll);
+            //roll = MIN(150, roll);
+            roll *= 0.8;
             break;
         }
 
@@ -877,6 +869,12 @@ static void ability_read(void)
             if (is_in(dummy, 0, 1))
                 g_AbiColl.tree[idx].bAutoTrain = dummy;
         }
+        else if (strncmp(pTmp, "auto teacher no add", 19) == 0)
+        {
+            dummy = atoi(pCh);
+            if (is_in(dummy, 0, 1))
+                g_AbiColl.tree[idx].bAutoTeacherNoAdd = dummy;
+        }
         else if (strncmp(pTmp, "race ", 5) == 0)
         {
             dummy = atoi(pCh);
@@ -925,6 +923,7 @@ static void ability_init(void)
         g_AbiColl.tree[i].parent = i;
         g_AbiColl.tree[i].isleaf = TRUE;
         g_AbiColl.tree[i].bAutoTrain = TRUE;
+        g_AbiColl.tree[i].bAutoTeacherNoAdd = FALSE;
 
         g_AbiColl.text[i] = NULL;
 
@@ -1068,6 +1067,8 @@ static void weapon_read(void)
         {
             if (g_WpnColl.text[idx])
             {
+                if (g_WpnColl.text[idx] && g_WpnColl.text[idx][0])
+                    slog(LOG_ALL, 0, "Weapon boot error: Weapon name alreay assigned as %s and replaced as %s", g_WpnColl.text[idx], pCh);
                 free((char *)g_WpnColl.text[idx]);
                 g_WpnColl.text[idx] = NULL;
             }
@@ -1090,6 +1091,12 @@ static void weapon_read(void)
             dummy = atoi(pCh);
             if (is_in(dummy, 0, 1))
                 g_WpnColl.tree[idx].bAutoTrain = dummy;
+        }
+        else if (strncmp(pTmp, "auto teacher no add", 19) == 0)
+        {
+            dummy = atoi(pCh);
+            if (is_in(dummy, 0, 1))
+                g_WpnColl.tree[idx].bAutoTeacherNoAdd = dummy;
         }
         else if (strncmp(pTmp, "race ", 5) == 0)
         {
@@ -1281,6 +1288,7 @@ static void weapon_init(void)
 
         g_WpnColl.tree[i].parent = WPN_ROOT;
         g_WpnColl.tree[i].bAutoTrain = TRUE;
+        g_WpnColl.tree[i].bAutoTeacherNoAdd = FALSE;
 
         if (i < WPN_GROUP_MAX)
             g_WpnColl.tree[i].isleaf = FALSE;
@@ -1377,6 +1385,7 @@ static void skill_init(void)
         g_SkiColl.tree[i].parent = i;
         g_SkiColl.tree[i].isleaf = TRUE;
         g_SkiColl.tree[i].bAutoTrain = TRUE;
+        g_SkiColl.tree[i].bAutoTeacherNoAdd = FALSE;
 
         g_SkiColl.text[i] = NULL;
 

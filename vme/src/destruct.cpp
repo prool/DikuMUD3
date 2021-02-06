@@ -172,8 +172,6 @@ void destruct_unit(class unit_data * unit)
     void stop_all_special (class unit_data * u);
     void unswitchbody (class unit_data * npc);
     void unsnoop (class unit_data * ch, int mode);
-    void die_follower (class unit_data * ch);
-    void stop_fighting (class unit_data * ch);
     void unlink_affect (class unit_affected_type *af);
     void nanny_menu (class descriptor_data *d, char *arg);
     void nanny_close (class descriptor_data *d, char *arg);
@@ -249,7 +247,9 @@ void destruct_unit(class unit_data * unit)
         unit_from_unit (unit);
 
     if (UNIT_FILE_INDEX (unit))
+    {
         UNIT_FILE_INDEX (unit)->no_in_mem--;
+    }
 
     if ((unit_list == unit) || unit->gnext || unit->gprevious)
         remove_from_unit_list (unit);

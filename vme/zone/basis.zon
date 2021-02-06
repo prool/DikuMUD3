@@ -50,6 +50,32 @@ Bright White.<br/>
 
 %dil
 
+#define AVERAGE_SKILL_COST      10
+#define SKILL_POINT_FACTOR      (8) 
+#define ABILITY_POINT_FACTOR    (4)
+
+dilbegin advance_level();
+external 
+   adv_guild_lvl@g_q(ch : unitptr);
+
+code
+{ 
+   log(self.name + " advanced to level " + itoa(self.vlevel));
+
+
+   adv_guild_lvl@g_q(self);
+
+   return;
+}
+dilend
+
+
+dilbegin string testsymname();
+code
+{
+   return(self.symname);
+}
+dilend
 
 dilbegin worms();
 var
@@ -117,6 +143,7 @@ dilend
 dilbegin login_scrub(tgt : unitptr);
 var
    i : integer;
+   ext : extraptr;
 code
 {
    heartbeat := PULSE_SEC;
@@ -136,6 +163,8 @@ code
    if ("$RES_TIMER" in self.extra)
       subextra(self.extra, "$RES_TIMER");
 
+  
+  
    /* to fix a bjorni quest mess */
    if ("Nidhogg's prize given" in tgt.quests)
    {
@@ -145,6 +174,16 @@ code
    }
    /* end bjorni quest mess fix */   
 
+   /* clan fix */
+    if ("$clan-_symbolic" in self.extra)
+	{
+		ext := "$clan-_symbolic" in self.extra;
+		addextra(self.extra, {"$clan_symbolic"}, ext.descr);
+		subextra (self.extra,"$clan-_symbolic");
+		log("Clan: " + self.name + " extra updated from $clan-_symbolic to $clan_symbolic. Descr is: " + ext.descr);
+	}
+   /* end clan fix */
+   
    /* Following mess to fix the mess with night and night1 zones by Ratlin */
    /*added fix for removing quest flags for heulhous and heul2 quests ZT 080808*/
                   
@@ -249,7 +288,8 @@ code
    dilcopy("send_prompt@update",self);
 
    // Also set channel for immortals
-   i := dildestroy("channel@function", self);
+   // Dont destroy because it will mess up the recall functionality which the function depends on. 
+   // i := dildestroy("channel@function", self);
    dilcopy("channel@function", self);
 
    if (self.level<200)
@@ -278,7 +318,6 @@ code
       i := dildestroy("stomach@update", self);
       dilcopy("stomach@update",self);
 
-      dilcopy("got_mail@mail()", self);
       dilcopy("fixwt@basis()", self);
       dilcopy("break_eq@basis()", self);
 
@@ -291,6 +330,8 @@ code
 
       login_scrub(self);
    }
+
+   dilcopy("got_mail@mail()", self);
 
    return;
 }
@@ -305,7 +346,8 @@ var
 
 code
 {
-   heartbeat := PULSE_SEC;
+   heartbeat := PULSE_SEC*30;
+   pause; // Take a 30 second break.
 
    sendto("linkdead", self);
 
@@ -344,8 +386,11 @@ dilend
 
 
 dilbegin informer();
+external
+   string whostring@comm();
 var
    tgt : unitptr;
+   w : string;
 code
 {
    heartbeat := PULSE_SEC;
@@ -354,7 +399,6 @@ code
 
    while (tgt.type == UNIT_ST_PC)
    {
-
       if ((isset(tgt.pcflags,PC_INFORM)) and (tgt != self))
       {
          if(visible(tgt,self))
@@ -367,6 +411,16 @@ code
       }
 
       tgt := tgt.gnext;
+   }
+
+   if (self.minv < IMMORTAL_LEVEL)
+   {
+      // Notify of newbies on the newbie channel
+      if (self.level < 2)
+         dispatch("discord msg #newbie Welcome **@" + self.name + "** has entered Valhalla MUD."); // Send to dispatcher.py via pipeDispatcher
+
+      w := whostring@comm();
+      dispatch("discord who " + w); // Send to dispatcher.py via pipeDispatcher
    }
 
    return;
@@ -420,7 +474,7 @@ code
 dilend
 
 
-dilbegin aware fnpri(FN_PRI_SYS) on_connect();
+dilbegin aware unique fnpri(FN_PRI_SYS) on_connect();
 external
    informer();
    login_modify(tgt : unitptr);
@@ -435,6 +489,7 @@ var
    welcome : string;
    goodbye : string;
    s : string;
+   exd : extraptr;
 
 code
 {
@@ -442,7 +497,7 @@ code
 
    err := loadstr("motd",motd);
 
-   if(err > 0)
+   if (err > 0)
    {
       motd := textformat(motd);
       sendtext(motd+"<br/>", self);
@@ -457,17 +512,25 @@ code
    s := dlrdump@commands("$trigger");
    sendtext(s, self);
 
-   login_modify(self);
-
    if (self.level < 200)
    {
       if(err > 0)
          sendtext("<br/>"+welcome+"<br/><br/>", self);
+      gamestate(self, GS_PLAY);
       informer();
+      login_modify(self);
       exec("look", self);
+
+      exd := "$channels" in self.info;
+      if (exd == null)
+      {
+         // Setup default comm channels
+         addextra(self.info, {"$channels", "newbie", "mud"}, "");
+      }
       quit;
    }
-   gamestate(self, GS_MENU);
+
+   //gamestate(self, GS_MENU);
 
    :wiz_menu:
    sendtext("Welcome to Valhalla<br/><br/>", self);
@@ -479,10 +542,11 @@ code
 
    if (command("1"))
    {
-      gamestate(self, GS_PLAY);
       if(err > 0)
          sendtext("<br/>"+welcome+"<br/><br/>", self);
+      gamestate(self, GS_PLAY);
       informer();
+      login_modify(self);
       exec("look", self);
       quit;
    }
@@ -621,83 +685,110 @@ dilend
 
 dilbegin fixstorage();
 var
- u:unitptr;
+   u:unitptr;
 code
 {
-heartbeat := PULSE_SEC;
-self.capacity:=300;
-self.alignment:=0;
-u:=self.inside;
-while (u)
- {
- self.alignment:=self.alignment+u.weight;
- u:=u.next;
- }
-quit;
+   heartbeat := PULSE_SEC;
+   self.capacity := 300;
+   self.alignment := 0;
+
+   u:=self.inside;
+   while (u)
+   {
+      self.alignment:=self.alignment+u.weight;
+      u := u.next;
+   }
+   quit;
 }
 dilend
 
 
-dilbegin fixwt ();
+dilbegin fixwt();
 external
- integer fixweight(u:unitptr);
- integer carry_w_limit@function(u:unitptr);
+   integer fixweight(u:unitptr);
+   integer carry_w_limit@function(u:unitptr);
+
 var
- item:unitptr;
- wgt:integer;
+   item:unitptr;
+   wgt:integer;
 
 code
 {
-heartbeat := PULSE_SEC;
-fixweight(self);
-wgt:=self.baseweight+carry_w_limit@function(self);
-if (self.weight>wgt)
-  {
-  wgt:=self.weight-wgt;
-     sendtext ("WARNING!!</div>  Your characters weight has been fixed.<br/>",self);
-/* sendtext ("You are "+itoa(wgt)+" pounds</div> over weight<br/>",self);*/
- log (self.name +" was over weight by "+itoa(wgt));
-  sendtext("Weight bugs make it so that combat is not always good for you as a player.<br/>",self);
-  sendtext("So we suggest you drop all in a safe location and get all and make sure you can carry everything.<br/>",self);
-  }
-quit;
+   heartbeat := PULSE_SEC;
+   fixweight(self);
+
+   /*
+
+   This is commented out and replaced with a move check that
+   alerts a player. Allows you to carry more than you can but
+   at a movement EP penalty.
+
+   wgt := self.baseweight + carry_w_limit@function(self);
+   if (self.weight > wgt)
+   {
+      wgt := self.weight - wgt;
+      sendtext ("WARNING!! Your characters weight has been fixed.<br/>",self);
+      // sendtext ("You are "+itoa(wgt)+" pounds over weight<br/>",self);
+      log (self.name +" was over weight by "+itoa(wgt));
+      sendtext("Weight bugs make it so that combat is not always good for you as a player.<br/>",self);
+      sendtext("So we suggest you drop all in a safe location and get all and make sure you can carry everything.<br/>",self);
+   }*/
+   quit;
 }
 dilend
 
 
 dilbegin integer fixweight(u:unitptr);
 var
- wgt:integer;
- item:unitptr;
+   wgt:integer;
+   item:unitptr;
+
 code
 {
-heartbeat := PULSE_SEC;
-wgt:=0;
+   heartbeat := PULSE_SEC;
+   wgt:=0;
 
-	  if ((u.names.[0]=="storage container") and (u.minv>=200))
-	  {
-	u.baseweight:=0;
-	u.weight:=0;
-	dilcopy ("fixstorage@basis()",u);
-	return(0);
+   if ((u.names.[0]=="storage container") and (u.minv>=200))
+   {
+      //log(u.symname + " base = " + itoa(u.baseweight) + " weight= " + itoa(u.weight)+ " pre-set");
+      set_weight_base(u, 0);
+      set_weight(u, 0);
+      dilcopy("fixstorage@basis()",u);
+      return(0);
 	}
 
-if (u.inside==null)
-{
-u.weight:=u.baseweight;
- return (u.weight);
- }
+   // Presume wizi items are storage containers
+   if (u.minv > 0)
+   {
+      return(u.weight);
+   }
 
- item:=u.inside;
-                       while (item!=null)
-					   {
- wgt:=wgt+fixweight(item);
- item:=item.next;
- }
+   if (u.inside == null)
+   {
+      if (u.weight != u.baseweight)
+      {
+         log(u.symname + " weight " + itoa(u.weight) + " !=  baseweight of " + itoa(u.baseweight) + ". Resetting.");
+         set_weight(u, u.baseweight);
+      }
+      return(u.weight);
+   }
 
- u.weight:=u.baseweight+wgt;
+   item := u.inside;
 
-return (u.weight);
+   while (item != null)
+   {
+      wgt:=wgt+fixweight(item);
+      item:=item.next;
+   }
+
+   //log("Setting " + u.symname + " to base + weight= " + itoa(wgt));
+   if (u.weight != u.baseweight + wgt)
+   {
+      log("container " + u.symname + " weight " + itoa(u.weight) + " !=  baseweight of " + itoa(u.baseweight) + ". Resetting.");
+      set_weight(u, u.baseweight+wgt);
+   }
+
+   return (u.weight);
 }
 dilend
 
@@ -749,7 +840,7 @@ dilend
 
 
 
-dilbegin colour_arg(); /* new arg */
+dilbegin color_arg(); /* new arg */
 
 var
   newarg      : string;
@@ -776,9 +867,9 @@ heartbeat := PULSE_SEC;
       log(activator.name + " attempted to use newline characters in a colour object statement!");
       goto start;
    }
-   newarg := argument + "</div>";
-   newarg := textformat(newarg);
-
+   newarg := argument;
+   newarg := replace("&lt;","<",newarg);
+   newarg := replace("&gt;",">",newarg);
    exec(newarg, activator);
 
 goto start;
@@ -792,8 +883,10 @@ goto start;
       goto start;
    }
    victim_name := getword(argument);
-   sending := argument + "<br/>";
-   sending := textformat(sending);
+   sending := argument;
+   sending := replace("&lt;","<",sending);
+   sending := replace("&gt;",">",sending);
+   
    pc := findunit(activator, victim_name, FIND_UNIT_WORLD, null);
    if (pc.type != UNIT_ST_PC)
       {
@@ -816,8 +909,9 @@ act("You may not use backslash characters!",A_ALWAYS,activator,null,null,TO_CHAR
 log(activator.name + " attempted to use backslash characters in a colour object statement!");
       goto start;
    }
-   sending := argument + "<br/>";
-   sending := textformat(sending);
+   sending := argument;
+   sending := replace("&lt;","<",sending);
+   sending := replace("&gt;",">",sending);
 
    act(sending, A_SOMEONE, self.outside, null, null, TO_ROOM);
    act(sending, A_ALWAYS, self.outside, null, null, TO_CHAR);
@@ -827,49 +921,54 @@ log(activator.name + " attempted to use backslash characters in a colour object 
 
 goto start;
 }
-dilend /*colour_arg*/
+dilend /*color_arg*/
 
-dilbegin colour_bc();
+
+dilbegin color_bc();
 
 var
   pc     :unitptr;
   newarg :string;
 code
 {
-heartbeat := PULSE_SEC;
+	heartbeat := PULSE_SEC;
+	
 :start:
-wait(SFB_CMD,((command("cb")) and (activator.level>=242) and (activator==self.outside)));
-   block;
-   pc:=activator;
-   if (("\\" in argument) and (activator.level<253))
-   {
-      act("You may not use newline characters!",A_ALWAYS,pc,null,null,TO_CHAR);
-      log(pc.name + " attempted to use newline characters in a "
-	  +"broadcast below level 253!");
-      goto start;
-   }
-   if ("\\" in argument)
-   {
-      act("You may not change the background colour, sorry.",A_ALWAYS,pc,null,null,TO_CHAR);
-      goto start;
-   }
-   newarg := argument + "<br/>";
-   newarg := textformat(newarg);
+	wait(SFB_CMD,((command("cb")) and (activator.level>=242) and (activator==self.outside)));
+	block;
+	pc:=activator;
+	if (("\\" in argument) and (activator.level<253))
+	{
+		act("You may not use newline characters!",A_ALWAYS,pc,null,null,TO_CHAR);
+		log(pc.name + " attempted to use newline characters in a "
+			+"broadcast below level 253!");
+		goto start;
+	}
+	if ("\\" in argument)
+	{
+		act("You may not change the background color, sorry.",A_ALWAYS,pc,null,null,TO_CHAR);
+		goto start;
+	}
+	newarg := argument;
+	newarg := replace("&lt;","<",newarg);
+	newarg := replace("&gt;",">",newarg);
 
-  while (pc.gprevious.type==UNIT_ST_PC)
-     pc := pc.gprevious;
+	while (pc.gprevious.type==UNIT_ST_PC)
+		pc := pc.gprevious;
 
-     while (pc.type==UNIT_ST_PC)
-      {
-     sendtext(newarg,pc);
-      pc:=pc.gnext;
-      }
-goto start;
+	while (pc.type==UNIT_ST_PC)
+	{
+		sendtext(newarg,pc);
+		pc:=pc.gnext;
+	}
+	goto start;
 }
-dilend /* colour_bc */
+dilend /* color_bc */
 
-dilbegin colour_title(); /* titles and names */
 
+dilbegin color_title(); /* titles and names */
+external
+	string do_color@function(arg : string);
 var
   pc          : unitptr;
   victim_name : string;
@@ -877,226 +976,49 @@ var
   newtitle    : string;
   newname     : string;
   commd       : string;
-
 code
 {
 heartbeat := PULSE_SEC;
-:start:
-   wait(SFB_CMD,((command("cname") or command("ctitle") or command("cguild"))
-                  and (activator.level>=240) and (activator==self.outside)));
 
-   pc:=self.outside;
-   secure(pc,lostem);
-   if (cmdstr=="cname")
-   {
-act("That command has been disabled.",A_ALWAYS, self.outside, null, null, TO_CHAR);
-      goto lostem;
-   }
-   if (cmdstr=="ctitle") goto change_title;
-   if (cmdstr=="cguild") goto change_guild;
+:start:
+	wait(SFB_CMD,((command("cname") or command("coltitle"))
+		and (activator.level>=240) and (activator==self.outside)));
+
+	pc:=self.outside;
+	secure(pc,lostem);
+	if (cmdstr=="cname") goto change_name;
+	if (cmdstr=="coltitle") goto change_title;
 
 :lostem:
-   unsecure(pc);
-   unsecure(victim);
-   goto start;
+	unsecure(pc);
+	unsecure(victim);
+	goto start;
 
-:change_guild:
-   block;
-/*
-   commd := getword(argument);
-   if ("clear" in commd)
-      goto cont1a;
-   else if ("add" in commd)
-      goto cont1b;
-   else
-   {
- act("You must give a valid sub-command: clear or add.",
-   A_ALWAYS, self.outside, null, null, TO_CHAR);
-      goto lostem;
-
-   }
-*/
-
-   goto cont1b;
-/*
-
-:cont1a:
-   victim_name := getword(argument);
-
-   if (victim_name == "")
-   {
-*/
-        :noperson:
-        act("No such person in world.",A_ALWAYS, pc, null, null, TO_CHAR);
-        goto lostem;
-/*
-   }
-   victim := findunit(pc, victim_name, FIND_UNIT_WORLD, null);
-   if ((victim==null) or (victim.type != UNIT_ST_PC))
-   {
-      act("No such player.",
-          A_ALWAYS, pc, null, null, TO_CHAR);
-      goto lostem;
-   }
-   secure(victim,lostem);
-   if ((victim != self) and (activator.level < 253))
-   {
-      act("Permission to set field denied!", A_ALWAYS, pc, null, null, TO_CHAR);
-      goto lostem;
-   }
-
-   if (victim.level >= self.level)
-   {
-      act("I think $3e might object to that.",A_ALWAYS, pc, null, victim, TO_CHAR);
-      goto lostem;
-   }
-
-   if (victim.level <= 50)
-   {
-      act("That would be wrong!", A_ALWAYS, pc, null, null, TO_CHAR);
-      goto lostem;
-   }
-
-   victim.guild := "NO GUILD";
-   log(pc.name + " has just blanked " + victim.name + "'s guild.");
-goto lostem;
-
-*/
-
-:cont1b:
-   victim_name := getword(argument);
-
-   newtitle := argument;
-   newtitle := textformat(newtitle);
-   if (victim_name == "")
-   {
-        act("No such person in world.", A_ALWAYS, pc, null, null, TO_CHAR);
-        goto lostem;
-   }
-   if (argument == "")
-   {
-      act("Title is blank.",
-            A_ALWAYS, pc, null, null, TO_CHAR);
-        goto lostem;
-   }
-   victim := findunit(pc, victim_name, FIND_UNIT_WORLD, null);
-   if ((victim==null) or (victim.type != UNIT_ST_PC))
-   {
-      act("No such player.",A_ALWAYS, pc, null, null, TO_CHAR);
-      goto lostem;
-   }
-   secure(victim,lostem);
-   if ((victim != self) and (activator.level < 240))
-   {
-      act("Argle Bargle?!? Glophf Glyph!?!", A_ALWAYS, pc, null, null, TO_CHAR);
-      goto lostem;
-   }
-
-   if (victim.level >= self.level)
-   {
-   act("I think $3e might object to that.",A_ALWAYS, pc, null, victim, TO_CHAR);
-      goto lostem;
-   }
-
-   if (victim.level <= 50)
-   {
-      act("That would be wrong!", A_ALWAYS, pc, null, null, TO_CHAR);
-      goto lostem;
-   }
-
-:set_guild:
-   victim.guild:= newtitle ;
-   log (pc.name + " colour guild-named " + victim.name + ".");
-   act("You have received a colour guild-name.",A_ALWAYS, victim, null, null, TO_CHAR);
-   act("You have colour guild-named: " + victim.name +".",A_ALWAYS, pc, null, null, TO_CHAR);
-goto lostem;
-
+:noperson:
+	act("No such person in world.",A_ALWAYS, pc, null, null, TO_CHAR);
+	goto lostem;
 
 :change_title:
-   block;
-
-/*
-   commd := getword(argument);
-   if ("clear" in commd)
-      goto cont2a;
-   else if ("add" in commd)
-      goto cont2b;
-   else
-   {
-      act("You must give a valid sub-command: clear or add.",A_ALWAYS, self.outside, null, null, TO_CHAR);
-      goto lostem;
-
-   }
-
-:cont2a:
-   victim_name := getword(argument);
-   if (victim_name == "")
-   {
-        act("No such thing in room, or no such person in world.",A_ALWAYS, pc, null, null, TO_CHAR);
-        goto lostem;
-   }
-   victim := findunit(pc, victim_name, FIND_UNIT_INVEN, null);
-   if (victim==null)
-   {
-        victim := findunit(pc, victim_name, FIND_UNIT_EQUIP, null);
-        if (victim==null)
-        {
-            victim := findunit(pc, victim_name, FIND_UNIT_SURRO, null);
-            if (victim==null)
-            {
-               victim := findunit(pc, victim_name, FIND_UNIT_WORLD, null);
-               if (victim.type!=UNIT_ST_PC) goto noperson;
-            }
-        }
-   }
-   secure(victim,lostem);
-   if ((victim.type==UNIT_ST_PC) and (activator.level<240))
-   {
-        act("You must be level 240 or higher to colour title players.",
-            A_ALWAYS, pc, null, null, TO_CHAR);
-        goto lostem;
-   }
-   if ((victim.type!=UNIT_ST_OBJ) and (victim.type!=UNIT_ST_PC))
-   {
-        act("You cannot title that.",A_ALWAYS, pc, null, null, TO_CHAR);
-        goto lostem;
-   }
-
-   if (victim.level >= self.level)
-   {
-      act("I think $3e might object to that.",A_ALWAYS, pc, null, victim, TO_CHAR);
-      goto lostem;
-   }
-
-victim.title:="BLANK";
-if (victim.type == UNIT_ST_OBJ)
-   {
-   log (pc.name + " has blanked " + victim.name + "'s title.");
-        act("You have received a new title.",A_ALWAYS, victim, null, null, TO_CHAR);
-   }
-        act("Your have blanked " + victim.name +"'s title.", A_ALWAYS, pc, null, null, TO_CHAR);
-goto lostem;
-*/
-
-:cont2b:
-   victim_name := getword(argument);
-   newtitle := argument;
-   newtitle := textformat(newtitle);
-   if (victim_name == "")
-   {
+	block;
+	victim_name := getword(argument);
+	newtitle := argument;
+	newtitle := do_color@function(newtitle);
+   
+	if (victim_name == "")
+	{
         act("No such thing in room, or no such person in world.",
             A_ALWAYS, pc, null, null, TO_CHAR);
         goto lostem;
-   }
-   if (argument == "")
-   {
-      act("Title is blank.",A_ALWAYS, pc, null, null, TO_CHAR);
-        goto lostem;
-   }
+	}
+	if (argument == "")
+	{
+		act("Title is blank.",A_ALWAYS, pc, null, null, TO_CHAR);
+		goto lostem;
+	}
 
-   victim := findunit(pc, victim_name, FIND_UNIT_INVEN, null);
-   if (victim==null)
-   {
+	victim := findunit(pc, victim_name, FIND_UNIT_INVEN, null);
+	if (victim==null)
+	{
         victim := findunit(pc, victim_name, FIND_UNIT_EQUIP, null);
         if (victim==null)
         {
@@ -1107,75 +1029,73 @@ goto lostem;
                if (victim.type!=UNIT_ST_PC) goto noperson;
             }
         }
-   }
-   secure(victim,lostem);
-   if ((victim.type==UNIT_ST_PC) and (activator.level<240))
-   {
-        act("You must be level 245 or higher to colour title players.",
+	}
+	secure(victim,lostem);
+	if ((victim.type==UNIT_ST_PC) and (activator.level<240))
+	{
+        act("You must be level 245 or higher to color title players.",
             A_ALWAYS, pc, null, null, TO_CHAR);
         goto lostem;
-   }
-   if ((victim.type!=UNIT_ST_OBJ) and (victim.type!=UNIT_ST_PC))
-   {
+	}
+	if ((victim.type!=UNIT_ST_OBJ) and (victim.type!=UNIT_ST_PC))
+	{
         act("You cannot title that.",A_ALWAYS, pc, null, null, TO_CHAR);
         goto lostem;
-   }
+	}
 
-   if (victim.level >= self.level)
-   {
-      act("I think $3e might object to that.",A_ALWAYS, pc, null, victim, TO_CHAR);
-      goto lostem;
-   }
+	if (victim.level >= self.level)
+	{
+		act("I think $3e might object to that.",A_ALWAYS, pc, null, victim, TO_CHAR);
+		goto lostem;
+	}
 
 :set_title:
-   victim.title:=newtitle;
-if (victim.type == UNIT_ST_OBJ)
-   {
-   log (pc.name + " colour titled " + victim.name + ".");
-   act("You have received a new title.", A_ALWAYS, victim, null, null, TO_CHAR);
-   }
-  act("You have titled: " + victim.name +".", A_ALWAYS, pc, null, null, TO_CHAR);
-goto lostem;
+	victim.title:=newtitle;
+	if (victim.type == UNIT_ST_OBJ)
+	{
+		log (pc.name + " color titled " + victim.name + ".");
+		act("You have received a new title.", A_ALWAYS, victim, null, null, TO_CHAR);
+	}
+	act("You have titled: " + victim.name +".", A_ALWAYS, pc, null, null, TO_CHAR);
+	goto lostem;
 
-/*
+
 :change_name:
-   block;
-   victim_name := getword(argument);
-   newname := argument;
-   newname := textformat(newname);
+	block;
+	victim_name := getword(argument);
+	newname := argument;
+	newname := replace("&lt;","<",newname);
+	newname := replace("&gt;",">",newname);
 
-   if (victim_name == "")
-   {
+	if (victim_name == "")
+	{
         :noobject:
         act("No such thing here.", A_ALWAYS, pc, null, null, TO_CHAR);
         goto lostem;
-   }
-   if (argument == "")
-   {
-      act("Name is blank.", A_ALWAYS, pc, null, null, TO_CHAR);
+	}
+	if (argument == "")
+	{
+		act("Name is blank.", A_ALWAYS, pc, null, null, TO_CHAR);
         goto lostem;
-   }
-   victim := findunit(pc, victim_name, (FIND_UNIT_IN_ME + FIND_UNIT_SURRO),
-                      null);
-   secure(victim, lostem);
-   if (victim==null) goto noobject;
-   if (victim.type!=UNIT_ST_OBJ)
-   {
+	}
+	victim := findunit(pc, victim_name, (FIND_UNIT_IN_ME + FIND_UNIT_SURRO),null);
+	secure(victim, lostem);
+	if (victim==null) goto noobject;
+	if (victim.type!=UNIT_ST_OBJ)
+	{
         act("You can only rename items.",A_ALWAYS, pc, null, null, TO_CHAR);
         goto lostem;
-   }
+	}
 
 :set_name:
-   addstring(victim.names,newname);
-   log(pc.name + " colour-renamed " + victim.name + ".");
-   act(victim.name + " has been given a name by you.",A_ALWAYS, pc, null, null, TO_CHAR);
-goto lostem;
-*/
-
+	addstring(victim.names,newname);
+	log(pc.name + " color-renamed " + victim.name + ".");
+	act(victim.name + " has been given a name by you.",A_ALWAYS, pc, null, null, TO_CHAR);
+	goto lostem;
 }
-dilend /* colour_title */
+dilend /* color_title */
 
-/* END COLOUR DIL */
+/* END COLOR DIL */
 
 
 dilbegin setautotrain(nGuild : integer);
@@ -1199,14 +1119,14 @@ code
       sl := {"$autotrain", GUILD_CLERIC_ATL};
    else if (nGuild == PROFESSION_DRUID)
       sl := {"$autotrain", GUILD_DRUID_ATL};
-   else if (nGuild == PROFESSION_MYSTIC)
-      sl := {"$autotrain", GUILD_MYSTIC_ATL};
    else if (nGuild == PROFESSION_NECROMANCER)
       sl := {"$autotrain", GUILD_NECROMANCER_ATL};
    else if (nGuild == PROFESSION_CONJURER)
       sl := {"$autotrain", GUILD_MAGE_ATL};
    else if (nGuild == PROFESSION_SORCERER)
       sl := {"$autotrain", GUILD_SORCERER_ATL};
+   else if (nGuild == PROFESSION_BARBARIAN)
+      sl := {"$autotrain", GUILD_BARBARIAN_ATL};
    else
    {
       log("ERROR: setautotrain@basis(): invalid nGuild");
@@ -5300,22 +5220,22 @@ code
    else if (self.race==RACE_DWARF)
    {
       self.abilities[ABIL_STR] := 6;
-      self.abilities[ABIL_CON] := 2;
+      self.abilities[ABIL_CON] := 4;
       self.abilities[ABIL_HP ] := 6;
       self.abilities[ABIL_DEX] := 2;
       self.abilities[ABIL_BRA] := 4;
       self.abilities[ABIL_CHA] := 2;
       self.abilities[ABIL_DIV] := 4;
-      self.abilities[ABIL_MAG] := 2;
+      self.abilities[ABIL_MAG] := 4;
    }
    else if (self.race==RACE_ELF)
    {
-      self.abilities[ABIL_STR] := 4;
+      self.abilities[ABIL_STR] := 2;
       self.abilities[ABIL_CON] := 4;
       self.abilities[ABIL_HP ] := 4;
       self.abilities[ABIL_DEX] := 4;
       self.abilities[ABIL_BRA] := 4;
-      self.abilities[ABIL_CHA] := 6;
+      self.abilities[ABIL_CHA] := 4;
       self.abilities[ABIL_DIV] := 6;
       self.abilities[ABIL_MAG] := 4;
    }
@@ -5332,7 +5252,7 @@ code
    }
    else if (self.race==RACE_GNOME)
    {
-      self.abilities[ABIL_STR] := 4;
+      self.abilities[ABIL_STR] := 2;
       self.abilities[ABIL_CON] := 4;
       self.abilities[ABIL_HP ] := 4;
       self.abilities[ABIL_DEX] := 4;
@@ -5345,7 +5265,7 @@ code
    {
       self.abilities[ABIL_STR] := 6;
       self.abilities[ABIL_CON] := 6;
-      self.abilities[ABIL_HP ] := 6;
+      self.abilities[ABIL_HP ] := 8;
       self.abilities[ABIL_DEX] := 2;
       self.abilities[ABIL_BRA] := 2;
       self.abilities[ABIL_CHA] := 2;
@@ -5354,9 +5274,9 @@ code
    }
    else if (self.race==RACE_HALF_ORC)
    {
-      self.abilities[ABIL_STR] := 4;
-      self.abilities[ABIL_CON] := 4;
-      self.abilities[ABIL_HP ] := 4;
+      self.abilities[ABIL_STR] := 6;
+      self.abilities[ABIL_CON] := 6;
+      self.abilities[ABIL_HP ] := 6;
       self.abilities[ABIL_DEX] := 4;
       self.abilities[ABIL_BRA] := 2;
       self.abilities[ABIL_CHA] := 2;
@@ -5400,7 +5320,7 @@ code
    {
       self.abilities[ABIL_STR] := 4;
       self.abilities[ABIL_DEX] := 4;
-      self.abilities[ABIL_CON] := 4;
+      self.abilities[ABIL_CON] := 2;
       self.abilities[ABIL_MAG] := 6;
       self.abilities[ABIL_DIV] := 2;
       self.abilities[ABIL_CHA] := 4;
@@ -5427,14 +5347,14 @@ code
 
    if (self.profession == PROFESSION_FIGHTER)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+2+2;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+0+2;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+2+1;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +2+1;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+4;
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2;
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+2;
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP]+4;
       self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]-2;
       self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-2;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+0;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]-2;
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA];
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA];
 
       self.weapons[WPN_FIST]        :=  5;
       self.weapons[WPN_DAGGER]      :=  5;
@@ -5444,13 +5364,13 @@ code
    }
    else if (self.profession == PROFESSION_THIEF)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+0+1;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+4+2;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+0+1;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +0+1;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+2;
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+6;
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+2;
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP];
       self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]-2;
-      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-0;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+0+1;
+      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG];
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2;
       self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]-2;
 
       self.skills[SKI_SEARCH]    := 5;
@@ -5464,14 +5384,14 @@ code
    }
    else if (self.profession == PROFESSION_PRIEST)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+0+1;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+0+1;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+0+1;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +0+1;
-      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+2+2;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR];
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2;
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON];
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP];
+      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+4;
       self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-2;
       self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+0;
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2;
 
       self.weapons[WPN_FIST]          :=  5;
       self.weapons[WPN_MACE]          :=  5+5;
@@ -5482,14 +5402,14 @@ code
    }
    else if (self.profession == PROFESSION_PALADIN)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+2+1;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2+1;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+0+1;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +2+1;
-      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+0+1;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+2;
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2;
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON];
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +2;
+      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+2;
       self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-2;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2+1;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+0;
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2;
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA];
 
       self.weapons[WPN_FIST]          := 5;
       self.weapons[WPN_LONG_SWORD]    := 5 + 5;
@@ -5501,14 +5421,14 @@ code
    }
    else if (self.profession == PROFESSION_SORCERER)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]-2+1;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2+1;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR];
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2;
       self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]-2;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP]- 2+1;
-      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]+2+1;
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP];
+      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]+4;
       self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]-2;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2+1;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2+1;
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2;
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+4;
 
       self.weapons[WPN_DAGGER]       :=  5+10;
 
@@ -5521,14 +5441,14 @@ code
    }
    else if (self.profession == PROFESSION_RANGER)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+0+1;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2+1;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+0+1;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +2+1;
-      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+2;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR];
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+4;
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON];
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +2;
+      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV];
       self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-2;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+0+1;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2+1;
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2;
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2;
 
       self.weapons[WPN_FIST]       := 5;
       self.weapons[WPN_SLING]      := 5+5;
@@ -5540,16 +5460,17 @@ code
    }
    else if (self.profession == PROFESSION_DRUID)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+0;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+0+1;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+0;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +0+1;
-      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+2+2;
-      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-0;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2+1;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2+1;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR];
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX];
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON];
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP];
+      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+4;
+      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG];
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA];
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+4;
 
       self.weapons[WPN_FIST]         := 5;
+      self.weapons[WPN_DAGGER]       := 5;
       self.weapons[WPN_QUARTERSTAFF] := 5 + 5;
 
       self.spells[SPL_SENSE_LIFE]    := 5;
@@ -5560,14 +5481,14 @@ code
    }
    else if (self.profession == PROFESSION_KNIGHT)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+2+1;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+0+1;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+0+1;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +0+1;
-      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+2+1;
-      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-0;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2+1;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+2;
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2;
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON];
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +2;
+      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+2;
+      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG];
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA];
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA];
 
       self.weapons[WPN_LONG_SWORD] := 5 + 5;
       self.weapons[WPN_HAND_AXE]   := 5 + 5;
@@ -5579,14 +5500,14 @@ code
    }
    else if (self.profession == PROFESSION_NECROMANCER)
    {
-      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]+0;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+0+1;
-      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]+0;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] +0+1;
-      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+2+2;
+      self.abilities[ABIL_STR] :=self.abilities[ABIL_STR];
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX];
+      self.abilities[ABIL_CON] :=self.abilities[ABIL_CON];
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP];
+      self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]+4;
       self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]-2;
-      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+0+1;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2+1;
+      self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2;
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+4;
 
       self.weapons[WPN_DAGGER]        := 5 + 5;
       self.weapons[WPN_FIST]          := 5;
@@ -5598,13 +5519,13 @@ code
    else if (self.profession == PROFESSION_CONJURER)
    {
       self.abilities[ABIL_STR] :=self.abilities[ABIL_STR]-2;
-      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2+1;
+      self.abilities[ABIL_DEX] :=self.abilities[ABIL_DEX]+2;
       self.abilities[ABIL_CON] :=self.abilities[ABIL_CON]-2;
-      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP] -2+1;
-      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]+2+2;
+      self.abilities[ABIL_HP]  :=self.abilities[ABIL_HP];
+      self.abilities[ABIL_MAG] :=self.abilities[ABIL_MAG]+6;
       self.abilities[ABIL_DIV] :=self.abilities[ABIL_DIV]-2;
       self.abilities[ABIL_CHA] :=self.abilities[ABIL_CHA]+2;
-      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+2+2;
+      self.abilities[ABIL_BRA] :=self.abilities[ABIL_BRA]+4;
 
       self.weapons[WPN_DAGGER]       :=  5 + 5;
 
@@ -5617,47 +5538,35 @@ code
    }
    else if (self.profession == PROFESSION_ASSASSIN)
    {
-      self.abilities[ABIL_STR] := self.abilities[ABIL_STR]+0+1;
-      self.abilities[ABIL_DEX] := self.abilities[ABIL_DEX]+4+2;
-      self.abilities[ABIL_CON] := self.abilities[ABIL_CON]+0+1;
-      self.abilities[ABIL_HP]  := self.abilities[ABIL_HP] +2+1;
+      self.abilities[ABIL_STR] := self.abilities[ABIL_STR];
+      self.abilities[ABIL_DEX] := self.abilities[ABIL_DEX]+6;
+      self.abilities[ABIL_CON] := self.abilities[ABIL_CON]+2;
+      self.abilities[ABIL_HP]  := self.abilities[ABIL_HP];
       self.abilities[ABIL_DIV] := self.abilities[ABIL_DIV]-2;
-      self.abilities[ABIL_MAG] := self.abilities[ABIL_MAG]-0;
-      self.abilities[ABIL_CHA] := self.abilities[ABIL_CHA]-0;
-      self.abilities[ABIL_BRA] := self.abilities[ABIL_BRA]+0+1;
+      self.abilities[ABIL_MAG] := self.abilities[ABIL_MAG];
+      self.abilities[ABIL_CHA] := self.abilities[ABIL_CHA];
+      self.abilities[ABIL_BRA] := self.abilities[ABIL_BRA]+2;
 
       self.skills[SKI_BACKSTAB]    := 5+5;
       self.skills[SKI_CLIMB]       := 5;
       self.weapons[WPN_FIST]       := 5+5;
       self.weapons[WPN_DAGGER]     := 5+10;
       self.skills[SKI_SKIN]        := 5;
-   }
-   else if (self.profession == PROFESSION_MYSTIC)
-   {
-      self.abilities[ABIL_STR] := self.abilities[ABIL_STR]+1;
-      self.abilities[ABIL_DEX] := self.abilities[ABIL_DEX]+2;
-      self.abilities[ABIL_CON] := self.abilities[ABIL_CON]+0;
-      self.abilities[ABIL_HP]  := self.abilities[ABIL_HP] +1;
-      self.abilities[ABIL_DIV] := self.abilities[ABIL_DIV]+4;
-      self.abilities[ABIL_MAG] := self.abilities[ABIL_MAG]-2;
-      self.abilities[ABIL_CHA] := self.abilities[ABIL_CHA]+1;
-      self.abilities[ABIL_BRA] := self.abilities[ABIL_BRA]+3;
-
-      self.weapons[WPN_FIST]         := 5;
-      self.weapons[WPN_QUARTERSTAFF] := 5 + 5;
-   }   
+   } 
    else if (self.profession == PROFESSION_BARBARIAN)
    {
-      self.abilities[ABIL_STR] := self.abilities[ABIL_STR]+3;
-      self.abilities[ABIL_DEX] := self.abilities[ABIL_DEX]+1;
-      self.abilities[ABIL_CON] := self.abilities[ABIL_CON]+3;
-      self.abilities[ABIL_HP]  := self.abilities[ABIL_HP] +2;
+      self.abilities[ABIL_STR] := self.abilities[ABIL_STR]+6;
+      self.abilities[ABIL_DEX] := self.abilities[ABIL_DEX]+2;
+      self.abilities[ABIL_CON] := self.abilities[ABIL_CON]+4;
+      self.abilities[ABIL_HP]  := self.abilities[ABIL_HP] +4;
       self.abilities[ABIL_DIV] := self.abilities[ABIL_DIV]-2;
       self.abilities[ABIL_MAG] := self.abilities[ABIL_MAG]-2;
-      self.abilities[ABIL_BRA] := self.abilities[ABIL_BRA]-1;
+      self.abilities[ABIL_CHA] := self.abilities[ABIL_CHA]-2;
+      self.abilities[ABIL_BRA] := self.abilities[ABIL_BRA]-2;
 
       self.weapons[WPN_FIST]         := 5;
       self.weapons[WPN_HAND_AXE]     := 5 + 5;
+      self.weapons[WPN_MACE]         := 5 + 5;
       self.skills[SKI_FRENZY]        := 10;
       self.skills[SKI_RAGE]          := 5;
    }
@@ -5713,8 +5622,7 @@ code
 
    addextra (self.extra ,{"$NOREROLL"},"whistler");
    addextra (self.extra ,{"$CLAN_CLEAR"},"whistler");
-   addextra (self.extra ,{"$NO_DEC07"},"No Christmas 2007");
-
+   
    pcinitabils();
 
    self.hometown := "temple@udgaard";
@@ -5840,6 +5748,14 @@ code
       exec("alias kr backstab rabbit", self);
       exec("alias ks backstab skunk", self);
    }
+   else if (self.profession == PROFESSION_BARBARIAN)
+   {
+      exec("alias kd backstab deer", self);
+      exec("alias kb backstab badger", self);
+      exec("alias kf backstab fox", self);
+      exec("alias kr backstab rabbit", self);
+      exec("alias ks backstab skunk", self);
+   }
    else
    {
       log("ERROR: playerinit() unknown self.profession");
@@ -5883,7 +5799,7 @@ code
          +"  4) Gnome<br/>"
          +"  5) Elf<br/>"
          +"  6) Half-elf<br/>"
-         +"  7) Dark-Elf (hard)<br/>"
+         +"  7) Dark-Elf<br/>"
          +"  8) Brownie<br/>"
          +"  9) Groll<br/>"
          +" 10) Half-Orc<br/>"
@@ -6567,6 +6483,15 @@ flags {UNIT_FL_NO_WEATHER}
 light 5
 end
 
+                                       discord
+
+names "Discord"
+title "The Discord Robot"
+descr
+"   This room is the sender of the discord messages."
+flags {UNIT_FL_NO_WEATHER}
+light 5
+end
 
                                        void
 
@@ -6728,10 +6653,9 @@ up to throne_room;
 
 end
 
-
 %objects
 
-		bug
+		deadbug
 
 names {"dead bug","bug"}
 title "a dead bug"
@@ -6754,6 +6678,7 @@ var
    ext : extraptr;
 code
 {
+   quit;
    heartbeat := PULSE_SEC;
    :loop:
    wait(SFB_CMD, TRUE);
@@ -6770,6 +6695,7 @@ var
    i : integer;
 code
 {
+   quit;
    heartbeat := PULSE_SEC * 4;
    i := rnd(1,10000);
 
@@ -6895,79 +6821,72 @@ dilend
 end
 
 
-colour_object
-names {"colour object", "colour", "object"}
-title "a colour object"
-descr "A colourful object lies on the ground here."
+color_object
+names {"color object", "color", "object"}
+title "a <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> object"
+descr "A <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div><div class='cpc'>f</div><div class='cpr'>u</div><div class='cpb'>l</div> object lies on the ground here."
 
 extra {}
-"This object is for adding colour titles and names to objects, and colour
-titles, names and guild-names to players (only gods can have colour
-guild-names). With it, you can also execute any command (except wiz commands)
-in colour. Please use restraint in your colour schemes - we wish to avoid
-gawdy titles/names. The syntax for its use is as follows (please note that
-for the new kernel which allows colour everything, we MUST add a &amp;p
-every time we add a foreground colour code and we can only change the colour
-once per string [joining substrings doesn't bypass this unfortunately]. So if
-you want to rename an object with multiple colours, close it with &amp;cw for
-the moment]. A &amp;q is used to reset the
-background colour code - this is very important):
+"This object is for adding <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> titles and names to objects, and <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> <br>
+titles, and names to players. With it, you can also execute any command (except wiz commands)<br>
+in <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div>. Please use restraint in your color schemes - we wish to avoid<br>
+gawdy titles/names. The syntax for its use follows HTML &ltdiv&gt tags, and<br>
+the CSS classes we've published. Static color codes are included in the CSS files<br>
+similar to previously avaialble ANSI colors. For example, the legacy &amp;c+r code<br>
+for the color <div class='cpr'>bright red</div>, would now look like &ltdiv class='cpr'&gtcolor red&lt/div&gt.<br>
+<br><br>
 
+To add a <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> title to an object:<br>
 
-   To add a colour title to an object:
+<br>coltitle objectname title
 
-                      ctitle objectname title
-                  eg: ctitle enforcer &amp;c+bMy &amp;c+ggreen &amp;c+raxe&amp;cw
+<br><br><div class='cpw'>eg:</div> coltitle enforcer &ltdiv class='cpb'&gtMy&lt/div&gt &ltdiv class='cg'&gtgreen&lt/div&gt &ltdiv class='cr'&gtaxe&lt/div&gt
+<br><div class='cpw'>result:</div> <div class='cpb'>My</div> <div class='cg'>green</div> <div class='cr'>axe</div>
 
-   To add a colour name (this should be done as little as possible because
-   weapons may disrupt fight sequence colours) to an object:
+<br><br>To add a <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> name to an object:
 
-                      cname objectname newname
-                  eg: cname enforcer &amp;c+ggreen &amp;c+raxe&amp;cw
+<br><br>cname objectname newname
+<br><br><div class='cpw'>eg:</div> cname enforcer &ltdiv class='cpb'&gtMy&lt/div&gt &ltdiv class='cg'&gtgreen&lt/div&gt &ltdiv class='cr'&gtaxe&lt/div&gt
 
-   To give a player a colour title or guild-name, the procedure is identical
+<br><br>To give a player a <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> title or guild-name, the procedure is identical
    to giving (except only gods can have non-guild guild-names)
-   an object a colour title, except use the person's name instead of the
+   an object a <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> title, except use the person's name instead of the
    objectname.
 
-   (This feature is disabled until further notice due to formatting
-    problems in room looks ) - Eirinn clarej@tcd.ie.
+<br><br>To execute a command in <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div>, do the following:
 
-   To execute a command in colour, do the following:
+<br><br>carg command arguments
 
-                      carg command arguments
-                  eg: carg shout &amp;c+rRed Shout!&amp;cw
+<br><br><div class='cpw'>eg:</div> carg shout &ltdiv class='cr'&gtred shout&lt/div&gt
 
-   Only level 240+ gods may use the colour object for naming and titling
-   because its facilities are variants of the set command. The object
-   may however be used by 235+ gods to execute normal commands (eg shout,
+<br><br>
+   Only level 240+ gods may use the <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> object for naming and titling<br>
+   because its facilities are variants of the set command. The object<br>
+   may however be used by 235+ gods to execute normal commands (eg shout,<br>
    tell, etc), but not wiz commands.
 
-   For level 242+ gods, it is possible to colour broadcast. To use this
-   capability, do the following:
+<br><br>For level 242+ gods, it is possible to <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> broadcast.
+<br><div class='cpw'>To use this capability, do the following:</div><br>
+<br>cb &ltdiv class='cpr'&gtValhalla will be rebooting in 2 minutes.,&ltdiv&gt<br>
+<br>This would broadcast the message...
+<br><div class='cpr'>Valhalla will be rebooting in 2 minutes</div>
+<br>...in <div class='cpr'>bright red</div>.<br><br>
 
-                      cb &amp;c+rValhalla will be rebooting in 2 minutes.&amp;cw
+   The command <div class='cpw'>cech</div> works like echo except it accepts <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> codes.<br>
+   The command <div class='cpw'>cmes</div> works like message except it accepts <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> codes.
+   
+   <br><br>For a full list of <div class='cpr'>c</div><div class='cpb'>o</div><div class='cpg'>l</div><div class='cpy'>o</div><div class='cpm'>r</div> codes examine the CSS docs."
 
-   This would broadcast the message 'Valhalla will be rebooting in 2 minutes'
-   in bright red.
-
-   The command cech works like echo except it accepts colour codes.
-   The command cmes works like message except it accepts colour codes.
-
-   Don't forget about &amp;p and &amp;q. For a full list of colour
-   codes take a look at control.txt in the Builder's library -
-   http:\\valhalla.com"
-
-dilcopy colour_title@basis();
-dilcopy colour_arg@basis();
-dilcopy colour_bc@basis();
+dilcopy color_title@basis();
+dilcopy color_bc@basis();
+dilcopy color_arg@basis();
 
 manipulate {MANIPULATE_TAKE,MANIPULATE_HOLD}
 
 weight 1
 type ITEM_OTHER
 
-end /* colour_object */
+end /* color_object */
 
 
 
@@ -7508,6 +7427,71 @@ end
 
 %mobiles
 
+   ladybug
+
+names {"lady bug","bug"}
+title "a lady bug"
+descr "A lady bug is crawling around."
+extra {}
+"The lady bug kind of looks like a black lady bug. It's alive. And it's crawling around.
+You notice the word 'Papi' inscribed with tiny letters on the rim of its shield."
+weight 0
+M_ZOMBIE_SMALL(1,SEX_NEUTRAL)
+
+dilbegin testzonenpcs();
+var
+   z : zoneptr;
+   u : unitptr;
+code
+{
+   z := zhead();
+
+   while (z)
+   {
+      log(z.name + " " + z.title);
+
+      u := z.npcs;
+
+      if (u)
+      {
+         log("got an NPC");
+         log("Its name is: " + u.symname);
+      }
+
+      z := z.next;
+   }
+   quit;
+}
+dilend
+
+
+dilbegin aware unique mytestsymname();
+external
+   string testsymname();
+
+var
+   s1 : string;
+   s2 : string;
+code
+{
+   :loop:
+   wait(SFB_CMD, activator != self);
+
+   s1 := activator.symname;
+   s2 := self.symname;
+   exec("say I am "+s2+" and you are "+s1, self);
+   exec("say I am "+self.symname+" and you are "+activator.symname, self);
+   s1 := "say I am "+self.symname+" and you are "+activator.symname;
+   exec(s1, self);
+   s1 := "say when calling: act, self, self, act " + activator.symname + testsymname() + self.symname + activator.symname;
+   exec(s1, self);
+   goto loop;
+}
+dilend
+end
+
+
+
                            energyworms
 
 names {"energy worms", "worms"}
@@ -7525,7 +7509,7 @@ var
 code
 {
    heartbeat := PULSE_SEC*4;
-   log("Energy worms checking location " + SYMNAME(self));
+   log("Energy worms checking location " + self.outside.symname);
 
    :init:
    wait(SFB_ALL, TRUE);
@@ -7539,7 +7523,7 @@ code
          act("As $2n attacks $1n $2e is dissolved in a bright light.", A_SOMEONE, self, u, null, TO_ROOM);
          stop_fighting(self.fighting, self);
          stop_fighting(self, self.fighting);
-         log("Overpopulation destroyed aggressive NPC " + SYMNAME(u) + " from the game");
+         log("Overpopulation destroyed aggressive NPC " + u.symname + " from the game");
          destroy(u);
          goto init;
       }
@@ -7556,10 +7540,10 @@ code
    while (u)
    {
       nCount := nCount + 1;
-      s := SYMNAME(u);
+      s := u.symname;
 
       // Don't consume players or player's corpses :o)
-      if ((s $= "NO-NAME@NO-ZONE") or (s $= "corpse@death"))
+      if ((u.type == UNIT_ST_PC) or (s $= "corpse@death"))
       {
          u := u.next;
          continue;
@@ -7593,6 +7577,143 @@ descr "A mindless zombie is roaming around here."
 extra {} "Disgusting!"
 M_ZOMBIE_SMALL(4,SEX_NEUTRAL)
 
+
+dilbegin dizzi();
+code
+{
+   sendtoalldil("CHANNEL mud @ @Papi says, 'But I promise this is the last time. I've persisted your channel choices on your characters.'", "channel@function");
+   quit;
+}
+dilend
+
+dilbegin discordtest();
+external
+   add_witness@justice(witness : unitptr, criminal : unitptr, victimname : string, crime_type: integer);
+   integer add_reward@justice(criminal_symname : string, criminal_idx : integer, crime_type: integer);
+
+var 
+   u : unitptr;
+   s : string;
+   i : integer;
+code
+{
+   :loop:
+   wait(SFB_CMD, command("cry"));
+
+   dilcopy("dizzi@basis()", activator);
+
+   goto loop;
+}
+dilend
+
+
+dilbegin justicetest();
+external
+   add_witness@justice(witness : unitptr, criminal : unitptr, victimname : string, crime_type: integer);
+   integer add_reward@justice(criminal_symname : string, criminal_idx : integer, crime_type: integer);
+
+var 
+   u : unitptr;
+   s : string;
+   i : integer;
+code
+{
+   :loop:
+   wait(SFB_CMD, command("clap"));
+
+   log ("add_witness");
+   add_witness@justice(activator, self, self.name, CRIME_STEALING);
+   log ("add_reward");
+   add_reward@justice(self.symname, self.idx, CRIME_STEALING);
+   log ("done");
+   goto loop;
+}
+dilend
+
+
+dilbegin findsymtest();
+var 
+   u : unitptr;
+   s : string;
+   i : integer;
+code
+{
+   heartbeat := PULSE_SEC * 10;
+   :loop:
+   wait(SFB_CMD, command("burp"));
+
+   log("activator = " + activator.symname + " idx = " + itoa(activator.idx));
+   log("self      = " + self.symname + " idx = " + itoa(self.idx));
+
+   if (self.symname == activator.symname)
+      log("Symname is identical");
+
+   if (self.idx == activator.idx)
+      log("Idx is identical");
+
+   u := findrndunit(self, FIND_UNIT_WORLD, UNIT_ST_NPC);
+   s := u.symname;
+   i := u.idx;
+
+   log("found " + s + " " + itoa(i));
+   pause;
+
+   u := findsymbolic(s, i);
+   s := u.symname;
+   i := u.idx;
+
+   log("found " + s + " " + itoa(i));
+   goto loop;
+}
+dilend
+
+
+
+dilbegin zonetest();
+var 
+   z : zoneptr;
+code
+{
+   :loop:
+   wait(SFB_CMD, command("smile"));
+   z := findzone("basis");
+
+   if (z == null)
+      log("no such zone");
+   else
+      log("found zone z = " + z.name);
+   goto loop;
+}
+dilend
+
+
+dilbegin dispatchtest();
+var 
+  s : string;
+code
+{
+   :loop:
+   wait(SFB_CMD, command("jump"));
+
+   s := "CHANNEL discord @ " + "<discord> @Papi says, 'Hiya'";
+   sendtoalldil(s, "channel@function");
+   goto loop;
+}
+dilend
+
+dilbegin shelltest();
+var 
+  i : integer;
+code
+{
+   :loop:
+   wait(SFB_CMD, command("bow"));
+
+   i := shell("test.sh olle golle");
+   log("shell = " + itoa(i));
+   goto loop;
+}
+dilend
 
 dilbegin aware comtest();
 var
@@ -7646,7 +7767,7 @@ code
    u := findrndunit(self, FIND_UNIT_SURRO, UNIT_ST_PC);
    if (u and (u != ou))
    {
-      if (isaff(u, ID_WITNESS))
+      if ("$witness" in u.extra)
       {
          exec("tell "+u.name+" I see you have been the victim of a "+
               "horrible crime, if you wish to accuse anyone, I can help you.",
@@ -7660,7 +7781,7 @@ code
 }
 dilend
 
-special SFUN_ACCUSE
+dilcopy accuse@justice();
 
 end
 
@@ -7852,7 +7973,7 @@ code
 
    heartbeat := PULSE_SEC * 5;
    u1 := findrndunit(self, FIND_UNIT_WORLD, UNIT_ST_NPC);
-   if ((u1.idx == self.idx) or (u1 == null))
+   if ((u1 == self) or (u1 == null))
    {
       exec("shrug", self);
       pause;

@@ -27,6 +27,8 @@ from moving to fjord and grotto thus depriving newbies access. */
 
 #include <macros.h>
 
+
+
 %zone udgaard
 
 title "Village of Udgaard@Mainland"
@@ -127,8 +129,139 @@ dilcopy smoke_dil@udgaard();
 #define NO_NEWBIE "Newbie Quest Declined"
 #define DRAKAR_COMPLETE "Withstood the Test of Time"
 #define DRAKAR_REPLACED "Replaced Shield"
+#define FIXED_ITEM "$fixed"
 
 %dil
+
+/* This dil is used to fix equipment on players that were impacted by the
+DIKU3 transition to HTML/CSS coloring. Items can be given to mob (fixer) with this
+dil loaded, and he will return a new version of the item. Understood that
+this will potentially fix broken items, lets call it a reward for bearing
+with the DIKU3 transition. -Sender 2020 */
+
+dilbegin fix();
+var
+olditem	:	unitptr;
+item	:	unitptr;
+pc		:	unitptr;
+namex	: 	string;
+zonex	: 	string;
+titlex	: 	string;
+exdp	: 	extraptr;
+
+
+code
+{
+	heartbeat:= PULSE_SEC*3;
+	
+:start:
+
+	wait(SFB_DONE, (command("give")) and (target == self) and (activator.type == UNIT_ST_PC));
+
+	pc := activator;
+	secure(pc, lostpc);
+	olditem := medium;
+	secure(olditem, lostpc);
+	namex := olditem.nameidx;
+	zonex := olditem.zoneidx;
+	titlex := olditem.title;
+	exdp := "$ply_restrict" in olditem.extra;
+
+	if (olditem.zoneidx == "treasure")
+	{
+		// do not fix PI. See admin individually.
+		log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - is a PI. Do not fix.");
+		exec("say I'm afraid I cant fix an item with this kind of power, "+pc.name+"!", self);
+		goto no_load;
+	}
+	if (olditem.zoneidx == "holidays")
+	{
+		// do not fix holiday gifts. See admin individually.
+		log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - is a holiday gift. Do not fix.");
+		exec("say I'm afraid this item is created with a magic I dont understand, "+pc.name+"!", self);
+		goto no_load;
+	}
+	if (olditem.objecttype == ITEM_CONTAINER)
+	{
+		// do not destroy containers.
+		log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - is a container. Do not fix.");
+		exec("say I'm afraid I cant fix any containers, "+pc.name+"!", self);
+		goto no_load;
+	}
+	if (olditem.symname == "rig_fury@seren1")
+	{
+		// do not fix Fury. It's personalization is a problem.
+		log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - is a righteous fury. Do not fix.");
+		exec("say I'm afraid I cant fix this, "+pc.name+"!", self);
+		goto no_load;
+	}			
+	if (FIXED_ITEM in olditem.extra)
+	{
+		// item has already been fixed
+		log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - was previously fixed.");
+		exec("say This has already been fixed, "+pc.name+"!", self);
+		goto return_old;
+	}	
+	
+	item := load(namex + "@" + zonex);
+
+	if (item.title == titlex)
+	{
+		// item doesnt need to be fixed
+		log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - does not need to be fixed.");
+		exec("say This doesnt need to be fixed, "+pc.name+"!", self);
+		goto return_old;
+	}
+	if (exdp)
+	{
+		// item is  personalized
+		if(pc.name == exdp.descr)
+		{
+			dilcopy ("ply_restrict@function("+pc.name+",0,25,burn_ply@function)",item);
+			log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - personalized for "+pc.name+".");
+		}
+		else
+		{
+			// item personalized to another player
+			log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - personalized for someone other than PC "+pc.name+".");
+			exec("say This doesnt belong to you, "+pc.name+"!", self);
+			goto return_old;
+		}
+	}
+	addextra(item.extra, {FIXED_ITEM}, "");
+	unsecure(olditem);
+	link(item, pc);
+	destroy(olditem);
+	exec("say All fixed up, "+pc.name+"!", self);
+	act("The fixer hands you "+item.title+".",A_SOMEONE, pc, null, null, TO_CHAR); 
+	act("The fixer hands "+pc.name +" "+ item.title+".",A_SOMEONE, pc, null, null, TO_REST); 
+	log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - has been fixed.");
+	unsecure(pc);
+	goto start;
+	
+:return_old:
+	
+	destroy(item);
+
+:no_load:
+
+	act("The fixer returns "+titlex+".",A_SOMEONE, pc, null, null, TO_CHAR); 
+	act("The fixer returns "+pc.name+"'s "+titlex+".",A_SOMEONE, pc, null, null, TO_REST); 
+	log("FIX: item - "+namex+"@"+zonex+" - with title - "+titlex+" - has been returned to player.");
+	unsecure(olditem);
+	unsecure(pc);
+	link(olditem, pc);
+	goto start;
+	
+:lostpc:
+	
+	destroy(item);
+	exec("sigh", self);
+	goto start;
+
+	
+}
+dilend // END DIL FIX
 
 /*heul load for bucket wrote by Whistler*/
 
@@ -1221,7 +1354,7 @@ code
    }
 
    :gonner:
-   quit;
+   return;
 }
 dilend
 
@@ -1364,17 +1497,19 @@ code
 }
 dilend
 
-dilbegin hunt(pcname : string, uid : integer);
 
-external checkaround(s : string, i : integer);
- integer walk_room@function (t:string,i:integer);
+
+dilbegin hunt(pcname : string, uid : integer);
+external
+   checkaround(s : string, i : integer);
+   integer walk_room@function (t:string,i:integer);
 
 var
-tf:integer;
-  s    : string;
-  pc   : unitptr;
-  room : unitptr;
-  i    : integer;
+   tf:integer;
+   s    : string;
+   pc   : unitptr;
+   room : unitptr;
+   i    : integer;
 
 code
 {
@@ -1386,9 +1521,10 @@ code
    :find:
    pause;
 
-   s  := pcname;
+   s  := pcname + "@_players";
 
-   pc := findunit(self, s, FIND_UNIT_WORLD, null);
+   // pc := findunit(self, s, FIND_UNIT_WORLD, null);
+   pc := findsymbolic(s);
 
    if (pc.idx == uid)
    {
@@ -1396,11 +1532,11 @@ code
       while (room.type != UNIT_ST_ROOM)
         room := room.outside;
 
-      s := room.nameidx+"@"+room.zoneidx;
+      s := room.symname;
 
       pause;
-      tf:=     walk_room@function ("+s+",4);
-	       goto loop;
+      tf:= walk_room@function(s,4);
+	   goto loop;
    }
    else
    {
@@ -1410,6 +1546,7 @@ code
       heartbeat := PULSE_SEC * 5;
       if (i > 20)
       {
+         log("Hunt: " + s + " not found, giving up");
          /* Mission unaccomplished */
          exec("sigh", self);
 
@@ -5193,9 +5330,9 @@ end
 /* Newbie Books 
 
 	These can probably be consolodated into the new newbie_book, given the DIKU3 changes
-	to whre and how training works. 
+	to where and how training works. 
 	
-	This book has been assigned to the Mystic profession already.
+	This book has been assigned to the Barbarian profession already.
 	9/2020 - Sender
 */
 
@@ -7359,7 +7496,7 @@ names {"bulletin board", "board"}
 title "the board"
 descr "A large board with wanted persons is mounted on a wall here."
 type ITEM_OTHER
-special SFUN_REWARD_BOARD
+dilcopy wanted_poster@justice();
 end
 
                            bull_board
@@ -7551,9 +7688,9 @@ code
    {
       statue_load(pc, "udgaard/paladin_book",     1);
       statue_load(pc, "udgaard/newbie_plate",     1);
-      statue_load(pc, "udgaard/newbie_psleeves",  1);
+      statue_load(pc, "udgaard/newbie_bracer",  1);
       statue_load(pc, "udgaard/newbie_boots",     1);
-      statue_load(pc, "udgaard/plegg",            1);
+      statue_load(pc, "udgaard/cloth",            1);
       statue_load(pc, "udgaard/paladin_item",     1);
       statue_load(pc, "paladin_guild/fl1_tongue", 1);
       statue_load(pc, "midgaard/sword0",          1);
@@ -7585,27 +7722,17 @@ code
       statue_load(pc, "udgaard/trench_coat",      1);
       statue_load(pc, "udgaard/knight_sleeves",   1);
       statue_load(pc, "udgaard/rapier",           1);
-      statue_load(pc, "udgaard/jerkin",           1);
+      statue_load(pc, "udgaard/knight_jerkin",    1);
       statue_load(pc, "knight/berret",            1);
-   }
-   else if (pc.profession == PROFESSION_MYSTIC)
-   {
-      statue_load(pc, "udgaard/newbie_book",      1);
-      statue_load(pc, "udgaard/mystic_robes",     1);
-      statue_load(pc, "udgaard/newbie_boots",     1);
-      statue_load(pc, "udgaard/mystic_cloak",     1);
-      statue_load(pc, "udgaard/mystic_item",	  1);
-      statue_load(pc, "udgaard/short_staff",      1);
    }
    else if (pc.profession == PROFESSION_BARBARIAN)
    {
       statue_load(pc, "udgaard/newbie_book",      1);
-      statue_load(pc, "udgaard/newbie_plate",     1);
-      statue_load(pc, "udgaard/newbie_psleeves",  1);
+      statue_load(pc, "udgaard/newbie_jerkin",    1);
+      statue_load(pc, "udgaard/newbie_bracer",    1);
       statue_load(pc, "udgaard/newbie_boots",     1);
-      statue_load(pc, "udgaard/plegg",            1);
-      statue_load(pc, "udgaard/barbarian_item",     1);
-      statue_load(pc, "udgaard/axe0",             1);
+      statue_load(pc, "udgaard/newbie_cloth",     1);
+      statue_load(pc, "udgaard/barbarian_item",   1);
       statue_load(pc, "udgaard/axe0",             1);
    }
    else 
@@ -7969,46 +8096,6 @@ extra {}
 green."
 dilcopy guild_restrict@function ({GUILD_NYM_DRUID},0,0,"");
 end
-
-/* Mystic stuff for newbies */
-
-mystic_robes
-names {"mystic robe","pale blue robe","blue robe","robe"}
-title "a pale blue robe"
-descr "A pale blue robe lies in in the dirt here."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_LEATHER(0,0)
-weight 1
-extra {}
-"This robe is made from fine threads of pale blue silk."
-dilcopy guild_restrict@function ({GUILD_MYSTIC},0,0,"");
-end
-
-mystic_cloak
-names {"pale blue bloak","blue cloak","cloak"}
-title "a pale blue cloak"
-descr "A pale bluecloak lies heaped on the ground here."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ABOUT}
-ARMOUR_LEATHER(0,0)
-weight 1
-extra {}
-"The cloak is made of the highest quality wool, and has been dyed to a pale blue."
-dilcopy guild_restrict@function ({GUILD_MYSTIC},0,0,"");
-end
-
-mystic_item
-names {"sash of wisdom","sash"}
-title "the Sash of Wisdom"
-descr "A pale blue sash lies here."
-weight 1
-manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_WAIST}
-DIV_TRANSFER(+1)
-extra {}
-"This sash will bestow additional Divine powers to the Mystic wearing it."
-dilcopy guild_restrict@function ({GUILD_MYSTIC},0,0,"");
-end
-
-/* end mystic stuff */
 
 /* knight stuff for newbies */
 
@@ -9438,6 +9525,38 @@ extra {}
 "This fine pair of sleeves has a sword inscribed upon its side."
 end
 
+    newbie_bracer
+names {"barbarians bracers", "bracers"}
+title "a barbarian's bracers"
+descr "A pair of hard leather bracers lie here."
+manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
+ARMOUR_CLOTHES(0,0)
+weight 6
+extra {}
+"This fine pair of hard leather bracers has a bloodshot eye inscribed each wrist."
+end
+
+    newbie_cloth
+names {"loin cloth", "cloth"}
+title "a barbarian's loin cloth"
+descr "A soft leather loin cloth lies here."
+manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
+ARMOUR_CLOTHES(0,0)
+weight 3
+extra {}
+"This soft leather loin cloth has a bloodshot eye inscribed upon it."
+end
+
+    newbie_jerkin
+names {"leather jerkin", "jerkin"}
+title "a barbarian's jerkin"
+descr "A fine leather jerkin lies here."
+manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
+ARMOUR_CLOTHES(0,0)
+weight 10
+extra {}
+"This fine leather jerkin has a bloodshot eye inscribed upon the breast."
+end
 
     newbie_legg
 names {"fighter leggings", "leggings"}
@@ -10682,8 +10801,24 @@ end
 
 %mobiles
 
-                               janitor2
 
+fixer
+names {"the fixer", "fixer", "man"}
+title "the fixer"
+descr "A crafty looking man is lounging here."
+extra {}
+"An air of knowledge and confidence surrounds The Fixer. It appears as if he is more 
+than capable of fixing the harms caused to equipment by the wizards who created DIKU3.
+<br><br>Simply give the fixer any item that has had its title impacted by the DIKU3
+transition, and he will return the item to you all fixed up! Please report any issues to
+Sender."
+M_AVG_HUMAN(100,SEX_MALE)
+money 2 SILVER_PIECE
+
+dilcopy fix@udgaard();
+end
+						
+                           janitor2	   
 names {"janitor"}
 title "the janitor"
 descr "A janitor is walking around, cleaning up."
@@ -10778,27 +10913,28 @@ arabian appearance, perhaps from around Khorsabad. Kazeem looks like a
 battle scared veteran capable of showing no mercy."
 romflags {CHAR_DETECT_INVISIBLE,CHAR_PROTECTED}
 M_HUMAN_WARRIOR_SWORD(150,SEX_MALE)
-ATTACK_DEFENSE(+400, +400)
+ATTACK_DEFENSE(+50, +50)
 exp -500
 alignment 1000
-exp 150 /* hes really hard to kill */
+exp 150 /* he's really hard to kill */
 money 3 SILVER_PIECE
 NATURAL_DEF(WPN_FIST, ARM_CLOTHES)
 
 dilcopy no_command@udgaard();
 dilcopy no_sleep@udgaard();
 
+
 dilbegin wait_for_bounty();
 external
- integer walk_room@function (s:string,i:integer);
+   integer walk_room@function (s:string,i:integer);
 
 var
-tf:integer;
-  tgt : unitptr;
+   tf:integer;
+   tgt : unitptr;
 
 code
 {
-tf:=walk_room@function("accuse_room@midgaard",4);
+   tf:=walk_room@function("accuse_room@midgaard", 4);
 
    :search:
    heartbeat := PULSE_SEC * 10;
@@ -10821,6 +10957,7 @@ tf:=walk_room@function("accuse_room@midgaard",4);
       tgt := tgt.gnext;
    }
    goto loop;
+   
    :gotone:
    /* Approximate them to be identical. Is this good or bad? */
    /* clone_attr(tgt, hunter); */
@@ -10917,19 +11054,19 @@ code
    exec("say Hello "+pc.name+", do you need some work?", self);
    pause;
 
-   exec("steal money from "+pc.name, self);
+   exec("pickpocket "+pc.name, self);
    pause;
 
    exec("say I got this really nice offer for you.", self);
    pause;
 
-   exec("steal money from "+pc.name, self);
+   exec("pickpocket "+pc.name, self);
    pause;
 
    exec("say You'll earn a lot of money!", self);
    pause;
 
-   exec("steal money from "+pc.name, self);
+   exec("pickpocket "+pc.name, self);
    pause;
 
    exec("say No hard feelings, my friend, bye!", self);
@@ -10966,13 +11103,11 @@ code
    pause;
    exec("emote listens to his brain.", self);
    pause;
-   exec("say My brain tells me, that we could get in trouble for this!",
-self);
+   exec("say My brain tells me, that we could get in trouble for this!", self);
    pause;
    exec("emote talks with his brain.", self);
    pause;
-   exec("say Weird, my brain doesn't say anything, wonder if it is empty?",
- self);
+   exec("say Weird, my brain doesn't say anything, wonder if it is empty?", self);
    pause;
 
 }
@@ -12391,7 +12526,7 @@ dilcopy reward_give@function();
 dilcopy blow_whistle@justice();
 dilcopy rescue@function("cityguard / captain / thargarad / kazeem / daf ");
 dilcopy protect_lawful@justice();
-special SFUN_ACCUSE "udgaard/accuse_room"
+dilcopy accuse@justice();
 dilcopy guard_dir@function("south", {""}, {""}, "");
 dilcopy guard_door@function(SOUTH,
 "$1n stops you.",
@@ -12417,9 +12552,10 @@ exp -400
 alignment 400  /* Just above neutral */
 money 3 IRON_PIECE
 
-dilcopy blow_whistle@justice();
 dilcopy rescue@function("cityguard / captain / thargarad / kazeem / daf");
 dilcopy protect_lawful@justice();
+dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"udgaard"});
 dilcopy arrest_check@midgaard("accuse_room@udgaard");
 
 end
@@ -12440,9 +12576,11 @@ exp -400
 alignment 400  /* Just above neutral */
 money 3 IRON_PIECE
 
-dilcopy blow_whistle@justice();
 dilcopy rescue@function("cityguard / captain / mayor / kazeem / daf ");
 dilcopy protect_lawful@justice();
+dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"udgaard"});
+
 dilcopy arrest_check@midgaard("accuse_room@udgaard");
 dilcopy wander_zones@function("udgaard", 15, 1, 0);
 
@@ -12462,9 +12600,11 @@ exp -200
 alignment 400  /* Just above neutral */
 money 7 IRON_PIECE
 
-dilcopy blow_whistle@justice();
 dilcopy rescue@function("guard / captain / thargarad / kazeem / daf / cityguard");
 dilcopy protect_lawful@justice();
+dilcopy blow_whistle@justice();
+dilcopy whistlisten@justice({"udgaard"});
+
 dilcopy arrest_check@midgaard("accuse_room@udgaard");
 
 end
@@ -13909,11 +14049,24 @@ load midgaard/bread into jail local 1
 load midgaard/water_cup into jail local 1
 
 
-load eliza into haon_dor/rn_6014 max 1
+load eliza into haon_dor/rn_6014 local 1 max 3
 {
  SLTH_ARMOUR
  equip sirius position WEAR_WIELD
 }
+
+load eliza into jail@udgaard local 1
+{
+ SLTH_ARMOUR
+ equip sirius position WEAR_WIELD
+}
+
+load eliza into jail@midgaard local 1
+{
+ SLTH_ARMOUR
+ equip sirius position WEAR_WIELD
+}
+
 load adolf into accuse_room max 1 complete
 {
    load jail_key
@@ -14117,6 +14270,7 @@ load thorbjorn into field_shop max 1
 }
 
 load kurt into records max 1
+load fixer into up_tower3 max 1
 /*load roland into ud_auction max 1
 {
  equip midgaard/lth_boots WEAR_FEET

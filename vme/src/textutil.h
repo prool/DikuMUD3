@@ -13,6 +13,8 @@
 
 #define isaspace(c) ((c) == ' ')
 
+extern const char *fillwords[];
+
 int str_escape_format(const char *str, char *dest, int destlen, int format = TRUE);
 char *str_escape_format(const char *src, int formatting = TRUE);
 void str_correct_utf8(std::string &src);
@@ -31,7 +33,7 @@ void str_remspc(register char *s);
 void str_chraround(char *str, char c);
 
 const char *is_name_raw(const char *arg, char const *const *names); // MS2020 const char *names[])
-const char *is_name(const char *arg, char const *const *names);     // MS2020 const char *names[])
+char *is_name(char *arg, char const *const *names);     // arg will get double spaces zapped
 //const char *is_name_raw(const char *arg, const char *names[]);
 //const char *is_name(const char *arg, const char *names[]);
 
@@ -93,5 +95,7 @@ std::string str_json(const char *lbl, const char *str);
 std::string str_json(const char *lbl, const std::string &str);
 std::string str_jsonencode(const char *str);
 std::string str_json_encode_quote(const char *str);
+
+int pwdcompare(const char *p1, const char *p2, int nMax);
 
 #endif /* _MUD_TEXTUTIL_H */

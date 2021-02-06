@@ -243,7 +243,8 @@ struct diltemplate *bread_diltemplate(CByteBuffer *pBuf, int version)
     /* This is compiletime, no resolve done */
     tmpl->extprg = NULL;
 #endif
-    tmpl->next = NULL;
+    tmpl->prg_list = NULL;
+
     return tmpl;
 }
 
@@ -343,6 +344,7 @@ void bwrite_dilintr(CByteBuffer *pBuf, class dilprg *prg)
  *   Other runtime loading of templates, require
  *   lookup and typecheck of loaded template.
  *
+ * Really curious what "stspec" is.... (MS2020)
  */
 
 void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
@@ -357,8 +359,11 @@ void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
     int i, novar;
     ubit8 t;
     char name[255];
+    int bNameRead;
 
-    prg = new EMPLACE(dilprg) dilprg(owner, stspec);
+    //prg = new EMPLACE(dilprg) dilprg(owner, stspec);
+    // We will create an NOT link program here, link down below
+    prg = new EMPLACE(dilprg) dilprg(owner, NULL);
 
     /* read new version */
     if (version < 64)
@@ -383,9 +388,11 @@ void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
         dil_free_template(tmpl, IS_SET(prg->flags, DILFL_COPY));
         SET_BIT(prg->flags, DILFL_COPY);
         slog(LOG_ALL, 0, "hula hop");
+        bNameRead = 0;
     }
     else
     {
+        bNameRead = 1;
         /* lookup template, only runtime */
         pBuf->ReadStringCopy(name, sizeof(name)); /* prg/template name */
     }
@@ -400,12 +407,11 @@ void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
         tmpl->fCPU = 0.0;
         tmpl->prgname = str_dup(name);
         tmpl->zone = NULL;
+        tmpl->prg_list = NULL;
         /* Prevent all execution */
         SET_BIT(prg->flags, DILFL_EXECUTING);
-        /* slog(LOG_ALL,0,"Error resolving copy template '%s'",
-           name); */
         tmpl->flags |= DILFL_FREEME;
-        slog(LOG_ALL, 0, "bread_dil() wassup? Priority?");
+        slog(LOG_ALL, 0, "bread_dil(): DIL template [%s] no longer exists. bNameRead = %d.", name, bNameRead);
     }
 
     prg->waitcmd = WAITCMD_MAXINST - 1; /* Command countdown          */
@@ -419,6 +425,8 @@ void *bread_dil(CByteBuffer *pBuf, class unit_data *owner, ubit8 version,
     /* read stackframe #0 */
 
     prg->fp->tmpl = tmpl; /* template                    */
+    if (stspec)
+        prg->link(tmpl);
 
     pBuf->Read16(&t16); /* the SAVED #vars             */
     novar = t16;

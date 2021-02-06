@@ -6,150 +6,2117 @@ EmailAdd
 request     compile
 version     1.00
 END HEADER*/
+
 #include <macros.h>
+
+/* 
+   Justice works like this:
+
+   A zone where law and order is enforced needs the following:
+
+      The reward_board has DIL:
+          wanted_poster() - ? 
+      The Global database has
+          crime_stopper();
+      The captain has DIL:
+         "accuse()" - to receive accusations and give rewards
+
+      Guard / law enforcers have DIL:
+         protect_lawful() - intervene in illegal activities
+         blow_whistle()   - to call for guards
+         attack_evil()    - optional. If an evil NPC is in room, attack it. 
+
+      Bar tenders, shop keepers, janitors, etc. should have the DIL:
+         "blow_whistle()" - to call for guards.
+
+      Any NPC which is CHAR_PROTECTED will go report crimes
+
+   Logic detecting a crime being committed can happen both from the core combat engine and from e.g.
+   the steal command. This happens via the C function log_crime (which is also accessilble via DIL log_crime).
+   log_crime in turn calls add_crime@justice to register the offense and also copies the set_witness@justice 
+   DIL onto all characters that witnessed the crime.
+
+   Each time a crime is committed the following happens:
+
+   The criminal gets the CHAR_OUTLAW flag set.
+   The criminal gets the following extras added:
+      - $reward is set if the player becomes wanted dead
+   The database  gets the following extras added:
+      - $crime is added to the reward board
+      - $reward is also set on the database
+   Any witnesses get the following extras added:
+      - $witness
+
+   Details on the extras above:
+
+     database@justice extras:
+
+
+      ==============================
+      NEW DRAMATICALLY SIMPLIFIED PROPOSAL TO CONSIDER WHICH INCLUDES JURISDICTION
+      ==============================
+      $reward is placed on a char. If the char dies, goes to the corpse->goes to head.
+      Captain will reward you if you give him an object with a $reward. But of course
+      only if it matches the jurisdiction. (If you give it to the wrong captain, he 
+      should give it back and tell you where to go). Maybe if the head has several
+      rewards, the captain will remove the reward for his own jurisdiction and let you
+      keep the head for more rewards.
+
+      This means you could also pre-bake a quest, so the infamous Orc Leader might be
+      wanted by the Captain in Udgaard and simply by adding a $reward it's part of the
+      justice system and the captain will reward you. (Guards will only attack if the
+      outlaw flag is set, etc.)
+
+      A char should have only one $reward per jurisdiction at most. Rewards don't expire.
+
+         $reward                 // See code example why I have this and $reward jurisdiction below
+         $reward <jurisdiction>  // jurisdiction is the zonename (single word)
+         <gold>
+         <xp>
+         <crime-severity-counter>
+         <descr>                  // A possible description to show to a char looking at it?
+                                  // Especially for baked quests
+
+      $reward on the justice database really is just for purposes of a text display repository.
+      Except for the wrinkle (see the end). So the board entry would be:
+      
+         $reward <symname> <idx>                  // See code examples
+         $reward <symname> <idx> <jurisdiction> 
+         <gold>
+         <xp>
+         <crime-severity counter>
+         <Ticks to expire>
+         descr   
+
+      and a description to show to anyone looking at the board.
+      
+      By adding "$reward symname idx" and "$reward symname idx jurisdiction" you can quite easily find
+      or delete or search the $reward when someone turns in a reward, or easily lookup the char with 
+      findsymbolc(symname, idx).
+
+      Code example, someone turns in Papi's head:
+
+         delextra("$reward papi 1 midgaard", criminal.extra); // Zaps it from the board
+
+      I think there's also a super neat way to loop effectively through this.
+      if the string s := "$reward " + char.symname + " " + atoi(char.idx) then
+
+         exd := s in char.extra;
+         while (exd)
+         {
+            // A hit. 
+            // Now process the $reward in question for this character (it matches string s)
+
+            exd := exd.next;
+            if (exd)
+               exd := s in exd;  // searches from this point forward in the extra
+                                 // I'm 99,9% sure. I'll test it if you need it
+         }
+
+      SO if you give a head to the captain, first he might 
+         delextra("$reward papi 1 midgaard", criminal.extra); // Zaps it from the board
+
+         and then if ("$reward" in head.extra) then there are more rewards left to claim
+         and he can return the head to the player / npc.
+      ==============================
+      $witness is placed only on a char. Any char with a $witness can go to the captain and
+      accuse chars on its witness list. Captain will accept it as-is (not possible to cheat).
+
+         $witness <jurisdiction> <symname idx>  // The unique char in the world 
+         <display name>          // A nice display name when you need to state its name
+         <real-time>             // For PCs when logging in
+         [<crime_type>]+         // One or more crimes committed e.g. 8,8,64 or just 64
+         descr                   // A nice text message to display of the crime? (including <a cmd='accuse ...'>)
+
+      Once accused a $reward updated on the justice database (created if there is none) and
+      on the criminal char (see wrinkle).
+      When the reward severity is below the "crime" threshold the board (database) would maybe just list
+      the character as being "on notice"?
+
+      If you accuse in the wrong jurisdiction the captain should say so and tell you where to go.
+
+      No $witness data on the justice database
+      ==============================
+      $crime
+
+      So couldn't we potentially just completely ditch $crime? I guess the only real purpose it serves now
+      would be to list "suspects" on the board? But a suspect is really just a char that committed a crime
+      but which hasn't yet been accused (and might never be). If you think it's important to list suspects
+      then I would consider just adding a $reward with 0 gold, 0 xp, 0 severity. and list those as a "suspect".
+
+      ===============================
+      The Wrinkle
+
+      If you search for a NPC with findsymbolic(symname, idx) then you'll only get a hit if the NPC is alive.
+      All goodness (actually, there's a tiny chance that if a new NPC with the same symname gets allocated
+      in memory in exactly the same memory address, then you'll get a false positive. But it's likely never
+      going to happen. And if it does, I don't think we should care).
+
+      findsymbolic(symname, idx) for a PC will return the player if the player is online. No result if the 
+      player is offline (or deleted).
+
+      The wrinkle of course is what to do with $reward for players. We could, as it does today, load a player
+      and update the player. But we could also consider that when the player logs into the game, then I'll
+      call a function in justice, which will transfer the latest $reward data to the player. That's at least
+      a strong alternative to load & save.
+
+      ====================================
+      This should be a LOT simpler and more game - fun too :-)
+
+      No more $crime.
+      $witness only on chars, not on the database
+      $reward on chars and the justice database.
+
+      $reward has a tick-remove counter on the board
+      $reward stays indefinitely on chars (until killed)
+      $witness probably doesn't need a tick-remove for NPCs
+      $witness would need a time-remove for PCs (maybe simply when a PC logs in we call a function in justice).
+         Perhaps use real-time for this rather than a tick counter.
+      ====================================
+      If we do this, and we want to support jurisdictions then a new problem that arises is the use of
+      OUTLAW, PROTECTED.
+      
+      CHAR_LEGAL_TARGET can probably stay the way it is, it's simply who picked the fight.
+
+      For the protected flag I've made a sample function. First if a char has a $protected <jurisdiction>
+      in its extra then it's protected. Secondly, any NPC with a PROTECTED flag will be protected in its
+      home zone. Any PC with the PROTECTED flag will be protected in its hometown. This adds new color to
+      the game in that a player's protection changes with choice of hometown. And possibly we can add
+      quests to become protected in a new town.
+
+      As a replacement for the OUTLAW Flag, I've made a sample function. It checks for $reward <jurisdiction>.
+      Perhaps a combo could be used that checks if the OUTLAW flag is set, then they'll check the $reward 
+      <jurisdiction> (very very few chars in the game are outlaw). If we keep it like this, the OUTLAW flag
+      is obsoleted.
+      ====================================
+      ====================================
+      ====================================
+
+      $crime : There are 9 names in each crime extra, three names in each entry. 
+      They are as follows:
+ 
+       Crime Extra Names:
+
+       names.[0] $crime constant
+       names.[1] CRIME_SERIAL_NO
+       names.[2] CRIMINAL_NAME
+       names.[3] CRIMINAL_IDX
+       names.[4] CRIME_TYPE
+       names.[5] VICTIM_NAME
+       names.[6] TICK UNTIL REMOVED FROM LIST
+       names.[7] is_NPC (Y or N)
+       names.[8] JURISDICTION
+       names.[9] CRIME_REPORTED 1 or 0
+
+      The descr for each crime is what is displayed on the reward_board under "Suspects" heading.
+      
+      $reward : The database also holds $reward extras
+
+      Reward Extra Names
+      
+      names.[0] $reward
+      names.[1] UNIQUE_ID       
+      names.[2] GOLD_TO_BE_REWARED
+      names.[3] XP_REWARED
+      names.[4] JURISDICTION
+      named.[5] IS NPC (Y or N) 
+      The extra.descr will be displayed on the reward_board.
+       "
+      A reward of 250000 gold has been offered for the head of Tank
+      "
+      When a character with a $reward extra dies their reward data is copied from the database
+      to their corpse and removed from the dataase.
+
+      Witnesses extras:
+      Witness Extras are copied to any character that witnesses a crime.   
+      There are 6 names on each witness extra.  THey are as follows:
+ 
+      $witness : Witness Data Elements:
+         
+      names.[0] $witness
+      names.[1] $CRIMINAL NAME
+      names.[2] CRIME_SERIAL_NO
+      names.[3] CRIME_TYPE
+      names.[4] PLAYERID
+      names.[5] TICKS UNTIL REMOVED
+      names.[6] JURISDICTION
+      
+      The descr filed for witness is not used at the moment.
+
+     Criminal extras:
+     A criminal will receive a $reward extra when a reward has been set for their death.
+
+     Reward Data Elements (for characters)
+
+      names.[0] $reward 
+      names.[1] _UNIQUE_ID       
+
+Crime progression goes like this which is handled in DIL crime_counter()
+    - If your crime counter is >= CRIME_NONPRO  (8) then your PROTECTED flag is removed.
+    - If your crime counter is >= CRIME_OUTLAW (32) then your PROTECTED and OUTLAW flags are SET .
+    - If your crime counter is >= CRIME_REWARD (64) then a reward is set on your character.
+      This will remove your PROTECTED and set your OUTLAW flags.
+
+    I suppose this means, if you commit a crime that sets your crime counter in:
+
+     - [8..31]  You'll lose the benefit of being protected by the law and order system (see below).
+     - [32..63] You're wanted alive by the guards. They'll try to arrest you.
+     - [64..]   You're wanted dead or alive.
+
+
+    When the flags are restored / set:
+
+      - For all new players PROTECTED is set (CHECK)
+      - After you have served your jail time CHAR_PROTECTED is restored and CHAR_OUTLAW is removed
+        and your crime counter is cut in half (VERIFIED)
+      - When you're thrown in jail your _PROTECTED status is removed and your OUTLAW is set (just
+        in case you escape). (VERIFIED)
+      - When you die OUTLAW is removed (death.zon). (VERIFIED)
+        And also $reward is removed (Dave that prolly needs an update)
+
+    When the flags are removed:
+
+      - If a reward is set then the PROTECTED flag is removed and OUTLAW is set. (Verified)
+      - If your crime counter exceeds 8 (CRIME_NONPRO) the PROTECTED flag is removed.
+      - If your crime counter exceeds 32 the OUTLAW flag is set.
+      - If your crime counter exceeds 64 the PROTECTED flag is removed.
+      - any other ways?
+
+
+
+CHAR_PROTECTED flag
+    A charcter with this flag is protected by the law. This means law encforcers will
+    come to your rescue. By default all new players have this flag set. Most citizens
+    should also have this flag set, especially guards, mayors, shopkeepers, captains,
+    janitors and more.
+
+    The damage() function in C checks for this flag when someone is killed. If the person
+    killed is protected, it will log a crime. (VERIFIED)
+
+CHAR_OUTLAW
+    A character with this flag is wanted by the law. If the char is PROTECTED they're still
+    wanted alive. Otherwise dead. (VERIFIED)
+
+CHAR_SELF_DEFENCE
+    This flag is volatile and is used to figure out if you've committed a crime in self defense.
+    In which case you won't get in trouble. I.e. if you got attacked by someone protected, then
+    you're acting in self defense.
+
+    In the C damage() routine, we call offend_legal_state in justice.cpp. This will set the
+    CHAR_SELF_DEFENCE and CHAR_LEGAL_TARGET flags (VERIFIED)
+
+    Flag is removed as soon as you move to a new room or stop fighting (VERIFIED)
+
+CHAR_LEGAL_TARGET
+    This flag is volatile and is used to figure out if you're a legal target even if you're protected. If you're
+    a legal target then others won't get in trouble when they attack you.
+
+    In the C damage() routine, we call offend_legal_state in justice.cpp. This will set the
+    CHAR_SELF_DEFENCE and CHAR_LEGAL_TARGET flags (VERIFIED)
+
+    Flag is removed as soon as you move to a new room (VERIFIED).
+
+*/
+
 %zone justice 
-title ""
+
+title "The justice zone"
 lifespan 20
 reset RESET_NOT
 
 %dil
 
-dilbegin integer crime_check(att:unitptr, def:unitptr);
+
+// =================================================
+// MS Sample code BEGIN
+// =================================================
+
+//
+// Given a criminal, witness, victimname (string) and crime_type
+// simply adds or updates the witness' $witness extra
+//
+//
+dilbegin add_witness(witness : unitptr, criminal : unitptr, victimname : string, crime_type: integer);
+external
+   string get_juris@justice();
+var
+   skey : string;
+   juris : string;
+   namesl : stringlist;
+   exd : extraptr;
+   s : string;
 
 code
 {
-  if (att == null) return(FALSE);
-  if (def == null) return(FALSE);
-  if ((att.type!=UNIT_ST_PC) and (att.type!=UNIT_ST_NPC)) return(FALSE);
-  if ((def.type!=UNIT_ST_PC) and (def.type!=UNIT_ST_NPC)) return(FALSE);
-        /* If the attacker is attacking someone protected, or if the
-           attacker is protected and is attacking someone non-protected
-           then go in action */
-if ((not isset(att.charflags,CHAR_SELF_DEFENCE)) and (isset(def.charflags, CHAR_PROTECTED)) and (not isset(def.charflags,CHAR_LEGAL_TARGET))
- or (not isset(att.charflags,CHAR_PROTECTED)) and (isset(def.charflags,CHAR_PROTECTED))) return(TRUE);
+   juris := get_juris@justice();
 
+   skey := "$witness " + juris + " " + criminal.symname + " " + itoa(criminal.idx);
 
-    return(FALSE);
+   exd := skey in witness.extra;
+
+   if (exd == null)
+   {
+      addstring(namesl, skey);
+      addstring(namesl, criminal.name);
+      addstring(namesl, itoa(realtime));
+      addstring(namesl, itoa(crime_type));
+
+      if (crime_type == CRIME_MURDER)
+         s := "You witnessed " + criminal.name + " killing " + victimname;
+      else if (crime_type == CRIME_STEALING)
+         s := "You witnessed " + criminal.name + " stealing from " + victimname;
+      else
+         s := "You witnessed " + criminal.name + " player killing " + victimname;
+
+      addextra(witness.extra, namesl, s);
+   }
+   else
+   {
+      if (crime_type == CRIME_MURDER)
+         s := ", killing " + victimname;
+      else if (crime_type == CRIME_STEALING)
+         s := ", stealing from " + victimname;
+      else
+         s := ", player killing " + victimname;
+
+      exd.names.[2] := itoa(realtime);
+      exd.descr := exd.descr + s;
+      addstring(exd.names, itoa(crime_type));
+   }
+
+   return;   
 }
 dilend
-dilbegin  fnpri(FN_PRI_RESCUE-1) protect_lawful();
+
+
+
+// Adds a $reward to a criminal and the database.
+//
+// Criminal is passed as the .symname + " " + .idx (if it's a PC he might be offline)
+// Criminal might be offline (PC) or might be dead (NPC)
+//
+// Return: 0 the char (NPC) is dead
+//         1 updated
+//
+dilbegin integer add_reward(criminal_symname : string, criminal_idx : integer, crime_type: integer);
+external
+   string get_juris@justice();
+var
+   database : unitptr;
+   criminal : unitptr;
+   juris : string;
+   namesl : stringlist;
+   exd_char_reward : extraptr;
+   exd_db_reward : extraptr;
+   s : string;
+   cnt : integer;
+   gold : integer;
+   xp : integer;
+
+code
+{
+   // Lookup the $reward on the justice database and the char
+   juris := get_juris@justice();
+
+   database := findsymbolic("database@justice");
+   if (not database)
+   {
+      log("database@justice not found");
+      return(0);
+   }
+
+   criminal := findsymbolic(criminal_symname, criminal_idx);
+
+   if (criminal == null)
+   {
+      exd_char_reward := null;
+      if ("@_players" in criminal_symname)
+      {
+         log("debug: PC "+criminal_symname+ " " + itoa(criminal_idx) + " is offline.");         
+      }
+      else
+      {
+         log("debug: NPC "+criminal_symname+ " " + itoa(criminal_idx) + " is gone.");
+         // The NPC is dead. So no more reward accumulation. 
+         // Maybe we could update the board and say the reward is waiting to
+         // be cashed in? I dont think we should go through the trouble and 
+         // update the reard info on a head.
+         //
+         return(0);
+      }
+   }
+   else // criminal != null
+   {
+      s := "$reward "+juris;
+      exd_char_reward := s in criminal.extra;
+      if (exd_char_reward == null)
+      {
+         // Create blank $reward
+         namesl := {"$reward"};
+         addstring(namesl, "$reward " + juris);
+         addstring(namesl, "0"); // Gold
+         addstring(namesl, "0"); // XP
+         addstring(namesl, "0"); // Crime severity counter
+         addextra(criminal.extra, namesl, "");
+         exd_char_reward := s in criminal.extra;
+      }
+   }
+
+   s := "$reward "+criminal.name+" "+itoa(criminal.idx);
+   exd_db_reward := s in database.extra;
+
+   if (exd_db_reward == null)
+   {
+      // Create blank $reward
+      namesl := null;
+      addstring(namesl, s);
+      addstring(namesl, s + " " + juris);
+      addstring(namesl, "0");
+      addstring(namesl, "0");
+      addstring(namesl, "0");
+      addstring(namesl, "100"); // Ticks, just a placeholder 
+      addextra(database.extra, namesl, "");
+
+      exd_db_reward := s in database.extra;
+   }
+
+   // Now we got the extraptr for the criminal and the database
+   // so let's update them. We know for sure we have the DB.
+   // Criminal might be offline
+
+   cnt := atoi(exd_db_reward.names.[2]); // Crime Counter
+   if ("@_players" in criminal_symname)
+   {
+      if (cnt < 1)
+         cnt := crime_type;
+      else
+         cnt := cnt + CRIME_EXTRA;
+   }
+   else
+   {
+      if (cnt < 32)
+         cnt := 32;
+      cnt := cnt + crime_type;
+   }
+
+   //
+   // Suggest a new DIL function for setting CHAR_FLAGS (outlaw, etc).
+   // because we'll also need to call it if a PC logs in.
+   //
+
+   exd_db_reward.names.[2] := itoa(cnt);
+
+   if (exd_char_reward)
+      exd_char_reward.names.[2] := itoa(cnt);
+
+   // 40,960 is one platinum piece, so if a level 50 char => 
+   // 1 plat then it's about 16.
+   gold := criminal.level * criminal.level * 16 + 10 * cnt;
+   if (gold > PLATINUM_MULT)
+      gold := PLATINUM_MULT;  // Make sure this doesn't become more than 1 PP
+
+   exd_db_reward.names.[3] := itoa(gold);
+   if (exd_char_reward)
+      exd_char_reward.names.[3] := itoa(gold);
+
+   s := moneystring(gold, 1);
+
+   // [8..31]  You'll lose the benefit of being protected by the law and order system (see below).
+   // [32..63] You're wanted alive by the guards. They'll try to arrest you.
+   // [64..]   You're wanted dead or alive.
+   if ((cnt > 31) and (cnt < 64))
+      s := "A reward of " + s + " has been offered for the arrest of "+criminal.name;
+   else if (cnt >= 64)
+      s := "A reward of " + s + " has been offered for the arrest or head of "+criminal.name;
+   else
+      s := "On notice";
+
+   exd_db_reward.descr := s;
+   if (exd_char_reward)
+      exd_char_reward.descr := s;
+
+   xp :=  criminal.level * 20 + 50;
+   if (xp > 1000)
+       xp := 1000;  // Make sure some glitch doesn't cause excessive XP
+
+   exd_db_reward.names.[4] := itoa(xp);
+   if (exd_char_reward)
+      exd_char_reward.names.[4] := itoa(xp);
+
+   sendto("save", database);
+
+   // This function presumes a PC logging into the game will get a copy of 
+   // all $reward on the board that matches his symname.
+   //
+   return(1);
+}
+dilend
+
+
+// Check the $reward status of a char in a jurisdiction
+//
+// 0 : no reward
+// 1 : wanted alive
+// 2 : wanted dead or alive
+//
+dilbegin integer check_outlaw(char : unitptr, juris : string);
+var
+   exd : extraptr;
+   i : integer;
+code
+{
+   exd := ("$reward "+juris) in char.extra;
+
+   if (exd == null)
+      return(0);
+   else
+   {
+      i := atoi(exd.names.[2]);
+      if (i >= 64)
+         return(2);
+      else if (i >= 32)
+         return(1);
+      else
+         return(0);
+   }
+}
+dilend
+
+
+// Check if a char is protected in a jurisdiction. Remember that there
+// might still be a reward on the char dead or alive. So being 
+// "protected" doesn't mean the guards will be nice to you (if you
+// have been bad :)
+//
+// 0 : not protected
+// 1 : protected
+//
+dilbegin integer check_protected(char : unitptr, juris : string);
+var
+   exd : extraptr;
+   i : extraptr;
+code
+{
+   // Will we have NPCs protected in multiple zones?
+   // Or could this suffice as a PC check?
+
+   exd := ("$protected "+juris) in char.extra;
+
+   if (exd)
+      return(1);
+
+   if (char.type == UNIT_ST_NPC)
+   {
+      if (isset(char.flags, CHAR_PROTECTED))
+      {
+         // NPCs are protected in their home zone
+         if (char.zoneidx == juris)
+            return(1);         
+      }
+   }
+   else // PC
+   {
+      if (isset(char.flags, CHAR_PROTECTED))
+      {
+         // PCs are protected in their home town
+         if (("@"+juris) in char.hometown)
+            return(1);         
+      }
+   }
+
+   return(0);
+}
+dilend
+
+
+
+// =================================================
+// MS Sample code END
+// =================================================
+
+
+// crime_stopper() is a timer that will clear the $suspect crimes off the reward_board
+// This DIL should be copied to the reward_board.
+//
+
+/*
+ Crime Info Data Elements:
+        [0] $crime
+        [1] CRIME_SERIAL_NO
+        [2] CRIMINAL_NAME
+        [3] CRIMINAL_IDX
+        [4] CRIME_TYPE
+        [5] VICTIM_NAME
+        [6] TICK UNTIL REMOVED FROM LIST
+        [7] is_NPC (Y or N)     
+        [9] CRIME_REPORTED 1 or 0
+*/
+
+dilbegin crime_stopper();
+var
+   c_info    : string;
+   suspects  : extraptr;
+   nextdude  : extraptr;
+   time_left : integer;
+code
+{
+   :start:
+   heartbeat := WAIT_SEC * 5 * 60;
+   wait(SFB_TICK, TRUE);
+
+   suspects := self.extra;
+
+   while (suspects)
+   {
+      nextdude := suspects.next;
+
+      if (suspects.name == "$crime")
+      {
+         c_info := suspects.names.[6];
+         time_left := atoi(c_info);
+         time_left := time_left - 1;
+         if (time_left <= 0)
+            subextra(self.extra, suspects.names.[1]);
+         else
+            suspects.names.[6] := itoa(time_left);
+         sendto("save", self);
+      }
+ 
+      suspects := nextdude;
+   }
+   goto start;
+}
+dilend
+
+
+
+// set_arrest() sets the arrest extras to the criminali and database.
+// it is called by crime_counter();
+//
+dilbegin set_arrest(criminal : unitptr, incr : integer);
+external
+   string get_juris@justice();
+var
+   jd : unitptr;
+   k : string;
+   ex_string : stringlist;
+   r_time : integer;
+   juris : string;
+   is_npc : string;
+code
+{
+   r_time := realtime;
+   juris := get_juris@justice();
+   ex_string := null;
+
+
+   if ("$arrest" in criminal.extra)
+   {
+      return;
+   }
+
+   if (criminal.type == UNIT_ST_PC)
+   {
+       criminal.crimes := criminal.crimes + incr;
+       is_npc := "N";
+   }
+   else
+       is_npc := "Y";
+
+   addstring(ex_string,"$arrest" );
+   addstring(ex_string,itoa(r_time));
+
+   //add extra to criminal using realtime as a unique ID
+
+   addextra(criminal.extra, ex_string, " ");
+
+   addstring(ex_string, juris);
+   addstring(ex_string, is_NPC);
+   // add extra to justice database with matching ID containing more reward details
+
+   jd := findsymbolic("database@justice");
+   addextra(jd.extra, ex_string, criminal.name+" is wanted for imprisonment.");
+   sendto("save", jd);
+   return;
+}
+dilend
+
+//This function removes database extras
+//
+dilbegin rem_db_entry(criminal : unitptr, extra_type : string);
+
+var
+jd : unitptr;
+ch_ptr : extraptr;
+
+code 
+{
+  jd := findsymbolic("database@justice");
+  
+  ch_ptr := extra_type in criminal.extra;
+  if (ch_ptr)
+  { 
+    subextra(jd.extra, ch_ptr.names.[1]);  
+    subextra(criminal.extra, ch_ptr.names.[1]);
+    log("rem_db_entry: "+criminal.name+" "+extra_type+"was sucessfully removed from the Justice DB");
+    sendto("save", jd);
+    return;
+  }
+   
+  log("rem_db_entry: Failed to find extras of type "+extra_type+" on "+criminal.name+"R.");
+
+return;
+}
+dilend
+
+// jailbreak() - this DIL will be called if someone ends their jailtime early
+// it will set a reward on their heads for escape.
+//
+dilbegin jailbreak(criminal : unitptr);
+external 
+  rem_db_entry(criminal : unitptr, extra_type : string);
+  set_reward_char(criminal : unitptr, incr : integer);
+var
+ 
+code
+{
+  log("Criminal "+criminal.name+" has escaped jail.  A reward is now offered.");
+  rem_db_entry(criminal, "$arrest");
+  set_reward_char(criminal, 0);
+  return;
+}
+dilend
+
+// set_reward_char() sets the reward and applies the $reward extra to the criminal.
+// it is called by crime_counter();
+//
+dilbegin set_reward_char(criminal : unitptr, incr : integer);
+external
+   string get_juris@justice();
+   rem_db_entry(criminal : unitptr, extra_type : string);
+   integer valid_extra@justice(criminal : unitptr, extra_type : string);
+var
+   jd : unitptr;
+   gold : integer;
+   xp : integer;
+   m_display : string;
+   k : string;
+   ex_string : stringlist;
+   r_time : integer;
+   juris : string;
+   is_npc : string;
+code
+{
+   gold := 0;
+   xp := 0;
+   r_time := realtime;
+   juris := get_juris@justice();
+   ex_string := null;
+
+   unset(criminal.charflags, CHAR_PROTECTED);
+   set(criminal.charflags, CHAR_OUTLAW);
+   if(valid_extra@justice(criminal, "$arrest"))
+       rem_db_entry@justice(criminal, "$arrest");
+   if ("$reward" in criminal.extra)
+   {
+      return;
+   }
+
+   gold := criminal.level * criminal.level * 100;
+    if (gold > PLATINUM_MULT)
+       gold := PLATINUM_MULT;  // Make sure this doesn't become more than 1 PP
+   m_display := moneystring(gold,1);
+xp :=  criminal.level * 20 + 50;
+   if (xp > 1000)
+       xp := 1000;  // Make sure some glitch doesn't cause excessive XP
+
+   if (criminal.type == UNIT_ST_PC)
+   {
+       criminal.crimes := criminal.crimes + incr;
+       is_npc := "N";
+   }
+   else
+     is_npc := "Y";
+
+   addstring(ex_string,"$reward" );
+   addstring(ex_string,itoa(r_time));
+  
+   //add extra to criminal using realtime as a unique ID
+   
+   addextra(criminal.extra, ex_string, " "); 
+   
+   addstring(ex_string, itoa(gold));
+   addstring(ex_string, itoa(xp));
+   addstring(ex_string, juris);
+   addstring(ex_string, is_NPC); 
+   // add extra to justice database with matching ID containing more reward details
+  
+   jd := findsymbolic("database@justice");
+   if (incr == 0)
+      addextra(jd.extra, ex_string, "JAILBREAK!! A reward of "+m_display+" has been offered for the head of "+criminal.name);    
+    else
+      addextra(jd.extra, ex_string, "A reward of "+m_display+" has been offered for the head of "+criminal.name);  
+   sendto("save", jd);
+   return;    
+} 
+dilend
+
+//DIL to get npc clever name ffrom Justice Database
+//
+dilbegin string npc_name(cr_name : string);
+
+var
+ jd : unitptr;
+ jd_extra : extraptr;
+ cname : string;
+code
+{
+
+jd := findsymbolic("database@justice");
+
+jd_extra := jd.extra;
+
+while (jd_extra)
+{
+ if(jd_extra.name == "$crime")
+   if(jd_extra.names.[2] == cr_name)
+   {
+    cname := jd_extra.names.[2]+jd_extra.names.[1];
+    return(cname);
+   }
+jd_extra := jd_extra.next;
+}
+}
+dilend
+//DIL to make sure a player justice extra still exits in the database
+//
+dilbegin integer valid_extra(criminal : unitptr, extra_type : string);
+
+var 
+  jd : unitptr;
+  extras : extraptr;
+  id : string;
+
+code
+{
+jd := findsymbolic("database@justice");
+id := criminal.extra.[extra_type].names.[1];
+
+if(not(id))   //If there is no ID for that type then returnn false
+   return(FALSE);
+
+extras := jd.extra;
+
+while (extras)
+{
+  if (extras.name == extra_type)
+     if (extras.names.[1] == id )
+        return(TRUE);  //matching extra on DB found.      
+extras := extras.next;
+}
+//failed to find matching ID on DB so it is stale.....remove it
+subextra(criminal.extra, id);
+return(FALSE);
+
+}
+dilend
+// crime_counter() applies the incr to the criminals crimes score and then determines
+// which CHAR_FLAGS should be set.  If a reward is indicated it calls set_reward_char();
+// It is called by update_criminal.
+//
+dilbegin crime_counter(deputy: unitptr,criminal : unitptr, incr : integer, first_accuse : integer);
+external
+   set_reward_char@justice(criminal : unitptr, incr : integer);
+   set_arrest@justice(criminal : unitptr, incr : integer);
+   integer valid_extra@justice(criminal : unitptr, extra_type : string);
+var
+ jd : unitptr;
+ cash : string;
+ id : string;
+code
+{
+ jd := findsymbolic("database@justice");
+ if (((criminal.crimes + incr) / 64 > criminal.crimes / 64))
+   { 
+     if(valid_extra@justice(criminal, "$reward"))
+        return;
+      set_reward_char(criminal, incr);
+      id := criminal.extra.["$reward"].names.[1];
+
+      cash := moneystring(atoi(jd.extra.[id].names.[2]),1);
+      exec("shout A reward of "+cash+" has been offered for the head of "+criminal.name+"!!",deputy);
+      return;
+   }
+ if ((criminal.crimes + incr) / 31 > criminal.crimes / 32)
+   {
+
+      if(valid_extra@justice(criminal, "$reward"))
+        return; 
+      if(not(valid_extra@justice(criminal, "$arrest"))) 
+      {   
+       set(criminal.charflags, CHAR_OUTLAW | CHAR_PROTECTED);
+       set_arrest(criminal, incr);
+       exec("shout that scoundrel "+jd.extra.[criminal.extra.["$arrest"].names.[1]].descr+"!!",deputy);
+       criminal.crimes := criminal.crimes + incr;
+      return;
+      }
+     else
+     { 
+       criminal.crimes := criminal.crimes + incr;
+       return;
+     } 
+    }
+ if ((criminal.crimes + incr) / 8 > criminal.crimes / 8)
+   {
+      if (not(isset(criminal.charflags, CHAR_OUTLAW)))
+        unset(criminal.charflags, CHAR_PROTECTED);
+   }
+    criminal.crimes := criminal.crimes + incr;
+
+   return;
+}
+
+dilend
+
+
+// update_criminal() is called by accuse.  The Captain sends the accused a warning and it then calls crime_counter()
+// to update the crime stats of the criminal
+//
+dilbegin update_criminal(deputy : unitptr, cr_name : string, crime_type : integer,pidx : integer,  first_accuse : integer);
+external
+   crime_counter@justice(deputy : unitptr,criminal : unitptr, incr : integer, first_accuse : integer);
+   set_reward_char(criminal : unitptr, incr : integer);
+   set_arrest(criminal : unitptr, incr : integer);
+   integer valid_extra@justice(criminal : unitptr, extra_type : string);
+var
+   criminal : unitptr;
+   incr : integer;
+   jd : unitptr;
+   id : string;
+   cash : string;
+code
+{
+ jd := findsymbolic("database@justice");
+ 
+  criminal := findunit(deputy, cr_name, FIND_UNIT_GLOBAL, null);
+   if((criminal.type == UNIT_ST_NPC) and (crime_type == CRIME_MURDER))
+   {
+      if (not(valid_extra@justice(criminal, "$reward")))
+      {
+       set_reward_char@justice(criminal, 8);
+       id := criminal.extra.["$reward"].names.[1];
+       cash := moneystring(atoi(jd.extra.[id].names.[2]),1);
+       exec("shout A reward of "+cash+" has been offered for that scoundrel "+criminal.name+"!!",deputy);
+      } 
+     return;
+   }
+   if(criminal.type == UNIT_ST_NPC)
+   {
+     if(valid_extra@justice(criminal, "$reward"))
+       return;
+     if(not(valid_extra@justice(criminal, "$arrest")))
+     {
+      set(criminal.charflags, CHAR_OUTLAW | CHAR_PROTECTED);
+      set_arrest(criminal, CRIME_STEALING);
+      exec("shout the filthy criminal "+criminal.name+" is wanted for imprisonment!!" ,deputy); 
+     }  
+  return;
+   }
+
+   
+if(criminal.idx == pidx)
+   {
+      act("$1n tells you, 'You are in trouble, you good-for-nothing ...'", A_SOMEONE, deputy,null, criminal, TO_VICT);
+      if (first_accuse)
+         incr := crime_type;
+      else
+         incr := CRIME_EXTRA;
+         crime_counter@justice(deputy,criminal, incr, first_accuse);
+   }
+   return;
+}
+dilend
+
+
+
+// add_crime() is called from log_crime()
+// Call this function to add a $crime to a reward board. The reward_board in zone xxx
+// will be chosen based on what zone 'self' is in when the crime is committed. (??)
+//
+// criminal   : The char that is committing the crime.
+// vict       : The char that a crime was committed against.
+// crime_type : either CRIME_MURDER or CRIME_STEALING
+// crime_no   : unique identifier assigned  to the crime by log_crime.
+// crime_clear: The number of heartbeat ticks before this crime will be removed form the reward_board
+//
+dilbegin add_crime(criminal : unitptr, vict : unitptr, crime_type: integer, crime_no : integer, crime_clear : integer);
+external
+  string get_juris@justice();
+var
+   i : integer;
+   wp : unitptr;
+   desc : string;
+   cr_string : string;
+   crime_list : stringlist;
+   is_npc : string;
+   juris : string;
+
+code
+{
+   cr_string := itoa(crime_no);
+
+   if (crime_type == CRIME_MURDER)
+   {
+      desc := "<a cmd='accuse # murder'>"+criminal.name+"</a> is suspected of the murder of "+vict.name+". Anyone with information should report it to the Guard's Office.";
+   }
+   else if (crime_type == CRIME_STEALING)
+   {
+      desc := "<a cmd='accuse # stealing'>"+criminal.name+"<a/> is suspected of stealing from "+vict.name+". Anyone with information should report it to the Guard's Office.";
+   }
+   else
+   {
+      if ((criminal.type == UNIT_ST_PC) and (vict.type == UNIT_ST_PC))
+         desc := "<a cmd='accuse # murder'>"+criminal.name+"</a> is suspected of player killing "+vict.name+". Anyone with information should report it to the Guard's Office.";
+      else
+         desc := "<a cmd='accuse # murder'>"+criminal.name+"</a> is suspected of the murder of "+vict.name+". Anyone with information should report it to the Guard's Office.";
+      // log("Unknown crime type "+itoa(crime_type)+" in add_crime() for criminal "+criminal.symname+" victim "+vict.symname);
+   }
+
+   juris := get_juris@justice();
+
+   if (criminal.type == UNIT_ST_NPC)
+   {
+     addstring(criminal.names,criminal.name+itoa(crime_no));
+     is_npc := "Y";
+   } 
+   else
+      is_npc := "N";
+ 
+   wp := findsymbolic("database@justice");
+   if (not wp)
+   {
+      log("database@justice not found");
+   }
+
+   addstring(crime_list, "$crime");
+   addstring(crime_list, cr_string);
+   addstring(crime_list, criminal.name);
+   addstring(crime_list, itoa(criminal.idx));
+   addstring(crime_list, itoa(crime_type));
+   addstring(crime_list, vict.name);
+   addstring(crime_list, itoa(crime_clear));
+   addstring(crime_list, is_npc);
+   addstring(crime_list, juris);
+   addstring(crime_list, itoa(0));
+    
+   addextra(wp.extra, crime_list, desc); 
+   sendto("save", wp);
+
+   return;
+}
+dilend
+
+
+
+// witness_timer() is copied to a witness when the observe a crime. Its purpose is to remove
+// the $witness extra after about an hour.  Called by set_witness();
+//
+
+/*  Witness Data Elements:
+        [0] $witness
+        [1] $witness_CRIMINAL NAME
+        [2] $witness_CRIME_SERIAL_NO
+        [3] $witness_CRIME_TYPE
+        [4] $witness_PLAYERID
+        [5] $witness_TICKS UNTIL REMOVED
+*/
+dilbegin witness_timer();
+var
+   tm : integer;
+   d : integer;
+   witness  : extraptr;
+   nextdude : extraptr;
+   w_info : string;
+
+code
+{
+   heartbeat := WAIT_SEC * 5 * 60;
+
+   :start:
+   wait(SFB_TICK, TRUE);
+   witness := self.extra;
+
+   while (witness)
+   {
+      nextdude := witness.next;
+      if (witness.name == "$witness")
+      {
+         w_info := witness.names.[5];
+         tm := atoi(w_info);
+         tm := tm - 1;
+         if (tm <= 0)
+            subextra(self.extra, witness.names.[2]);
+         else
+            witness.names.[5] := itoa(tm);
+      }
+      witness := nextdude;
+   }
+
+   if (not("$witness" in self.extra))
+      quit;
+   else
+      goto start; 
+}
+dilend
+
+// activate_accuse() will casue an NPC who witnesses a crime to go to the accuse_room and
+// accuse the criminal.  It is copied to the NPC by set_witness() if the witness is an NPC.
+//
+dilbegin fnpri(FN_PRI_MISSION+1) activate_accuse(crime_type : integer, criminal_name : string, jurisdiction : string);
+external
+   integer walk_room@function (s:string,i:integer);
+
+var
+   i : integer;
+   startroom : string;
+   accuse_room  : string;
+   wr      : integer;
+   crime_name : string;
+   acc_cmd : string;
+
+code
+{
+   if (not(self.type == UNIT_ST_NPC))
+      goto cleanup;
+
+   // The captain himself shouldn't get an activate_accuse()
+   if (dilfind("accuse@justice",self))
+      goto cleanup;
+
+   if (crime_type == CRIME_MURDER)
+      crime_name := "murder";
+   else if (crime_type == CRIME_STEALING)
+      crime_name := "stealing";
+   else
+      log("activate_accuse() illegal crime_type");
+
+   startroom := self.outside.nameidx + "@" + self.outside.zoneidx;
+   accuse_room  := "accuse_room@"+jurisdiction;   //+self.outside.zoneidx;
+
+   // Let this mission critical DIL take priority over lower level chores.
+   priority;
+
+   wr := walk_room@function(accuse_room, 5);
+
+   heartbeat := PULSE_SEC*4;
+   pause;
+   pause;
+   act("$1n says, I would like to report a crime!",
+               A_HIDEINV, self, null, null, TO_ROOM);
+   acc_cmd := "accuse "+criminal_name+" "+crime_name;
+
+   exec(acc_cmd, self);
+
+   pause;
+   pause;
+   wr := walk_room@function(startroom, 5);
+
+   :cleanup:
+    quit;
+}
+dilend
+
+
+// Find the jurisdiction for 'self'. It's either Udgaard or Midgaard right now. 
+// Expand this function if you have more jurisdictions (zones with justice)
+//
+dilbegin string get_juris();
+var
+   s : string;
+   rm : unitptr;
+
+code
+{
+   s := "midgaard"; // Default
+
+   rm := self.outside;
+
+   while (rm.type != UNIT_ST_ROOM)
+      rm := rm.outside;
+
+   if (rm.zoneidx == "udgaard")
+      s := "udgaard";   
+   else if (self.zoneidx == "udgaard")
+      s := "udgaard";   
+
+   return(s);
+}
+dilend
+
+
+
+// This function is called by log_crime in C and will set a $witness extra on any person who witnesses
+// a crime.  If the witness is an NPC it will copy the activate_accuse() DIL to the witness.
+//
+dilbegin set_witness(criminal : unitptr, witness : unitptr, crime_no : integer, crime_type : integer, show : integer);
+external
+   activate_accuse(witness : unitptr, crime_type : integer, criminal_name : string);
+   string get_juris@justice();
+var
+   pidx: integer;
+   acc_cmd : string;
+   ex_string : stringlist;
+   jurisdiction : string;
+code
+{ 
+   if (criminal == witness)
+      return;
+
+   if ((witness.type == UNIT_ST_NPC) and (not isset(witness.charflags , CHAR_PROTECTED)))
+      return;
+
+   if (show)
+   {
+      act("You just witnessed a crime committed by $1n.", A_ALWAYS, criminal, null, witness, TO_VICT);
+   }
+   jurisdiction := get_juris@justice();
+
+   pidx := criminal.idx;
+   addstring(ex_string,"$witness" );
+   addstring(ex_string,criminal.name);
+   addstring(ex_string,itoa(crime_no));
+   addstring(ex_string,itoa(crime_type));
+   addstring(ex_string,itoa(pidx));
+   addstring(ex_string,itoa(12));
+   addstring(ex_string,jurisdiction);
+   addextra(witness.extra,ex_string ,criminal.name+" committed a crime.");
+   if (not(dilfind("witness_timer@justice", witness)))
+      dilcopy("witness_timer@justice()", witness);
+
+   if ((witness.type == UNIT_ST_NPC) and (show))
+      dilcopy("activate_accuse@justice("+itoa(crime_type)+","+criminal.name+","+jurisdiction+")", witness);
+
+   return;
+}
+dilend
+
+
+
+// wanted_poster() This DIL is copied to the reward_board.  It will display a list of Wanted criminals as
+// well as a list of recent crimes.  It will also show information about accusers when
+// accusations are made.
+//
+// Curently, there is a reward_board in udgaard and midgaard.  They both display the same
+// informationn as the crime system is global at the moement.
+//
+dilbegin wanted_poster();
+var
+   found : integer;
+   msg : string;
+   jd : unitptr;
+   suspects : extraptr;
+   nextdude : extraptr;
+   u : unitptr;
+   wanted_dead : string;
+   wanted_alive : string;
+   wanted_either : string;
+   local_suspects : string;
+code
+{
+   :start:
+
+   wanted_dead := "";
+   wanted_alive := "";
+   wanted_either := "";
+   local_suspects :="";
+
+   heartbeat := PULSE_SEC * 1;
+   wait (SFB_CMD, ((command ("look"))) and (argument=="board"));
+   act("$1n looks at the wanted posters.", A_ALWAYS, activator, null, null, TO_ROOM);
+
+   jd := findsymbolic("database@justice");
+
+   suspects := jd.extra;
+ 
+   // this loops through the players connected to the game and displays anyone with
+   // $reward estras.   It will also display characters with the OUTLAW flag set.
+   //
+   // $reward extras as stored on the criminal not on the board.
+  
+
+   //loop trhough reward_board extras
+
+   while (suspects)
+   {
+      nextdude := suspects.next;
+
+      if ("$crime" in suspects.names) 
+      {
+         if (suspects.names.[9] == "0")
+            local_suspects := local_suspects + suspects.descr+"<BR>";
+      }
+      else if ("$arrest" in suspects.names)
+         wanted_alive := wanted_alive + suspects.descr+ "<br>"; 
+       else if ("$reward" in suspects.names)
+         wanted_dead := wanted_dead + suspects.descr+ "<BR>"; 
+      suspects := nextdude;
+   }
+
+ // Diplay Wanted Poster 
+
+   sendtext("<DIV class=cpr>W A N T E D</div><br><br>", activator);
+   sendtext("<b><div class=cpy>Wanted Dead - Reward Offered</div></b><br><br>", activator);
+
+   if (length(wanted_dead) > 0)
+      sendtext(wanted_dead+"<br>", activator);
+   else
+      sendtext("None at this time.<br>", activator);
+
+   sendtext("<br><b><div class=cpy>Wanted Alive</b></div></b><br><br>",activator);
+
+   if (length(wanted_alive) > 0)
+      sendtext(wanted_alive+"<br>", activator);
+   else
+      sendtext("None at this time.<br>", activator);
+
+//   sendtext("<br><b><div class=cpy>Wanted Dead or Alive</b></div><br><br>", activator);
+//
+//   if (length(wanted_either) > 0)
+//      sendtext(wanted_either+"<br>", activator);
+//   else
+//      sendtext("None at this time.<br>", activator);
+
+   sendtext("<br><b><div class=cpy>Suspects</b></div><br><br>",activator);
+
+   if (length(local_suspects) > 0)
+      sendtext(local_suspects+"<br>", activator);
+   else
+      sendtext("None at this time.<br>", activator);
+
+   block;
+   goto start;
+}
+dilend
+
+
+
+// accuse() is a DIL copied to the Captain (or other NPC) who will be receiving accusations.
+// it allows the NPC to accept accusations from PC and NCP characters.  It compares the
+// $witness extra information with the $crime inforation stored on the reward_board and if the
+// data matches it will call update_criminal. It also removes the $witness extra from the accuser
+// once a sucessful accusation is made.
+//
+
+/*
+        Crime Info Data Elements:
+        [0] $crime
+        [1] $crime_CRIME_SERIAL_NO
+        [2] $crime_$crime_CRIMINAL_NAME
+        [3] $crime_CRIMINAL_IDX
+        [4] $crime_CRIME_TYPE
+        [5] $crime_VICTIM_NAME
+        [6] $crime_TICK UNTIL REMOVED FROM LIST
+        [7] $crime_is_NPC (Y or N)     i
+        [8] $crime_Jurisdiction 
+        [9] $crime_CRIME_REPORTED 1 or 0
+
+       Witness Data Elements:
+        [0] $witness
+        [1] $witness_CRIMINAL NAME
+        [2] $witness_CRIME_SERIAL_NO
+        [3] $witness_CRIME_TYPE
+        [4] $witness_PLAYERID
+        [5] $witness_TICKS UNTIL REMOVED
+        [6] $witness_JURISDICTION
+*/
+
+dilbegin fnpri(FN_PRI_MISSION-1) accuse();
+external
+   update_criminal(deputy : unitptr, cr_name : string, crime_type : integer,pidx : integer,  reported : integer);
+
+var
+   args :stringlist;
+   arg_count : integer;
+   criminal : string;
+   crime_type : integer;
+   crime : string;
+   jd : unitptr;
+   w_data :string;
+   i : integer;
+   found : integer;
+   wk : string;
+   ck : string;
+   w_ptr : extraptr;
+   c_ptr : extraptr;
+   w_type : string;
+   c_name : string;
+   c_pidx : string;
+   c_type : string;
+   c_v_name : string;
+   c_reported : string;
+   c_is_npc   : string;
+   c_juris : string;
+   update_name :string;
+code
+{
+   :start:
+   found := 0;
+   heartbeat := PULSE_SEC * 1;
+
+   wait (SFB_CMD, command ("accuse") );
+
+   args := getwords(argument);
+
+   if ((activator.type == UNIT_ST_NPC) and  (self.position  == POSITION_SLEEPING))
+      exec("wake "+ self.name, activator);  /* command_interpreter(sarg->activator, "wake"); */
+
+   if ((self.position <  POSITION_SLEEPING) or (self.position  == POSITION_FIGHTING))
+   {
+      act("$1n seems busy right now.", A_SOMEONE, self,
+         activator, null, TO_ROOM);
+      block;
+      goto start;
+   }
+
+   if (argument == "")
+   {
+      act("$1n says, 'Who do you wish to accuse?'", A_SOMEONE, self, null, null, TO_ROOM);
+      block;
+
+      // List the crimes you have witnessed
+      act("You recall the following crimes:", A_SOMEONE, activator, null, null, TO_CHAR);
+      i := 0;
+      w_ptr := activator.extra;
+      while (w_ptr)
+      {
+         if ("$witness" == w_ptr.name)
+         {
+            if (atoi(w_ptr.names.[3]) == CRIME_STEALING)
+               crime := "stealing";
+            else 
+               crime := "murder"; 
+
+            act("<a cmd='accuse #'>" + w_ptr.names.[1] + " "+crime, A_SOMEONE, activator, null, null, TO_CHAR);
+            i := i + 1;
+
+         }
+         w_ptr := w_ptr.next;
+      }
+      if (i == 0)
+         act("None.", A_SOMEONE, activator, null, null, TO_CHAR);
+      block;
+      goto start;
+   }   
+
+   // this is to deal with NPCs that have spaces in their names 
+   criminal := args.[0];
+   arg_count := 1;
+   while (arg_count < length(args) -1)
+   {
+    criminal := criminal +" "+ args.[arg_count];
+    arg_count := arg_count +1;
+   }
+  
+   crime := args.[length(args)-1];
+
+   if (criminal == "")
+   {
+      act("$1n says, 'Yes... who?'", A_SOMEONE, self, null,
+         null, TO_ROOM);
+      block;
+      goto start;
+   }
+   else
+   {
+      if (crime == "")
+      {
+         act("$1n says, 'What do you wish to accuse $3t of?'",
+               A_SOMEONE, self, activator, criminal, TO_ROOM);
+         block;
+         goto start;
+      }
+   }
+
+   if (not(strcmp(crime, "murder")))
+   {
+      crime_type := CRIME_MURDER;
+      act("$1n says, 'Murder... lets see', and looks through his files.",
+         A_SOMEONE, self, activator, null, TO_ROOM);
+   }
+   else if (not(strcmp(crime, "stealing")))
+   {
+      crime_type := CRIME_STEALING;
+      act("$1n says, 'Stealing... lets see', and looks through his files.",
+         A_SOMEONE, self, activator, null, TO_ROOM);
+   }
+   else
+   {
+      act("$1n says, 'Are you accusing of murder or stealing?'",
+         A_SOMEONE, self, activator, null, TO_ROOM);
+      block;
+      goto start;
+   }
+
+   jd := findsymbolic("database@justice");
+   
+   w_ptr := activator.extra;
+   while (w_ptr)
+   {
+      if ("$witness" == w_ptr.name)
+      {
+         if (w_ptr.names.[1] == criminal)
+         {
+            c_ptr := w_ptr.names.[2] in jd.extra;
+               if (c_ptr)
+                  goto doaccuse;
+         }
+      }
+      w_ptr := w_ptr.next;
+   }
+
+goto end;
+
+:doaccuse:
+
+ 
+      w_type := w_ptr.names.[3];
+      c_name := c_ptr.names.[2];
+      c_pidx := c_ptr.names.[3];
+      c_type := c_ptr.names.[4]; 
+      c_v_name := c_ptr.names.[5]; 
+      c_is_npc := c_ptr.names.[7];
+      c_juris := c_ptr.names.[8];
+      c_reported := c_ptr.names.[9]; 
+      
+      if ((crime_type == CRIME_MURDER) and
+          (atoi(c_type) != CRIME_MURDER) and
+          (atoi(c_type) != CRIME_PK))
+         goto end;
+
+       if ((crime_type == CRIME_STEALING) and
+            (atoi(c_type) != CRIME_STEALING))
+         goto end;
+       if (c_is_npc == "Y")
+          update_name := c_name+w_ptr.names.[2];
+       else
+          update_name := c_name;  
+       if (atoi(c_type) == atoi(w_type))
+      {
+         found := 1;
+         act("$1n accuses $3t of $2t.", A_SOMEONE, activator, crime, criminal, TO_ROOM);
+         act("$1n says, 'Ah yes... $2t'", A_SOMEONE, self, crime, null, TO_ROOM);
+         act("$1n says, 'Thank you very much $3N, I will stop $2t.'",
+                        A_SOMEONE, self, criminal, activator, TO_ROOM);
+         if (activator.alignment > -1000)
+           activator.alignment := activator.alignment +100;
+         subextra(activator.extra,w_ptr.names.[2]);
+         if (not("$witness" in activator.extra))
+            i := dildestroy("witness_timer@justice", activator);
+
+         if (atoi(c_reported) == 0)
+         {
+            update_criminal@justice(self, update_name, crime_type, atoi(c_pidx), TRUE);
+             c_ptr.names.[9] := itoa(1);
+            if (atoi(c_type) == CRIME_MURDER)
+               c_ptr.descr := "<a cmd='accuse # "+crime+"'>"+c_name+"</a> has been accused in the "+crime+" of "+c_v_name+". This crime was witnessed  by: "+activator.name+".";
+            else
+                c_ptr.descr := "<a cmd='accuse # "+crime+"'>"+c_name+" </a> has been accused of "+crime+" from "+c_v_name+". This crime was witnessed  by: "+activator.name+".";
+                sendto("save", jd);
+          }
+         else
+         {
+            update_criminal(self, update_name, crime_type, atoi(c_pidx), FALSE);
+            c_ptr.descr := c_ptr.descr +"<br>This crime was also confirmed by "+activator.name+".";
+            sendto("save", jd);
+         }
+      }
+
+   
+
+   :end: 
+   if (found == 0)
+      act("$1n says, 'Sorry $3n, but I don't find your evidence convincing.'", A_SOMEONE, self, null, activator, TO_ROOM);
+
+   block;
+   goto start;
+}
+dilend
+
+
+dilbegin integer crime_check(att:unitptr, def:unitptr);
+code
+{
+   if (att == null) return(FALSE);
+   if (def == null) return(FALSE);
+   if ((att.type!=UNIT_ST_PC) and (att.type!=UNIT_ST_NPC)) return(FALSE);
+   if ((def.type!=UNIT_ST_PC) and (def.type!=UNIT_ST_NPC)) return(FALSE);
+
+   /* If the attacker is attacking someone protected, or if the
+      attacker is protected and is attacking someone non-protected
+      then go in action */
+
+   if ((not isset(att.charflags,CHAR_SELF_DEFENCE)) and (isset(def.charflags, CHAR_PROTECTED)) and (not isset(def.charflags,CHAR_LEGAL_TARGET))
+      or (not isset(att.charflags,CHAR_PROTECTED)) and (isset(def.charflags,CHAR_PROTECTED)))
+      return(TRUE);
+
+   return(FALSE);
+}
+dilend
+
+
+
+// attack_evil() Copied to guards to allow them to protect the citizens from evil NPCs
+// MS: Commented out the whistle. That should be handled already in the blow_whistle DIL.
+//
+dilbegin fnpri(FN_PRI_CHORES+1) attack_evil();
+var
+   u : unitptr;
+   //i : integer;
+code
+{
+   heartbeat:=PULSE_SEC*4;
+
+:start:
+   wait(SFB_TICK, self.position >= POSITION_RESTING);
+
+   if (self.position == POSITION_FIGHTING)
+      goto start;
+
+   if (command(CMD_AUTO_TICK))
+   {
+      foreach (UNIT_ST_NPC, u)
+      {
+         if (visible(self, u) and (u.alignment  <= -350) and (u != self))
+         {
+            set(u.charflags, CHAR_LEGAL_TARGET);
+            act("$1n says, 'Begone you evil cretin!'", A_SOMEONE, self, null, null, TO_ROOM);
+            //i := getinteger(DIL_GINT_CALLGUARDS, self, 0);
+            set_fighting(self, u);
+            unset(u.charflags, CHAR_SELF_DEFENCE);
+         }
+      }
+   }
+
+   goto start;
+}
+dilend
+
+
+
+// This is copy on e.g. city guards to have them intervene in any illegal activities.
+//
+dilbegin fnpri(FN_PRI_RESCUE-1) protect_lawful();
 external
     integer crime_check@justice(att:unitptr, def:unitptr);
 
 var
-u : unitptr;
-bad : unitptr;
-vict : unitptr;
-i    : integer;
+   u : unitptr;
+   bad : unitptr;
+   vict : unitptr;
+   i    : integer;
+
 code
 {
-:start:
-heartbeat:=PULSE_SEC*rnd(40,60); 
-wait(SFB_TICK|SFB_COM|SFB_DEAD,TRUE);
+   :start:
+   heartbeat:=PULSE_SEC*rnd(40,60); 
+   wait(SFB_COM|SFB_DEAD, self.position >= POSITION_RESTING);
 
-if (command(CMD_AUTO_TICK))
-{
-foreach (UNIT_ST_NPC,u)
-{
- if ((visible(self, u)) and (u.alignment  <= -350))
-    {
-     set(u.charflags, CHAR_LEGAL_TARGET);
-     act("$1n blows in a small whistle!  'UUIIIIIIIHHHHH'",
-     A_SOMEONE, self, null, null, TO_ROOM);
-     i := getinteger(DIL_GINT_CALLGUARDS, self, 0);
-     set_fighting(self, u);
-     unset(u.charflags, CHAR_SELF_DEFENCE);
-     goto start;
-    }
-
-}
-}
-
-else
-{
-if (command(CMD_AUTO_DEATH))
-{
-bad := activator.fighting;
+   if (command(CMD_AUTO_DEATH))
+   {
+      bad := activator.fighting;
             
       if (crime_check@justice(bad, activator))
-            {
-                set_fighting(self, bad);
-                unset(bad.charflags, CHAR_SELF_DEFENCE);
-                goto start;
-            }
-}
-}
-if (command(CMD_AUTO_COMBAT))
-{
-vict := activator.fighting;
-if (self.position == POSITION_SLEEPING) goto start;
+      {
+         set_fighting(self, bad);
+         unset(bad.charflags, CHAR_SELF_DEFENCE);
+         goto start;
+      }
+   }
+   else if (command(CMD_AUTO_COMBAT))
+   {
+      vict := activator.fighting;
  
-if (crime_check(activator,vict))
-            {
-                set_fighting(self, activator);
-                unset(activator.charflags, CHAR_SELF_DEFENCE);
-                goto start;
-            }
-}
-goto start;
+      if (crime_check(activator,vict))
+      {
+         set_fighting(self, activator);
+         unset(activator.charflags, CHAR_SELF_DEFENCE);
+         goto start;
+      }
+   }
+   goto start;
 }
 dilend
 
-dilbegin  fnpri(FN_PRI_RESCUE) blow_whistle(); 
+
+// Listen for a whistle...
+// This DIL gets triggered by any blowwhistle anywhere in the world. Will come
+// aid anyone in the juris list if self is also in jurislist. 
+//
+// juris : work in progress. The list of zones the NPC will assist in. ??[] = all??
+// The message received is "WHISTLE roomzone roomname" and is the destination room
+//
+dilbegin aware unique fnpri(FN_PRI_MISSION) whistlisten(juris : stringlist);
+external
+   to_the_rescue@midgaard(sroomto : string);
+
+var
+   u : unitptr;
+   s : string;
+code
+{
+   :listen:
+   wait(SFB_MSG, ("WHISTLE " in argument)); // Wait for a whistle
+
+   // Only 1/6th chance to react
+   if (rnd(1,6) != 1)
+      goto listen;
+
+   // Only react if self is in one of the available jurisdictions
+   if (not (self.zoneidx in juris))
+      goto listen;
+
+   s := getword(argument); // Skip "WHISTLE "
+   s := getword(argument);
+
+   // If the room is not in my juris, skip
+   if (not (s in juris))
+      goto listen;
+
+   s := argument+"@"+s;
+   to_the_rescue@midgaard(s);
+
+   goto listen;
+}
+dilend
+
+dilbegin dbclear_npc(u : unitptr);
+var
+   j_extra : extraptr;
+   nextdude : extraptr;
+code
+{
+   j_extra := u.extra;
+
+   while (j_extra)
+   {
+      nextdude := j_extra.next;
+
+      if (j_extra.name == "$crime")
+         if (j_extra.names.[7] == "Y")
+            subextra(u.extra, j_extra.names.[1]);
+      else if (j_extra.name == "$arrest")
+         if (j_extra.names.[3] == "Y")
+            subextra(u.extra, j_extra.names.[1]);
+      else if (j_extra.name == "$reward")
+         if (j_extra.names.[5] == "Y")
+            subextra(u.extra, j_extra.names.[1]);
+
+      j_extra := nextdude;      
+   }
+
+   return;
+}
+dilend
+
+// blow_whistle is to be placed e.g. on guards and shopkeepers and will allow them
+// to call for help. Any char in the zone which has a protect_lawful has a chance
+// to come running to the rescue.
+//
+// A possible future enhancement would be to use the DIL function sendtoalldil()
+// rather than a call into C.
+//
+// A possible enhancement might be that the 'whistler' doesn't attack but that
+// is instead left to protect_lawful()
+//
+dilbegin fnpri(FN_PRI_RESCUE) blow_whistle(); 
 external
     integer crime_check@justice(att:unitptr, def:unitptr);
+
 var
     vict     : unitptr;
     i        : integer;
     wake     : integer;
+    rm       : unitptr;
 code
 {
-:start:
-
-   wait(SFB_COM, command(CMD_AUTO_COMBAT));
+   :start:
    heartbeat := PULSE_VIOLENCE;
+   wait(SFB_COM, command(CMD_AUTO_COMBAT));
+
    vict := activator.fighting;
-      secure(vict,nope);
-        if (vict==null)goto nope; 
-        if ((activator.type!=UNIT_ST_PC) and (activator.type!=UNIT_ST_NPC)) goto nope;     
-        if (activator.position < POSITION_STUNNED) goto nope;
-        if (self.position == POSITION_SLEEPING)
-           {
-            /* In the event that a guard is sleeping there is a chance that the whistle will wake him up */
-            wake := rnd(1,100);
-            if (wake >=25)
-               {
-                 act("$1n wakes with a start and gets to his feet.",A_SOMEONE,self,null,null,TO_ROOM);
-                 self.position := POSITION_STANDING;
-                 goto nope;
-               }
-           }
+   secure(vict,nope);
+
+   if (vict == null) goto nope; 
+   if ((activator.type!=UNIT_ST_PC) and (activator.type!=UNIT_ST_NPC)) goto nope;     
+   if (activator.position < POSITION_STUNNED) goto nope;
+
+   if (self.position == POSITION_SLEEPING)
+   {
+      /* In the event that a guard is sleeping there is a chance that the combat will wake him up */
+      wake := rnd(1,100);
+      if (wake >=25)
+      {
+         exec("wake", self); // This is a better way to wake up ;)
+         goto nope;
+      }
+   }
             
-        if ((self.position > POSITION_SLEEPING) and (activator.position == POSITION_FIGHTING) and (visible(self,activator)))
-           {
- 
-           if(crime_check@justice(activator, vict))
-             {
-               act("$1n blows in a small whistle!  'UUIIIIIIIHHHHH'",A_SOMEONE,self,null,null,TO_ROOM);    
-               i:= getinteger(DIL_GINT_CALLGUARDS, self, 0); 
-               set_fighting(self, activator);
-               unset(vict.charflags, CHAR_SELF_DEFENCE);
-               unsecure(vict);
-               goto start;
- 
-               } 
-           }
-:nope:
+   if ((self.position > POSITION_SLEEPING) and (activator.position == POSITION_FIGHTING) and (visible(self,activator)))
+   {
+      if (crime_check@justice(activator, vict))
+      {
+         act("$1n blows in a small whistle!  'UUIIIIIIIHHHHH'",A_SOMEONE,self,null,null,TO_ROOM);    
+         
+         rm := self.outside;
+         while (rm.type != UNIT_ST_ROOM)
+            rm := rm.outside;
+         sendtoalldil("WHISTLE "+rm.zoneidx+" "+rm.nameidx, "whistlisten@justice");
+         set_fighting(self, activator);
+         unset(vict.charflags, CHAR_SELF_DEFENCE);
 
-unsecure(vict);
-goto start;
+         heartbeat := PULSE_SEC * 5 * 60;
 
+         :waitloop:
+         // Don't whistle for 5 minutes unless vict is lost (secure)
+         pause;
+
+         unsecure(vict);
+         goto start;
+      } 
+   }
+
+   :nope:
+   unsecure(vict);
+   goto start;
 }
 dilend /* End blow_whistle */
 
+%objects
+
+                                 safe
+
+names {"wizi_safe"}
+title "the wizi safe"
+descr "A wizi safe in your inventory."
+manipulate {MANIPULATE_ENTER}
+open {EX_CLOSED, EX_LOCKED} difficulty 150
+CONTAINER_DEF(40000)
+weight 0
+minv 201  // It's wizi
+
+dilbegin aware safemanage();
+external
+   getfrom_safe@midgaard(prisoner : unitptr);
+
+var
+   r : unitptr;
+   s : string;
+code
+{
+   :loop:
+   wait(SFB_CMD, activator == self.outside);
+
+   r := activator.outside;
+   while (r.type != UNIT_ST_ROOM)
+      r := r.outside;
+
+   if (r.nameidx != "accuse_room")
+      goto loop;
+
+   if (command("look"))
+   {
+      s := getword(argument);
+
+      if (s != "in")
+         goto loop;
+
+      r := findunit(activator, argument, FIND_UNIT_HERE, null);
+      if (r.nameidx == "safe")
+      {
+         if (not isset(r.openflags, EX_CLOSED))
+         {
+            act("You see your belongings in the safe.", A_SOMEONE, activator, null, null, TO_CHAR);
+            block;
+            goto loop;
+         }
+      }
+   }
+   else if (command("get"))
+   {
+      s := getword(argument);
+      if ((s != "all") and (s != "belongings"))
+         goto loop;
+
+      if (getword(argument) != "from")
+         goto loop;
+
+      r := findunit(activator, argument, FIND_UNIT_HERE, null);
+      if (r.nameidx == "safe")
+      {
+         if (not isset(r.openflags, EX_CLOSED))
+         {
+            block;
+            getfrom_safe@midgaard(activator);
+            // Will self destruct
+         }
+      }
+   }
+   else if (not isset(activator.charflags, CHAR_OUTLAW))
+   {
+      r := findunit(activator, "captain", FIND_UNIT_HERE, null);
+      if (r)
+      {
+         if ((r.position >= POSITION_RESTING) and visible(r, activator))
+         {
+            secure(r, loop);
+            s := activator.name;
+            pause;
+            exec("say You better get your belongings back "+s+". Try to stay out of trouble.", r);
+            getfrom_safe@midgaard(self.outside);
+            // Will self destruct
+         }
+      }
+   }
+
+   goto loop;
+}
+dilend
+end
+
+                           database
+
+names {"crime database", "database"}
+title "the crime database"
+descr  "A global crime database is standing on the floor."
+
+extra {}
+"This is a global crime database. Do not zap this board unless you need a justice reset.
+Do a 'wstat board extra' to see the crime data on this board"
+
+type ITEM_OTHER
+
+
+// Make a DIL to save
+// There should be a DIL here which deletes obsoleted $crimes and others
+// Make a DIL to zap obsoleted extras on this board
+// from the board. I do suggest a long time for players and a shorter time
+// for NPCs.
+//
+
+
+// Use sendto("save", u); where u is a unitptr pointing to the board.
+// The message will cause the board to save itself.
+//
+dilbegin aware save_board();
+code
+{
+   heartbeat := PULSE_SEC * 60;
+
+:loop:
+   wait(SFB_MSG, argument == "save");
+   //
+   // Once a message is received, the board is saved.
+   // Pause for a minute  so we act like a cache. Crimes tend to
+   // occur in waves. 
+   //
+   wait(SFB_TICK, TRUE);
+   store(self, "database", TRUE);
+   log("JUSTICE: database saved.");
+   goto loop;
+}
+dilend
+
+dilcopy crime_stopper@justice();
+end
+
 
 %rooms
+                                       legal
+
+names "legal"
+title "The legal archives"
+descr
+"This room contains the global justice board which uses DIL to 
+load and save itself upon reboots. If you zap the board here 
+then you zap all the data from the justice system."
+flags {UNIT_FL_NO_WEATHER}
+light 5
+
+
+// This code only executes once when the game server boots.
+// Loads justice boards
+dilbegin aware reload_justice();
+external
+        dbclear_npc@justice(u : unitptr);
+
+var
+	u : unitptr;
+
+	ln:integer;
+	i:integer;
+   x:extraptr;
+code
+{
+   heartbeat := PULSE_SEC;
+   pause; // Allow the game to boot
+
+   // Make sure no-one has loaded this database globally. There should be only one
+   //
+   u := findsymbolic(self, "database@justice", FIND_UNIT_GLOBAL);
+   if (u)
+   {
+      log("ERROR JUSTICE: database@justice already exists");
+      quit;
+   }
+
+   // Load the justice database (if any)
+   //
+   u := restore("database", null);
+
+   if (u)  // If we loaded a database make sure there isn't
+   {
+      log("JUSTICE: Successfully loaded the global justice database");
+      dbclear_npc@justice(u);
+      quit;
+   }
+
+
+   // Nothing was found, load the default database
+   //
+   u := load("database@justice");
+   if (not u)
+   {
+      log("ERROR IN JUSTICE: Unable to load the global justice database");
+      quit;
+   }
+
+   log("JUSTICE: Blank justice database loaded");
+   quit;
+}
+dilend
+
+
+end
+
+
 
 %mobiles
+                           weakling
+
+names {"weakling"}
+title "a weakling"
+descr "A small weakling is standing here."
+extra {} "It looks incredibly fragile."
+ability[ABIL_STR]  100
+ability[ABIL_DEX]  0
+ability[ABIL_CON]  0
+ability[ABIL_HP]   0
+ability[ABIL_BRA]  0
+ability[ABIL_MAG]  0
+ability[ABIL_DIV]  0
+ability[ABIL_CHA]  0
+
+romflags {CHAR_PROTECTED}
+end
 
 %end

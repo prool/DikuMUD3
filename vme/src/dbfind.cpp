@@ -35,68 +35,64 @@ class descriptor_data *find_descriptor(const char *name, class descriptor_data *
     return NULL;
 }
 
-/*  Top is the size of the array (minimum 1).
- *  Returns pointer to element of array or null.
- *  Perhaps an index vs. -1 would be better?
- */
-struct bin_search_type *binary_search(struct bin_search_type *ba, const char *str, register int top)
-{
-    register int mid = 0, bot, cmp;
-
-    cmp = 1; /* Assume no compare                        */
-    bot = 0; /* Point to lowest element in array         */
-    top--;   /* Point to top element in array [0..top-1] */
-
-    while (bot <= top)
-    {
-        mid = (bot + top) / 2;
-        if ((cmp = strcmp(str, ba[mid].compare)) < 0)
-            top = mid - 1;
-        else if (cmp > 0)
-            bot = mid + 1;
-        else /* cmp == 0 */
-            break;
-    }
-
-    return (cmp ? 0 : &ba[mid]);
-}
 
 /* Find a named zone */
 class zone_type *find_zone(const char *zonename)
 {
-    struct bin_search_type *ba;
+    // struct bin_search_type *ba;
 
     if ((zonename == NULL) || !*zonename)
         return NULL;
 
-    ba = binary_search(zone_info.ba, zonename, zone_info.no_of_zones);
+    auto it = zone_info.mmp.find(zonename);
+    if (it != zone_info.mmp.end())
+      return it->second;
+    else
+      return NULL;
 
-    return ba ? (class zone_type *)ba->block : NULL;
+/*    ba = binary_search(zone_info.ba, zonename, zone_info.no_of_zones);
+
+    return ba ? (class zone_type *)ba->block : NULL;*/
 }
 
-/* Zonename & name must point to non-empty strings */
+/* Zonename & name must point to non-empty strings. Must be lower case */
 class file_index_type *find_file_index(const char *zonename, const char *name)
 {
     class zone_type *zone;
-    struct bin_search_type *ba;
 
     if (!*name)
         return NULL;
 
-    if ((zone = find_zone(zonename)) == NULL)
+    char bufzone[MAX_STRING_LENGTH];
+    char bufname[MAX_STRING_LENGTH];
+
+    strcpy(bufzone, zonename);
+    str_lower(bufzone);
+
+    if ((zone = find_zone(bufzone)) == NULL)
         return NULL;
 
-    if ((ba = binary_search(zone->ba, name, zone->no_of_fi)) == NULL)
+    strcpy(bufname, name);
+    str_lower(bufname);
+
+    auto it = zone->mmp_fi.find(bufname);
+
+    if (it != zone->mmp_fi.end())
+      return it->second;
+    else
+      return NULL;
+
+    /*if ((ba = binary_search(zone->ba, name, zone->no_of_fi)) == NULL)
         return NULL;
 
-    return (class file_index_type *)ba->block;
+    return (class file_index_type *)ba->block;*/
 }
 
 /* Zonename & name must point to non-empty strings */
-struct diltemplate *find_dil_index(char *zonename, char *name)
+struct diltemplate *find_dil_index(const char *zonename, const char *name)
 {
     class zone_type *zone;
-    struct bin_search_type *ba;
+    //struct bin_search_type *ba;
 
     if (str_is_empty(name))
         return NULL;
@@ -104,10 +100,17 @@ struct diltemplate *find_dil_index(char *zonename, char *name)
     if ((zone = find_zone(zonename)) == NULL)
         return NULL;
 
-    if ((ba = binary_search(zone->tmplba, name, zone->no_tmpl)) == NULL)
+    auto it = zone->mmp_tmpl.find(name);
+
+    if (it != zone->mmp_tmpl.end())
+      return it->second;
+    else
+      return NULL;
+
+/*    if ((ba = binary_search(zone->tmplba, name, zone->no_tmpl)) == NULL)
         return NULL;
 
-    return (struct diltemplate *)ba->block;
+    return (struct diltemplate *)ba->block;*/
 }
 
 /*
@@ -135,8 +138,9 @@ class unit_data *world_room(const char *zone, const char *name)
 {
     class file_index_type *fi;
     fi = find_file_index(zone, name);
-    if (fi && fi->type == UNIT_ST_ROOM)
-        return (fi->unit);
+
+    if (fi && (fi->type == UNIT_ST_ROOM) && (!fi->fi_unit_list.empty()))
+        return (fi->fi_unit_list.front());
 
     return NULL;
 }

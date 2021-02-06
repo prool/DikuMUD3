@@ -117,20 +117,27 @@ int practice_skill_gain(int skill)
 // Otherwise, grows by 2x for each sum mod negative
 // because half cost = 5, double cost = 20.
 // For each training level after 1, cost increases by 50%.
+// 
+// Returning zero means you can't learn more at this level
 int actual_cost(int cost, sbit8 racemodifier, int level, int virtual_level)
 {
    int mod;
    int pct;
    int avg_skill_cost;
+   int calccost;
 
    avg_skill_cost = AVERAGE_SKILL_COST;
+
    if (virtual_level > 100)
    {
       int i;
       i = MIN(100, virtual_level - 100);
       avg_skill_cost += (i * AVERAGE_SKILL_COST * (ABILITY_POINT_FACTOR - 1)) / 100;
-      // At level 200 the average skill cost has increased from 1*average_skill_cost
-      // to ABILITY_POINT_FACTOR * average_skill_cost
+      // With level > 100, the average skill cost will increase as per these average examples
+      // 100 : 10 + ( 0   * 10 * (4-1))/100 = 10+0
+      // 150 : 10 + ( 50  * 10 * (4-1))/100 = 10+15
+      // 200:  10 + ( 100 * 10 * (4-1))/100 = 10+30
+      //1000:  10 + ( 100 * 10 * (4-1))/100 = 10+30
    }
 
    pct = 100;
@@ -140,21 +147,26 @@ int actual_cost(int cost, sbit8 racemodifier, int level, int virtual_level)
    mod = cost + racemodifier;
 
    if (mod == 0)
-      return (avg_skill_cost * pct + 99) / 100;
+      calccost = (avg_skill_cost * pct + 99) / 100;
    else if (mod > 0)
    {
       if (mod > 5)
          mod = 5; // 10-5 = 5 is the cheapest cost
 
       // SO best possible training progression for any char is: 4, 6, 9, 14
-      return ((avg_skill_cost - mod) * pct + 99) / 100;
+      calccost = ((avg_skill_cost - mod) * pct + 99) / 100;
    }
    else // mod < 0
    {
       if (mod < -7)
          mod = -7;
-      return ((avg_skill_cost - 3 * mod) * pct + 99) / 100;
+      calccost = ((avg_skill_cost - 3 * mod) * pct + 99) / 100;
    }
+
+   if (calccost > 5*avg_skill_cost) // Too expensive
+      return 0;
+   else
+      return calccost;
 }
 
 void clear_training_level(class unit_data *ch)
@@ -192,11 +204,13 @@ const char *trainrestricted(class unit_data *pupil, struct profession_cost *cost
    static char buf[MAX_STRING_LENGTH];
    char *c;
 
+   assert(IS_PC(pupil));
+
    strcpy(buf, "[REQ: ");
    c = buf;
    TAIL(c);
 
-   if (CHAR_LEVEL(pupil) < cost_entry->min_level)
+   if (PC_VIRTUAL_LEVEL(pupil) < cost_entry->min_level)
    {
       sprintf(c, "Level:%d ", cost_entry->min_level);
       TAIL(c);
@@ -490,6 +504,7 @@ int pupil_magic(class unit_data *pupil)
       switch (af->id)
       {
       case ID_BLESS:
+      case ID_UNHOLY_BLESSING:
       case ID_BERSERK:
       case ID_RAGE:
       case ID_CURSE:
@@ -1212,7 +1227,7 @@ int teach_init(struct spec_arg *sarg)
          // Copy in all abilities for profession
          for (n = 0; packet->text[n] != NULL; n++)
          {
-            if (g_AbiColl.prof_table[n].profession_cost[nProfession] >= -3)
+            if ((g_AbiColl.prof_table[n].profession_cost[nProfession] >= -3) && !g_AbiColl.tree[n].bAutoTeacherNoAdd)
             {
                a_skill.min_glevel = 0;
                a_skill.max_skill = 100 + max_skill_mod(g_AbiColl.prof_table[n].profession_cost[nProfession]);
@@ -1240,7 +1255,7 @@ int teach_init(struct spec_arg *sarg)
          // Copy in all abilities for profession
          for (n = 0; packet->text[n] != NULL; n++)
          {
-            if (g_SkiColl.prof_table[n].profession_cost[nProfession] >= -3)
+            if (g_SkiColl.prof_table[n].profession_cost[nProfession] >= -3 && !g_SkiColl.tree[n].bAutoTeacherNoAdd)
             {
                a_skill.min_glevel = 0;
                a_skill.max_skill = 100 + max_skill_mod(g_SkiColl.prof_table[n].profession_cost[nProfession]);
@@ -1268,7 +1283,7 @@ int teach_init(struct spec_arg *sarg)
          // Copy in all abilities for profession
          for (n = 0; packet->text[n] != NULL; n++)
          {
-            if (g_SplColl.prof_table[n].profession_cost[nProfession] >= -3)
+            if (g_SplColl.prof_table[n].profession_cost[nProfession] >= -3 && !g_SplColl.tree[n].bAutoTeacherNoAdd)
             {
                a_skill.min_glevel = 0;
                a_skill.max_skill = 100 + max_skill_mod(g_SplColl.prof_table[n].profession_cost[nProfession]);
@@ -1296,7 +1311,7 @@ int teach_init(struct spec_arg *sarg)
          // Copy in all abilities for profession
          for (n = 0; packet->text[n] != NULL; n++)
          {
-            if (g_WpnColl.prof_table[n].profession_cost[nProfession] >= -3)
+            if (g_WpnColl.prof_table[n].profession_cost[nProfession] >= -3 && !g_WpnColl.tree[n].bAutoTeacherNoAdd)
             {
                a_skill.min_glevel = 0;
                a_skill.max_skill = 100 + max_skill_mod(g_WpnColl.prof_table[n].profession_cost[nProfession]);

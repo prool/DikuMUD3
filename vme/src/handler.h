@@ -42,6 +42,8 @@ void destroy_fptr (class unit_data * u, class unit_fptr *f);
 
 void stop_following (class unit_data * ch);
 void start_following (class unit_data * ch, class unit_data * leader);
+void stop_snoopwrite(unit_data *unit);
+void stop_fightfollow(unit_data *unit);
 
 void modify_bright (class unit_data * unit, int bright);
 void trans_set (class unit_data * u);
@@ -70,5 +72,7 @@ void weight_change_unit (class unit_data * unit, int weight);
 
 class unit_data *find_unit_in_list_num (int num, class unit_data * list);
 class unit_data *find_unit_num (int num);
+
+string unit_trace_up(class unit_data *unit);
 
 #endif /* _MUD_HANDLER_H */

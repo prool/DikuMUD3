@@ -34,7 +34,7 @@ code
 {
 :start:
 x:="New Player Helper" in self.quests;
-if (x==null)
+if ((x==null) and (self.level < IMMORTAL_LEVEL))
  {
  act ("You are not a member of the Newbie Council.",
   A_ALWAYS,self,null,null,TO_CHAR);
@@ -70,6 +70,8 @@ if (tgt.level > 20)
 :loop:
    if (isaff(tgt, ID_BLESS))
      subaff(tgt, ID_BLESS);
+   else if (isaff(tgt, ID_UNHOLY_BLESSING))
+     subaff(tgt, ID_UNHOLY_BLESSING);
    else if (isaff(tgt, ID_NBLESS))
      subaff(tgt, ID_NBLESS);
    else if (isaff(tgt, ID_BERSERK))
@@ -197,7 +199,7 @@ var
 code
 {
 x:="New Player Helper" in self.quests;
-if (x==null)
+if ((x==null) and (self.level < IMMORTAL_LEVEL))
  {
  act ("You are not a member of the Newbie Council.",
   A_ALWAYS,self,null,null,TO_CHAR);
@@ -261,6 +263,7 @@ act ("You give your blessing to $3n.",
    quit;
 }
 dilend
+
 dilbegin nheal (arg:string);
 var
  tgt:unitptr;
@@ -268,7 +271,7 @@ var
 code
 {
 x:="New Player Helper" in self.quests;
-if (x==null)
+if ((x==null) and (self.level < IMMORTAL_LEVEL))
  {
  act ("You are not a member of the newbie council.",
   A_ALWAYS,self,null,null,TO_CHAR);
@@ -318,6 +321,7 @@ position_update(tgt);
  quit;
 }
 dilend
+
 dilbegin nsanctuary (arg:string);
 var
  tgt:unitptr;
@@ -325,7 +329,7 @@ var
 code
 {
 x:="New Player Helper" in self.quests;
-if (x==null)
+if ((x==null) and (self.level < IMMORTAL_LEVEL))
  {
  act ("You are not a member of the Newbie Council.",
   A_ALWAYS,self,null,null,TO_CHAR);
@@ -390,7 +394,7 @@ code
     }
 
 x:="New Player Helper" in self.quests;
-if (x==null)
+if ((x==null) and (self.level < IMMORTAL_LEVEL))
  {
  act ("You are not a member of the newbie council.",
   A_ALWAYS,self,null,null,TO_CHAR);
@@ -505,7 +509,7 @@ var
 code
 {
 x:="New Player Helper" in self.quests;
-if (x==null)
+if ((x==null) and (self.level < IMMORTAL_LEVEL))
  {
  act ("You are not a member of the Newbie Council.",  A_ALWAYS,self,null,null,TO_CHAR);
   quit;
@@ -532,7 +536,7 @@ heartbeat:= PULSE_SEC*5;
 
 :start:
 wait(SFB_CMD, ((activator.type == UNIT_ST_PC) and
- (GUIDE in activator.quests) and (command("bring"))));
+ ((GUIDE in activator.quests) or (activator.level > IMMORTAL_LEVEL)) and (command("bring"))));
 block;
 pc:=findunit(activator, argument, FIND_UNIT_GLOBAL, null);
 gd:= activator;
@@ -2589,7 +2593,7 @@ code
 
       :tick:
       wait(SFB_DONE|SFB_TICK, command ("say") and (pc==activator) and (("tour" in argument ) or ("help" in argument)));
-      if (command (CMD_AUTO_TICK) and (self.outside.idx==pc.outside.idx)) 
+      if (command (CMD_AUTO_TICK) and (self.outside == pc.outside)) 
          goto tick;
 
       if ("tour" in argument)
@@ -3090,6 +3094,7 @@ pc:=findunit (self,pc_name,FIND_UNIT_WORLD, null);
 }
 dilend
 
+
 %rooms
 
 hall
@@ -3242,9 +3247,6 @@ keyword{"door"}
 open {EX_OPEN_CLOSE,EX_CLOSED};
 end
 
-
-
-
 newbie_hangout
 names {"newbie room", "hangout"}
 title "The Newbie Guide Hangout"
@@ -3258,43 +3260,43 @@ ALWAYS_LIGHT
 flags{UNIT_FL_NO_TELEPORT}
 dilbegin control();
 external
-  string newbie_names (i:integer);
+	string newbie_names (i:integer);
 var
-  pc : unitptr;
-  npc:unitptr;
-  i:integer;
-  name_str:string;
-  count:integer;
-  code
-  {
-  i:=0;
+	pc : unitptr;
+	npc:unitptr;
+	i:integer;
+	name_str:string;
+	count:integer;
+code
+{
+	i:=0;
+  
 :start:
-wait(SFB_MSG,argument =="stillnewbie");
-if ("$newbie guide is helping" in activator.quests) goto start;
-if (i==AMOUNT_NAMES) i:=0;
-pc:=activator;
-addextra (pc.quests,{"$newbie guide is helping"},"");
-npc:=load ("newbie_guide@newbie");
-name_str:=newbie_names(i);
-substring (npc.names,"newbie guide");
-addstring (npc.names,name_str);
-addstring (npc.names,name_str+" the newbie guide");
-addstring (npc.names,"newbie guide");
-addstring (npc.names,"guide");
-npc.title:=name_str;
-name_str:=name_str+" the Newbie Guide is here helping "+pc.name;
-npc.outside_descr:=name_str;
 
-dilcopy ("newbie_brain@newbie("+pc.name+")" , npc);
-I:=i+1;
-goto start;
+	wait(SFB_MSG,argument =="stillnewbie");
+	if ("$newbie guide is helping" in activator.quests) goto start;
+	if (i==AMOUNT_NAMES) i:=0;
+	pc:=activator;
+	addextra (pc.quests,{"$newbie guide is helping"},"");
+	npc:=load ("newbie_guide@newbie");
+	name_str:=newbie_names(i);
+	substring (npc.names,"newbie guide");
+	addstring (npc.names,name_str);
+	addstring (npc.names,name_str+" the newbie guide");
+	addstring (npc.names,"newbie guide");
+	addstring (npc.names,"guide");
+	npc.title:=name_str;
+	name_str:=name_str+" the Newbie Guide is here helping "+pc.name;
+	npc.outside_descr:=name_str;
+
+	dilcopy ("newbie_brain@newbie("+pc.name+")" , npc);
+	I:=i+1;
+	goto start;
 }
-dilend
+dilend // END control
 
 end
 
-
-%mobiles
 %mobiles
                     ferret
 names {"ferret"}
@@ -3328,7 +3330,6 @@ dilcopy newbie_nokill@newbie();
 dilcopy newbie_nospl@newbie();
 
 end
-
 
 %objects
 bull_board
@@ -3779,33 +3780,30 @@ weight 5000
 dilcopy getem@newbie();
 dilbegin feedme();
 var
-
-pc:unitptr;
+	pc:unitptr;
 code
 {
-heartbeat:=PULSE_SEC*340;
+	heartbeat:=PULSE_SEC*340;
+	
 :start:
-wait(SFB_CMD, ( (activator.type == UNIT_ST_PC) and
-                                (command("feast"))
-                       and (activator.level < 20) )) ;
+	
+	wait(SFB_CMD, ( (activator.type == UNIT_ST_PC) and (command("feast")) and (activator.level < 20) )) ;
 
-pc:= activator;
-              block;
-                   {
-                    pc.full:=24;
-                    pc.thirst:=24;
-                    act("You are no longer hungry or thirsty.",
-                    A_SOMEONE, pc, null, null, TO_CHAR);
-
-
-                    }
+	pc:= activator;
+	block;
+	{
+		pc.full:=24;
+		pc.thirst:=24;
+		act("You are no longer hungry or thirsty.",A_SOMEONE, pc, null, null, TO_CHAR);
+	}
 }
-
 dilend
 end
+
 %reset
 
 load newbie_sign into udgaard/temple max 1
 load pillar into hall max 1
 load bull_board into newbie_hangout max 1
+
 %end

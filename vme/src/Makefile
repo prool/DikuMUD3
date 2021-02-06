@@ -6,7 +6,7 @@ LDLIBS		= -lfl
 SYSPORT =  -DLINUX -DPOSIX  -DDMSERVER # -DMUD_DEBUG -DMEMORY_DEBUG
 
 #system flags
-SYSFLAGS = -m64
+SYSFLAGS = 
 SYSFLAGS += -std=c++11
 #SYSFLAGS += -O6 
 
@@ -40,7 +40,7 @@ VME_SRCS := \
 
 MPLEX_SRCS := \
  $(wildcard ./mplex2/*.cpp) \
-hook.cpp queue.cpp textutil.cpp utility.cpp common.cpp protocol.cpp color.cpp bytestring.cpp membug.cpp
+hook.cpp queue.cpp textutil.cpp utility.cpp protocol.cpp color.cpp bytestring.cpp membug.cpp
 
 DC_SRCS := \
  $(wildcard ./defcomp/*.cpp) 
@@ -115,7 +115,7 @@ CXXFLAGS := $(MPLEX_INC) $(DEBUG) $(SYSPORT) $(SYSFLAGS)
  
 
 # linker flags
-LDFLAGS := -pipe -m64
+LDFLAGS := -pipe
 
 # flags required for dependency generation; passed to compilers
 VME_DEPFLAGS = -MT $@ -MD -MP -MF $(VME_DEP_DIR)/$*.Td

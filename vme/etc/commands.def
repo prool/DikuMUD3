@@ -638,8 +638,9 @@ profession thief        = +5
 profession assassin     = +5
 profession priest       = +2
 profession druid        = +4
-profession conjurer     = +5
+profession mage         = +5
 profession sorcerer     = +0
+profession barbarian 	= +4
 
 
 
@@ -940,6 +941,18 @@ race brownie   =  +2
 race groll     =  -3
 race darkelf   =  +1
 turns    = 0
+profession fighter      = +0
+profession knight       = +0
+profession paladin      = +0
+profession ranger       = +0
+profession thief        = +0
+profession assassin     = +0
+profession priest       = +0
+profession druid        = +0
+profession mage         = +0
+profession sorcerer     = +0
+profession barbarian 	= +0
+auto teacher no add     =  1 // Don't add automatically
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -957,6 +970,18 @@ race half-elf  =  +1
 race brownie   =  +1
 race groll     =  -3
 race darkelf   =  +1
+profession fighter      = +0
+profession knight       = +0
+profession paladin      = +0
+profession ranger       = +0
+profession thief        = +0
+profession assassin     = +0
+profession priest       = +0
+profession druid        = +0
+profession mage         = +0
+profession sorcerer     = +0
+profession barbarian 	= +0
+auto teacher no add     =  1 // Don't add automatically
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -974,6 +999,18 @@ race half-elf  =  +1
 race brownie   =  -1
 race groll     =  -2
 race darkelf   =  +1
+profession fighter      = +0
+profession knight       = +0
+profession paladin      = +0
+profession ranger       = +0
+profession thief        = +0
+profession assassin     = +0
+profession priest       = +0
+profession druid        = +0
+profession mage         = +0
+profession sorcerer     = +0
+profession barbarian 	= +0
+auto teacher no add     =  1 // Don't add automatically
 
 /* - - - - Yet another definition of a skill - - - - */
 index         = SKI_EVALUATE
@@ -994,6 +1031,17 @@ race brownie   =   0
 race groll     =   0
 race darkelf   =   0
 turns    = 6
+profession fighter      = +0
+profession knight       = +0
+profession paladin      = +0
+profession ranger       = +0
+profession thief        = +0
+profession assassin     = +0
+profession priest       = +0
+profession druid        = +0
+profession mage         = +0
+profession sorcerer     = +0
+profession barbarian 	= +0
 
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -1016,6 +1064,18 @@ race half-elf  =   0
 race brownie   =   0
 race groll     =   0
 race darkelf   =   0
+profession fighter      = +0
+profession knight       = +0
+profession paladin      = +0
+profession ranger       = +0
+profession thief        = +0
+profession assassin     = +0
+profession priest       = +0
+profession druid        = +0
+profession mage         = +0
+profession sorcerer     = +0
+profession barbarian 	= +0
+auto teacher no add     =  1 // Don't add automatically
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1038,6 +1098,7 @@ profession assassin     = +2
 profession thief        = +0
 profession ranger       = +0
 profession fighter      = -1
+profession barbarian	= +1
 
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -1087,13 +1148,12 @@ race brownie   =  +1
 race groll     =  -3
 race darkelf   =  +2
 restrict brain          = 35
-profession conjurer     = +5
+profession mage         = +5
 profession sorcerer     = +5
 profession druid        = +2
 profession necromancer  = +2
 profession priest       = +2
 profession assassin     = -3
-profession mystic       = -3
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1116,11 +1176,10 @@ race brownie   =  +2
 race groll     =  -2
 race darkelf   =  +1
 restrict brain          =  5
-profession conjurer     = +5
+profession mage         = +5
 profession sorcerer     = +5
 profession druid        = +3
 profession necromancer  = +0
-profession mystic       = -3
 
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -1149,13 +1208,13 @@ profession necromancer  = +5
 profession thief        = +4
 profession assassin     = +4
 profession druid        = +4
-profession conjurer     = +3
+profession mage         = +3
 profession sorcerer     = +3
 profession knight       = +2
 profession paladin      = +2
 profession ranger       = +2
 profession fighter      = +0
-profession mystic       = +0
+profession barbarian 	= +0
 
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -1254,11 +1313,11 @@ profession fighter      = +0
 profession priest       = +0
 profession druid        = +0
 profession necromancer  = +0
-profession conjurer     = +0
+profession mage         = +0
 profession sorcerer     = +0
-profession mystic       = -2
 profession knight       = -4
 profession paladin      = -4
+profession barbarian 	= +0
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1434,7 +1493,6 @@ profession ranger       = +2
 profession thief        = +0
 profession priest       = +5
 profession druid        = +2
-profession mystic       = +0
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1481,6 +1539,7 @@ profession fighter      = +0
 profession knight       = +5
 profession paladin      = +5
 profession ranger       = +5
+profession barbarian 	= +5
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1505,14 +1564,6 @@ profession thief        = +5
 profession ranger       = +3
 profession assassin     = +2
 profession druid        = +0
-profession mystic       = -1
-profession necromancer  = -1
-profession conjurer     = -1
-profession sorcerer     = -1
-profession fighter      = -1
-profession knight       = -2
-profession paladin      = -2
-profession priest       = -2
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1538,6 +1589,7 @@ profession fighter      = +2
 profession ranger       = +0
 profession necromancer  = +0
 profession priest       = +0
+profession barbarian 	= +5
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1559,13 +1611,13 @@ race half-elf  =   0
 race brownie   =  -1
 race groll     =  +1
 race darkelf   =   0
-profession mystic       = +3
 profession thief        = +0
 profession assassin     = +0
 profession fighter      = +0
 profession knight       = -1
 profession paladin      = -2
 profession ranger       = -2
+profession barbarian 	= +2
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1587,13 +1639,13 @@ race half-elf  =   0
 race brownie   =  -1
 race groll     =  +1
 race darkelf   =   0
-profession mystic       = +3
 profession thief        = +0
 profession assassin     = +0
 profession fighter      = +0
 profession knight       = -1
 profession paladin      = -2
 profession ranger       = -2
+profession barbarian 	= +2
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1615,13 +1667,13 @@ race half-elf  =   0
 race brownie   =  -1
 race groll     =  +1
 race darkelf   =   0
-profession mystic       = +3
 profession thief        = +0
 profession assassin     = +0
 profession fighter      = +0
 profession knight       = -1
 profession paladin      = -2
 profession ranger       = -2
+profession barbarian 	= +2
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1643,6 +1695,7 @@ race half-elf  =   0
 race brownie   =  -1
 race groll     =  +1
 race darkelf   =   0
+profession barbarian 	= +2
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1664,6 +1717,7 @@ race half-elf  =   0
 race brownie   =  -1
 race groll     =  +1
 race darkelf   =   0
+profession barbarian 	= +2
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1691,10 +1745,10 @@ profession fighter      = +0
 profession knight       = +0
 profession paladin      = +0
 profession priest       = -1
-profession mystic       = -1
 profession necromancer  = -2
-profession conjurer     = -2
+profession mage         = -2
 profession sorcerer     = -2
+profession barbarian 	= +0
 
 /* - - - - Yet another definition of a skill - - - - */
 
@@ -1723,10 +1777,10 @@ profession druid        = -2
 profession knight       = -2
 profession paladin      = -2
 profession priest       = -3
-profession mystic       = -3
 profession necromancer  = -3
-profession conjurer     = -3
+profession mage         = -3
 profession sorcerer     = -3
+profession barbarian 	= +0
 
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -1776,7 +1830,6 @@ profession ranger       = +2
 profession thief        = +0
 profession assassin     = +0
 profession priest       = +0
-profession mystic       = -3
 profession druid        = -4
 
 
@@ -1921,7 +1974,7 @@ index          = SKI_SKIN
 name           = skin
 command        = skin
 minpos         = POSITION_STANDING
-func           =  skin@skills
+func           = skin@skills
 type           = TYPE_SKILL
 race human     =  -1
 race elf       =  +1
@@ -1937,16 +1990,6 @@ race darkelf   =   0
 restrict dexterity      = 10
 profession ranger       = +2
 profession druid        = +0
-profession fighter      = -2
-profession knight       = -2
-profession paladin      = -2
-profession thief        = -2
-profession assassin     = -2
-profession priest       = -2
-profession mystic       = -2
-profession necromancer  = -2
-profession conjurer     = -2
-profession sorcerer     = -2
 command  = skills
 func = ski_dil@commands
 minpos   = POSITION_DEAD
@@ -2404,8 +2447,8 @@ race half-elf  =   0
 race brownie   =   0
 race groll     =   0
 race darkelf   =   0
-restrict strength       = 100
-restrict constitution   = 80
+restrict strength       = 50
+restrict constitution   = 50
 profession barbarian      = +5
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -2414,6 +2457,7 @@ index          = SKI_BERSERK
 name           = berserk
 command        = berserk
 minpos         = POSITION_STANDING
+turns          = PULSE_VIOLENCE/2
 func           = ski_berserk@skills
 type           = TYPE_SKILL
 race human     =   0
@@ -2427,7 +2471,6 @@ race half-elf  =   0
 race brownie   =   0
 race groll     =   0
 race darkelf   =   0
-restrict constitution   = 50
 profession barbarian      = +5
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -2436,8 +2479,7 @@ index          = SKI_TAUNT
 name           = taunt
 command        = taunt
 minpos         = POSITION_FIGHTING
-turns          = 1
-turns          = PULSE_VIOLENCE/2
+turns          = PULSE_VIOLENCE
 func           = ski_taunt@skills
 type           = TYPE_SKILL
 race human     =   0
@@ -2452,7 +2494,7 @@ race brownie   =   0
 race groll     =   0
 race darkelf   =   0
 restrict strength       = 10
-restrict constitution   = 50
+restrict constitution   = 30
 profession barbarian      = +5
 
 /* - - - - Yet another definition of a skill - - - - */
@@ -2478,6 +2520,157 @@ restrict strength       = 30
 restrict constitution   = 30
 profession barbarian      = +5
 
+index          = SKI_LEAP
+name           = leap
+command        = leap
+minpos         = POSITION_FIGHTING
+turns          = PULSE_VIOLENCE
+func           = ski_leap@skills
+type 		   = TYPE_SKILL
+race human     =  0
+race elf       =  0
+race dwarf     =  0
+race halfling  =  0
+race gnome     =  0
+race half-orc  =  0
+race half-ogre =  0
+race half-elf  =  0
+race brownie   =  0
+race groll     =  0
+race darkelf   =  0
+restrict level          = 10
+profession barbarian       = +5
+
+index          = SKI_CHARGE
+name           = charge
+command        = charge
+minpos         = POSITION_STANDING
+turns          = PULSE_VIOLENCE
+func           = ski_charge@skills
+type 		   = TYPE_SKILL
+race human     =  0
+race elf       =  0
+race dwarf     =  0
+race halfling  =  0
+race gnome     =  0
+race half-orc  =  0
+race half-ogre =  0
+race half-elf  =  0
+race brownie   =  0
+race groll     =  0
+race darkelf   =  0
+restrict level          = 10
+profession barbarian      = +5
+
+index          = SKI_DEFEND
+name           = defend
+command        = defend
+minpos         = POSITION_STANDING
+turns          = PULSE_VIOLENCE
+func           = ski_defend@skills
+type 		   = TYPE_SKILL
+race human     =  0
+race elf       =  0
+race dwarf     =  0
+race halfling  =  0
+race gnome     =  0
+race half-orc  =  0
+race half-ogre =  0
+race half-elf  =  0
+race brownie   =  0
+race groll     =  0
+race darkelf   =  0
+restrict constitution   = 50
+restrict level          = 40
+profession barbarian      = +5
+
+index          = SKI_WHIRL
+name           = whirl
+command        = whirl
+minpos         = POSITION_FIGHTING
+turns          = PULSE_VIOLENCE
+func           = ski_whirl@skills
+type 		   = TYPE_SKILL
+race human     =  0
+race elf       =  0
+race dwarf     =  0
+race halfling  =  0
+race gnome     =  0
+race half-orc  =  0
+race half-ogre =  0
+race half-elf  =  0
+race brownie   =  0
+race groll     =  0
+race darkelf   =  0
+restrict constitution   = 40
+restrict level          = 50
+profession barbarian    = +3
+
+index          = SKI_CLEAVE
+name           = cleave
+command        = cleave
+minpos         = POSITION_FIGHTING
+turns          = PULSE_VIOLENCE
+func           = ski_cleave@skills
+type 		   = TYPE_SKILL
+race human     =  0
+race elf       =  0
+race dwarf     =  0
+race halfling  =  0
+race gnome     =  0
+race half-orc  =  0
+race half-ogre =  0
+race half-elf  =  0
+race brownie   =  0
+race groll     =  0
+race darkelf   =  0
+restrict constitution   = 30
+restrict level          = 35
+profession barbarian      = +5
+
+index          = SKI_REND
+name           = rend
+command        = rend
+minpos         = POSITION_FIGHTING
+turns          = PULSE_VIOLENCE
+func           = ski_rend@skills
+type 		   = TYPE_SKILL
+race human     =  0
+race elf       =  0
+race dwarf     =  0
+race halfling  =  0
+race gnome     =  0
+race half-orc  =  0
+race half-ogre =  0
+race half-elf  =  0
+race brownie   =  0
+race groll     =  0
+race darkelf   =  0
+restrict constitution   = 40
+restrict level          = 30
+profession barbarian      = +5
+
+index          = SKI_SLAM
+name           = slam
+command        = slam
+minpos         = POSITION_FIGHTING
+turns          = PULSE_VIOLENCE
+func           = ski_slam@skills
+type 		   = TYPE_SKILL
+race human     =  0
+race elf       =  0
+race dwarf     =  0
+race halfling  =  0
+race gnome     =  0
+race half-orc  =  0
+race half-ogre =  0
+race half-elf  =  0
+race brownie   =  0
+race groll     =  0
+race darkelf   =  0
+restrict constitution   = 50
+profession barbarian      = +5
+
 /* END Barbarian Skills */
 
 
@@ -2489,6 +2682,24 @@ type = TYPE_SOCIAL
 
 command  = alias
 func     = do_alias@commands
+minpos   = POSITION_DEAD
+minlevel = 0
+type     = 0
+
+command  = pistore
+func     = pistore@treasure
+minpos   = POSITION_DEAD
+minlevel = 0
+type     = 0
+
+command  = piunstore
+func     = piunstore@treasure
+minpos   = POSITION_DEAD
+minlevel = 0
+type     = 0
+
+command  = pilist
+func     = pilist@treasure
 minpos   = POSITION_DEAD
 minlevel = 0
 type     = 0
@@ -2700,10 +2911,10 @@ loglevel = 230
 type     = 0
 
 command  = restore
-func = do_restore@commands
+func     = do_restore@commands
 minpos   = POSITION_DEAD
-minlevel = 239
-loglevel = 239
+minlevel = 210
+loglevel = 210
 type     = 0
 
 command  = set
@@ -2714,7 +2925,7 @@ loglevel = 230
 type     = 0
 
 command  = setskill
-func =do_setskill@commands
+func     = do_setskill@commands
 minpos   = POSITION_SLEEPING
 minlevel = 239
 loglevel = 239
@@ -2819,7 +3030,7 @@ loglevel = 200
 type     = 0
 
 command  = competition
-// func = cmd_comp@competition
+func = cmd_comp@competition
 minpos   = POSITION_DEAD
 minlevel = 215
 loglevel = 215
@@ -4308,10 +4519,10 @@ profession thief        = +2
 profession assassin     = +2
 profession priest       = +1
 profession druid        = +1
-profession mystic       = +1
 profession necromancer  = +0
-profession conjurer     = +0
+profession mage         = +0
 profession sorcerer     = +0
+profession barbarian    = +4
 
 index          = SKI_ARM_HLEATHER
 name           = armor hard leather
@@ -4336,10 +4547,10 @@ profession thief        =  0
 profession assassin     =  0
 profession priest       =  0
 profession druid        = -1
-profession mystic       = -2
 profession necromancer  = -2
-profession conjurer     = -2
+profession mage         = -2
 profession sorcerer     = -2
+profession barbarian    = +4
 
 
 index          = SKI_ARM_CHAIN
@@ -4365,10 +4576,10 @@ profession thief        = -2
 profession assassin     = -2
 profession priest       =  0
 profession druid        = -2
-profession mystic       = -2
 profession necromancer  = -2
-profession conjurer     = -2
+profession mage         = -2
 profession sorcerer     = -2
+profession barbarian    = +4
 
 
 index          = SKI_ARM_PLATE
@@ -4394,10 +4605,10 @@ profession thief        = -7
 profession assassin     = -7
 profession priest       = -3
 profession druid        = -7
-profession mystic       = -7
 profession necromancer  = -7
-profession conjurer     = -7
+profession mage         = -7
 profession sorcerer     = -7
+profession barbarian    = +3
 
 
 / ******************************** */

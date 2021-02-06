@@ -121,12 +121,12 @@ void dilfi_edit(register class dilprg *p)
     {
         if (!IS_PC((class unit_data *)v1->val.ptr))
             dil_typeerr(p, "not a pc unit");
+        else if (!CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr))
+            dil_typeerr(p, "PC has no descriptor in edit()");
         else
         {
-            CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr)->postedit =
-                dil_edit_done;
-            CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr)->editing =
-                p->owner;
+            CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr)->postedit = dil_edit_done;
+            CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr)->editing = p->owner;
             CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr)->editref = NULL;
 
             set_descriptor_fptr(CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr),
@@ -171,7 +171,6 @@ void dilfi_gamestate(register class dilprg *p)
 {
     dilval *v2 = p->stack.pop();
     dilval *v1 = p->stack.pop();
-    class unit_data *load_room;
 
     if (dil_type_check("gamestate", p, 2,
                        v1, TYPEFAIL_NULL, 1, DILV_UP,
@@ -184,37 +183,13 @@ void dilfi_gamestate(register class dilprg *p)
             switch (v2->val.num)
             {
             case GS_PLAY:
-                if (!char_is_playing((class unit_data *)v1->val.ptr))
-                {
-                    insert_in_unit_list((class unit_data *)v1->val.ptr);
-
-                    if (CHAR_LAST_ROOM((class unit_data *)v1->val.ptr))
-                    {
-                        load_room =
-                            CHAR_LAST_ROOM((class unit_data *)v1->val.ptr);
-                        CHAR_LAST_ROOM((class unit_data *)v1->val.ptr) = NULL;
-                    }
-                    else
-                        load_room =
-                            hometown_unit(PC_HOME((class unit_data *)v1->val.ptr));
-
-                    unit_to_unit((class unit_data *)v1->val.ptr, load_room);
-                    dil_start_special((class unit_data *)v1->val.ptr, p);
-                }
+                UPC((class unit_data *)v1->val.ptr)->gstate_togame(p);
                 break;
             case GS_QUIT:
                 extract_unit((class unit_data *)v1->val.ptr);
                 break;
             case GS_MENU:
-                if (char_is_playing((class unit_data *)v1->val.ptr))
-                {
-
-                    CHAR_LAST_ROOM((class unit_data *)v1->val.ptr) =
-                        unit_room((class unit_data *)v1->val.ptr);
-                    unit_from_unit((class unit_data *)v1->val.ptr);
-                    remove_from_unit_list((class unit_data *)v1->val.ptr);
-                    dil_stop_special((class unit_data *)v1->val.ptr, p);
-                }
+                UPC((class unit_data *)v1->val.ptr)->gstate_tomenu(p);
                 break;
             case GS_LINK_DEAD:
                 if (CHAR_DESCRIPTOR((class unit_data *)v1->val.ptr))
@@ -314,10 +289,11 @@ void dilfi_setpwd(register class dilprg *p)
             p->waitcmd = WAITCMD_QUIT;
         }
         else if (v1->val.ptr && v2->val.ptr)
-            strncpy(PC_PWD((class unit_data *)v1->val.ptr),
-                    crypt((char *)v2->val.ptr,
-                          PC_FILENAME((class unit_data *)v1->val.ptr)),
-                    10);
+        {
+            strncpy(PC_PWD((class unit_data *)v1->val.ptr), crypt((char *)v2->val.ptr,
+                          PC_FILENAME((class unit_data *)v1->val.ptr)), PC_MAX_PASSWORD);
+            PC_PWD((class unit_data *)v1->val.ptr)[PC_MAX_PASSWORD-1] = 0;
+        }
     }
     delete v1;
     delete v2;
@@ -408,7 +384,14 @@ void dilfi_foe(class dilprg *p)
 
             for (i = 0; i < unit_vector.top; i++)
                 dil_add_secure(p, UVI(i), NULL);
-            dil_add_secure(p, p->sarg->owner, NULL);
+            
+            // This statement is incorrect in Yamato when a room uses foreach() this
+            // will cause the room to get added as one of the items to be looped
+            // when it asked only for PCs
+            // dil_add_secure(p, p->sarg->owner, NULL);
+
+            if (IS_SET(UNIT_TYPE(p->sarg->owner), v1->val.num))
+                dil_add_secure(p, p->sarg->owner, NULL);
         }
     }
     delete v1;
@@ -461,7 +444,7 @@ void dilfi_fon(class dilprg *p)
     delete v1;
 }
 
-/* storeall */
+/* DIL store() */
 void dilfi_stora(class dilprg *p)
 {
     dilval *v3 = p->stack.pop();
@@ -618,20 +601,102 @@ void dilfi_amod(class dilprg *p)
     delete v2;
 }
 
+
+
+// set_weight_base
+// Set unitptr param 1 base weight to param 2 int value
+// Sets a unit's base weight and adjustes the weight of the unit and everything it is in.
+// 
+void dilfi_dispatch(class dilprg *p)
+{
+    dilval *v1 = p->stack.pop();
+
+    if (dil_type_check("set_weight_base", p, 1,
+                       v1, TYPEFAIL_NULL, 1, DILV_SP))
+    {
+        if (v1->val.ptr)
+        {
+            void pipeMUD_write(const char *str);
+            pipeMUD_write((const char *) v1->val.ptr);
+        }
+    }
+    delete v1;
+}
+
+
+// set_weight_base
+// Set unitptr param 1 base weight to param 2 int value
+// Sets a unit's base weight and adjustes the weight of the unit and everything it is in.
+// 
+void dilfi_set_weight_base(class dilprg *p)
+{
+    dilval *v2 = p->stack.pop();
+    dilval *v1 = p->stack.pop();
+
+    if (dil_type_check("set_weight_base", p, 2,
+                       v1, TYPEFAIL_NULL, 1, DILV_UP,
+                       v2, FAIL_NULL, 1, DILV_INT))
+    {
+        if (v1->val.ptr)
+        {
+            int dif = v2->val.num - UNIT_BASE_WEIGHT((class unit_data *) v1->val.ptr);
+
+            /* set new baseweight */
+            UNIT_BASE_WEIGHT((class unit_data *) v1->val.ptr) = v2->val.num;
+
+            /* update weight */
+            weight_change_unit((class unit_data *) v1->val.ptr, dif);
+        }
+    }
+    delete v1;
+    delete v2;
+}
+
+
+// set_weight
+// Set unitptr param 1 weight to param 2 int value
+// Sets a unit's weight and the weight of everything it is in.
+//
+void dilfi_set_weight(class dilprg *p)
+{
+    dilval *v2 = p->stack.pop();
+    dilval *v1 = p->stack.pop();
+
+    if (dil_type_check("set_weight", p, 2,
+                       v1, TYPEFAIL_NULL, 1, DILV_UP,
+                       v2, FAIL_NULL, 1, DILV_INT))
+    {
+        if (v1->val.ptr)
+        {
+            if (v2->val.num < UNIT_BASE_WEIGHT((class unit_data *) v1->val.ptr))
+                szonelog(p->frame->tmpl->zone, "DIL '%s' setting unit %s weight to %d less than base weight of %d.",
+                        p->frame->tmpl->prgname, UNIT_FI_NAME((class unit_data *) v1->val.ptr),
+                        v2->val.num, UNIT_BASE_WEIGHT((class unit_data *) v1->val.ptr));
+
+            int dif = v2->val.num - UNIT_WEIGHT((class unit_data *) v1->val.ptr);
+
+            /* update weight */
+            weight_change_unit((class unit_data *) v1->val.ptr, dif);
+        }
+    }
+    delete v1;
+    delete v2;
+}
+
+
 /* set weight */
 void dilfi_swt(class dilprg *p)
 {
     dilval *v2 = p->stack.pop();
     dilval *v1 = p->stack.pop();
-    int dif;
 
     if (dil_type_check("setweight", p, 2,
                        v1, TYPEFAIL_NULL, 1, DILV_UP,
                        v2, FAIL_NULL, 1, DILV_INT))
+    {
         if (v1->val.ptr)
         {
-            dif =
-                v2->val.num - UNIT_BASE_WEIGHT((class unit_data *)v1->val.ptr);
+            int dif = v2->val.num - UNIT_BASE_WEIGHT((class unit_data *)v1->val.ptr);
 
             /* set new baseweight */
             UNIT_BASE_WEIGHT((class unit_data *)v1->val.ptr) = v2->val.num;
@@ -639,6 +704,7 @@ void dilfi_swt(class dilprg *p)
             /* update weight */
             weight_change_unit((class unit_data *)v1->val.ptr, dif);
         }
+    }
     delete v1;
     delete v2;
 }
@@ -2059,7 +2125,23 @@ void dilfi_sue(register class dilprg *p)
                     /* *((class extra_descr_data **)v1->ref) =
                         (*((class extra_descr_data **)v1->ref))->remove((char *)v2->val.ptr); */
 
+                    // Save our friend exd here, because rogue_delete is going to change the ref value
+                    class extra_descr_data *exd = *(class extra_descr_data **) v1->ref;
+
                     rogue_remove((class extra_descr_data **)v1->ref, (char *)v2->val.ptr);
+
+                    // Now reuse exd here to clear out any invalid pointers
+                    dil_clear_extras(p, exd);
+
+                    // So we can get into a really messy situation here.
+                    // If in a DIL program you have two extraptr, e.g. u.extra and myextra := u.extra.
+                    // Then call this sub() and delete the head element from u. Next check myextra.name. 
+                    // It will now reference a deleted memory space. Not sure why this hasn't been an
+                    // issue before.
+                    //
+                    // We could of course now scan for local variables and NULL them out. But what if
+                    // there are other DILs that have saved a reference to it? (and are extras even
+                    // volatile)
                 }
             }
         break;
@@ -2480,9 +2562,6 @@ void dilfi_snta(register class dilprg *p)
                        v2, TYPEFAIL_NULL, 1, DILV_SP))
         if (v1->val.ptr && v2->val.ptr)
         {
-            extern class unit_data *unit_list;
-
-            class unit_data *u;
             class file_index_type *fi;
 
             if ((fi = str_to_file_index((char *)v2->val.ptr)))
@@ -2500,11 +2579,15 @@ void dilfi_snta(register class dilprg *p)
                 sarg.arg = (char *)v1->val.ptr;
                 sarg.mflags = SFB_MSG;
 
-                for (u = unit_list; u; u = u->gnext)
+                std::forward_list<class unit_data *>::iterator it;
+                for (it = fi->fi_unit_list.begin() ; it != fi->fi_unit_list.end(); it++)
+                    unit_function_scan(*it, &sarg);
+
+                /*for (u = unit_list; u; u = u->gnext)
                 {
                     if (UNIT_FILE_INDEX(u) == fi)
                         unit_function_scan(u, &sarg);
-                }
+                }*/
                 dil_test_secure(p);
             }
         }
@@ -2534,10 +2617,12 @@ void dilfi_sntadil(register class dilprg *p)
             if (tmpl)
             {
                 class dilprg *tp;
+                if (tmpl->nextdude)
+                    slog(LOG_ALL, 0, "INVESTIGATE: DIL sendtoall() we appear to have a nested sendtoall() with nextdude.");
 
-                for (tp = dil_list; tp; tp = dil_list_nextdude)
+                for (tp = tmpl->prg_list; tp; tp = tmpl->nextdude)
                 {
-                    dil_list_nextdude = tp->next;
+                    tmpl->nextdude = tp->next;
 
                     if (tp->fp && tp->fp->tmpl == tmpl && tp != p)
                     {
@@ -2570,6 +2655,7 @@ void dilfi_sntadil(register class dilprg *p)
                         function_activate(tp->owner, &sarg);
                     }
                 } /* for */
+                tmpl->nextdude = NULL;
                 dil_test_secure(p);
             }
         }

@@ -194,9 +194,9 @@ void make_code(struct exptype *dest);
 %token DILSC_UNIQUE DILSC_PRIORITY
 
 /* DIL functions */
-%token DILSE_ATOI DILSE_RND  DILSE_FNDU DILSE_FNDRU DILSE_FNDR DILSE_LOAD
+%token DILSE_ATOI DILSE_RND  DILSE_FNDU DILSE_FNDRU DILSE_FNDR DILSE_FNDZ DILSE_LOAD
 %token DILSE_GETW DILSE_ITOA DILSE_ISS  DILSE_IN   DILSE_ISA DILSE_CLONE
-%token DILSE_CMDS DILSE_FNDS DILSE_GETWS DILSE_LEN DILSE_PURS DILSE_TRMO
+%token DILSE_CMDS DILSE_FNDS DILSE_FNDSI DILSE_GETWS DILSE_LEN DILSE_PURS DILSE_TRMO
 %token DILSE_DLD  DILSE_DLF  DILSE_LAND DILSE_LOR DILSE_VISI DILSE_OPPO
 %token DILSE_RTI  DILSE_PCK  DILSE_ISLT DILSE_GETCLR DILSE_ADDCLR
 %token DILSE_SPLIT DILSE_GHEAD DILSE_REPLACE DILSE_DELCLR DILSE_CHGCLR
@@ -204,7 +204,7 @@ void make_code(struct exptype *dest);
 %token DILSE_AND DILSE_OR DILSE_NOT DILSE_ISPLAYER
 %token DILSE_WPNTXT DILSE_SKITXT DILSE_SENDPRE DILSE_GOPP
 %token DILSE_RHEAD DILSE_NHEAD DILSE_OHEAD DILSE_PHEAD
-%token DILSE_GFOL DILSE_SACT  DILSE_GINT
+%token DILSE_GFOL DILSE_SACT  DILSE_GINT DILSE_SHELL 
 
 /* DIL built-in variables */
 %token DILTO_EQ DILTO_NEQ DILTO_PEQ DILTO_SEQ DILTO_LEQ DILTO_GEQ
@@ -228,7 +228,7 @@ void make_code(struct exptype *dest);
 %token DILSI_SEC  DILSI_USE DILSI_ADA DILSI_SETF DILSI_CHAS
 %token DILSI_SUA  DILSI_EQP DILSI_UEQ DILSI_SETE
 %token DILSI_QUIT DILSI_LOG DILSI_SNTA DILSI_SNTADIL DILSI_DLC DILSE_INTR
-%token DILSI_CLI  DILSI_SWT DILSI_SBT DILSE_ATSP DILSI_FOLO DILSI_LCRI
+%token DILSI_CLI  DILSI_SET_W_BASE DILSI_SET_W DILSI_DISPATCH DILSI_SBT DILSE_ATSP DILSI_FOLO DILSI_LCRI
 %token DILSI_PGSTR DILSI_STORA DILSI_STOPF DILSI_EDIT DILSI_KEDIT
 %token DILSI_SNDDONE DILSI_GMSTATE DILSI_INSLST DILSI_REMLST
 
@@ -259,7 +259,7 @@ void make_code(struct exptype *dest);
 %token DILSF_FNAME DILSF_NOTES DILSF_HELP DILSF_CREATORS DILSF_PAYONLY
 %token DILSF_RSTTM DILSF_EDT DILSF_SWT DILSF_LOGLVL
 %token DILSF_VALS DILSF_NARM DILSF_OPPCT DILSF_KEY DILSF_LASTROOM
-%token DILSF_EXITKEY DILSF_FOLCT DILSF_OFFEN DILSF_DEFEN
+%token DILSF_EXITKEY DILSF_FOLCT DILSF_OFFEN DILSF_DEFEN DILSF_SYMNAME
 
 /* DIL types */
 %token DILST_UP DILST_INT DILST_SP DILST_SLP DILST_EDP DILST_ZP DILST_CP
@@ -1086,6 +1086,14 @@ field    : idx
             $$.dsl = DSL_DYN;
             $$.num = DILF_NMI;
          }
+         | DILSF_SYMNAME       /* .symname */
+         {
+            INITEXP($$);
+            $$.rtyp = DILV_UP;
+            $$.typ = DILV_SP;
+            $$.dsl = DSL_DYN;
+            $$.num = DILF_SYMNAME;
+         }
           | DILSF_KEY       /* .key */
          {
             INITEXP($$);
@@ -1452,7 +1460,8 @@ field    : idx
             INITEXP($$);
             $$.rtyp = DILV_UP;
             $$.typ = DILV_INT;
-            $$.dsl = DSL_LFT;
+            $$.dsl = DSL_DYN;
+            //$$.dsl = DSL_LFT;
             $$.num = DILF_BWT;
          }
          | DILSF_WGT       /* .weight */
@@ -1460,7 +1469,8 @@ field    : idx
             INITEXP($$);
             $$.rtyp = DILV_UP;
             $$.typ = DILV_INT;
-            $$.dsl = DSL_LFT;
+            $$.dsl = DSL_DYN;
+            //$$.dsl = DSL_LFT;
             $$.num = DILF_WGT;
          }
          | DILSF_EDT       /* .editing */
@@ -2761,6 +2771,22 @@ dilfun   :  funcall
             }
             FREEEXP($3);
          }
+         |  DILSE_SHELL '(' dilexp ')'
+         {
+            INITEXP($$);
+            if ($3.typ != DILV_SP)
+               dilfatal("Arg 1 of 'shell' not string");
+            else {
+               /* Type is ok */
+               /* Function is not _yet_ static */
+               $$.dsl = DSL_DYN;
+               $$.typ = DILV_INT;
+               make_code(&($3));
+               add_code(&($$),&($3));
+               add_ubit8(&($$),DILE_PLAYERID);
+            }
+            FREEEXP($3);
+         }
          | DILSE_DLD '(' dilexp ',' dilexp ')'
          {
             INITEXP($$);
@@ -3218,7 +3244,23 @@ dilfun   :  funcall
                add_code(&($$),&($3));
                add_ubit8(&($$),DILE_FNDR);
             }
-	    FREEEXP($3);
+            FREEEXP($3);
+         }
+         | DILSE_FNDZ '(' dilexp ')'
+         {
+            INITEXP($$);
+            if ($3.typ != DILV_SP)
+               dilfatal("Arg 1 of 'findzone' not string");
+            else {
+               /* Type is ok */
+               /* Make nodes dynamic */
+               $$.dsl = DSL_DYN;
+               $$.typ = DILV_ZP;
+               make_code(&($3));
+               add_code(&($$),&($3));
+               add_ubit8(&($$),DILE_FNDZ);
+            }
+            FREEEXP($3);
          }
          | DILSE_FNDS '(' dilexp ')'
          {
@@ -3236,8 +3278,28 @@ dilfun   :  funcall
             }
             FREEEXP($3);
          }
-         | DILSE_FNDS '(' dilexp ',' dilexp ',' dilexp ')'
+         | DILSE_FNDS '(' dilexp ',' dilexp ')'
          {
+            INITEXP($$);
+            if ($3.typ != DILV_SP)
+               dilfatal("Arg 1 of 'findsymbolic' not string");
+            else if ($5.typ != DILV_INT)
+               dilfatal("Arg 2 of 'findsymbolic' not an integer (idx)");
+            else {
+               /* Type is ok */
+               /* Make nodes dynamic */
+               $$.dsl = DSL_DYN;
+               $$.typ = DILV_UP;
+               make_code(&($3));
+               make_code(&($5));
+               add_code(&($$),&($3));
+               add_code(&($$),&($5));
+               add_ubit8(&($$),DILE_FNDSIDX);
+            }
+            FREEEXP($3);
+         }
+         | DILSE_FNDS '(' dilexp ',' dilexp ',' dilexp ')'
+         { 
             INITEXP($$);
             if ($3.typ != DILV_UP)
 	      dilfatal("Arg 1 of 'findsymbolic' not a unitptr");
@@ -4860,9 +4922,9 @@ dilproc  : corefuncall
                bwrite_ubit8(&wtmp,DILI_SBT);
             }
          }
-         | DILSI_SWT '(' coreexp ',' coreexp ')' ihold
+         | DILSI_SET_W_BASE '(' coreexp ',' coreexp ')' ihold
          {
-	    checkbool("argument 2 of setweight",$5.boolean);
+	         checkbool("argument 2 of set_weight_base", $5.boolean);
             if ($3.typ != DILV_UP)
                dilfatal("Arg 1 of 'setweight' not an unitptr");
             else if ($5.typ != DILV_INT)
@@ -4871,7 +4933,32 @@ dilproc  : corefuncall
                $$.fst = $3.fst;
                $$.lst = $7+1;
                wtmp = &tmpl.core[$7];
-               bwrite_ubit8(&wtmp,DILI_SWT);
+               bwrite_ubit8(&wtmp, DILI_SET_W_BASE);
+            }
+         }
+         | DILSI_SET_W '(' coreexp ',' coreexp ')' ihold
+         {
+	         checkbool("argument 2 of set_weight",$5.boolean);
+            if ($3.typ != DILV_UP)
+               dilfatal("Arg 1 of 'set_weight' not an unitptr");
+            else if ($5.typ != DILV_INT)
+               dilfatal("Arg 2 of 'set_weight' not an integer");
+            else {
+               $$.fst = $3.fst;
+               $$.lst = $7+1;
+               wtmp = &tmpl.core[$7];
+               bwrite_ubit8(&wtmp, DILI_SET_W);
+            }
+         }
+         | DILSI_DISPATCH '(' coreexp ')' ihold
+         {
+            if ($3.typ != DILV_SP)
+               dilfatal("Arg 1 of 'dispatch' not a string");
+            else {
+               $$.fst = $3.fst;
+               $$.lst = $5+1;
+               wtmp = &tmpl.core[$5];
+               bwrite_ubit8(&wtmp, DILI_DISPATCH);
             }
          }
          | DILSI_SET '(' coreexp ',' coreexp ')' ihold

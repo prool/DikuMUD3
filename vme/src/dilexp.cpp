@@ -557,7 +557,7 @@ void dilfe_zhead(class dilprg *p)
     dilval *v = new dilval;
     v->atyp = DILA_NORM;
     v->type = DILV_ZP;
-    v->val.ptr = zone_info.zone_list;
+    v->val.ptr = zone_info.mmp.begin()->second;
     p->stack.push(v);
 }
 
@@ -1029,9 +1029,9 @@ void dilfe_ckpwd(class dilprg *p)
             }
 
             v->type = DILV_INT;
-            if (strncmp(crypt((char *)v2->val.ptr,
+            if (pwdcompare(crypt((char *)v2->val.ptr,
                               PC_FILENAME((class unit_data *)v1->val.ptr)),
-                        PC_PWD((class unit_data *)v1->val.ptr), 10))
+                        PC_PWD((class unit_data *)v1->val.ptr), PC_MAX_PASSWORD))
                 v->val.num = FALSE;
             else
                 v->val.num = TRUE;
@@ -1114,9 +1114,7 @@ void dilfe_atsp(register class dilprg *p)
                                                 sa.pEffect = str_dup((char *)v6->val.ptr); 
 
                                             /* cast the spell */
-                                            v->val.num =
-                                                spell_offensive(&sa, v1->val.num,
-                                                                v5->val.num);
+                                            v->val.num = spell_offensive(&sa, v1->val.num, v5->val.num);
 
                                             if (sa.pEffect)
                                                 FREE(sa.pEffect);
@@ -1650,6 +1648,8 @@ void dilfe_flog(class dilprg *p)
     delete v3;
 }
 
+
+// loadstr()
 void dilfe_ldstr(class dilprg *p)
 {
     dilval *v = new dilval;
@@ -3025,6 +3025,83 @@ void dilfe_isplayer(register class dilprg *p)
     delete v1;
 }
 
+void *threadcallout(void *p)
+{
+    const char *str = (char *) p;
+
+    // Process the string here, to do some basic security.
+    char buf[MAX_STRING_LENGTH];
+    int ok = true;
+
+    str_next_word_copy(str, buf);
+
+    if (strchr(buf, '/') || strchr(buf, ' ') || strchr(buf, ';') || strstr(buf, ".."))
+    {
+        slog(LOG_BRIEF, 0, "bin command %s contains an illegal character (/ ;) or .. ", buf);
+        ok = false;
+    }
+
+    if (ok)
+    {
+        string s;
+        s = "./allow/";  // current dir iswhere vme/bin is located, set to bin/allow/
+        s.append(str);
+        slog(LOG_BRIEF , 0, "system('%s'); ", s.c_str());
+        int rc = ::system((const char *) s.c_str());
+
+        if (rc == -1 || WEXITSTATUS(rc) != 0)
+            slog(LOG_BRIEF, 0, "fail system('%s') rc=%d exitstatus=%d", str, rc, WEXITSTATUS(rc));
+        else
+            slog(LOG_BRIEF, 0, "success system('%s') rc=%d exitstatus=%d", str, rc, WEXITSTATUS(rc));
+    }
+
+    pthread_exit(NULL);
+}
+
+// DIL shell()
+void dilfe_shell(register class dilprg *p)
+{
+    dilval *v = new dilval;
+    /* Get the ID number of a player. */
+    dilval *v1 = p->stack.pop();
+
+    switch (dil_getval(v1))
+    {
+    case DILV_NULL:
+    case DILV_FAIL:
+        v->type = DILV_FAIL; /* failed */
+        break;
+    case DILV_SP:
+        if (v1->val.ptr)
+        {
+            v->type = DILV_INT;
+            v->atyp = DILA_NONE;
+            if (p->frame[0].tmpl->zone->access != 0) // 0 is the highest access
+            {
+                szonelog(p->frame->tmpl->zone,
+                        "DIL '%s' attempt run shell() w/o access.", p->frame->tmpl->prgname);
+                p->waitcmd = WAITCMD_QUIT;
+            }
+            else
+            {
+                pthread_t mythread;
+                v->val.num = pthread_create(&mythread, NULL, threadcallout, v1->val.ptr);
+                if (v->val.num) {
+                    slog(LOG_ALL, 0, "DIL shell pthread create error code %d.", v->val.num);
+                }
+                // threadcallout((char *) v1->val.ptr);
+            }
+        }
+        break;
+    default:
+        v->type = DILV_ERR; /* Wrong type */
+        break;
+    }
+
+    p->stack.push(v);
+    delete v1;
+}
+
 void dilfe_len(register class dilprg *p)
 {
     dilval *v = new dilval;
@@ -3297,14 +3374,9 @@ void dilfe_gint(register class dilprg *p)
                 v->val.num = 1;
             break;
       
-      	case DIL_GINT_CALLGUARDS:
-            if ((p->sarg->owner != NULL) )
-               {
-                call_guards(p->sarg->owner);
-                v->val.num = 1;
-               }
-           else
-               v->val.num = 0;
+        case DIL_GINT_CRIMENO:
+            int new_crime_serial_no(void);
+            v->val.num = new_crime_serial_no();
             break;
 
         default:
@@ -3760,7 +3832,18 @@ void dilfe_load(register class dilprg *p)
     case DILV_SP:
         if (v1->val.ptr)
         {
-            v->val.ptr = read_unit(str_to_file_index((char *)v1->val.ptr));
+            v->val.ptr = NULL;
+
+            class file_index_type *fi = str_to_file_index((char *) v1->val.ptr);
+
+            if (fi)
+            {
+                if (fi->type == UNIT_ST_ROOM)
+                    slog(LOG_ALL, 0, "DIL trying to load a room %s@%s.", fi->name, fi->zone->name);
+                else
+                    v->val.ptr = read_unit(fi);
+            }
+            
             if (v->val.ptr)
             {
                 if (IS_MONEY((class unit_data *)v->val.ptr))
@@ -4336,6 +4419,8 @@ void dilfe_rnd(register class dilprg *p)
     delete v2;
 }
 
+
+// findroom(#)
 void dilfe_fndr(register class dilprg *p)
 {
     dilval *v = new dilval;
@@ -4375,6 +4460,44 @@ void dilfe_fndr(register class dilprg *p)
     delete v1;
 }
 
+
+// findzone(#)
+void dilfe_fndz(register class dilprg *p)
+{
+    dilval *v = new dilval;
+    dilval *v1 = p->stack.pop();
+
+    switch (dil_getval(v1))
+    {
+    case DILV_FAIL:
+        v->type = DILV_FAIL;
+        break;
+    case DILV_SP:
+        v->atyp = DILA_NORM;
+        v->type = DILV_ZP;
+        if (v1->val.ptr)
+        {
+            v->val.ptr = find_zone((const char *) v1->val.ptr);
+            if (v->val.ptr == NULL)
+                v->type = DILV_NULL; /* not found */
+        }
+        else
+            v->type = DILV_NULL; /* not found */
+
+        break;
+    case DILV_NULL:
+        v->type = DILV_NULL; /* not found */
+        break;
+    default:
+        v->type = DILV_ERR; /* wrong type */
+        break;
+    }
+    p->stack.push(v);
+    delete v1;
+}
+
+
+// findsymbolic(#,#,#)
 void dilfe_fnds2(register class dilprg *p)
 {
     dilval *v = new dilval;
@@ -4408,11 +4531,14 @@ void dilfe_fnds2(register class dilprg *p)
                         *buf1 = '\0';
                         *buf2 = '\0';
                         split_fi_ref((char *)v2->val.ptr, buf1, buf2);
-                        v->val.ptr =
-                            find_symbolic_instance_ref((class unit_data *)v1->val.ptr, find_file_index(buf1, buf2),
-                                                       v3->val.num);
-                        if (v->val.ptr == NULL)
+                        class file_index_type *fi = find_file_index(buf1, buf2);
+                        if (fi)
+                            v->val.ptr = fi->find_symbolic_instance_ref((class unit_data *)v1->val.ptr, v3->val.num);
+                        else
+                        {
+                            v->val.ptr = NULL;
                             v->type = DILV_NULL; /* not found */
+                        }
                     }
                     break;
                     case DILV_FAIL:
@@ -4454,6 +4580,71 @@ void dilfe_fnds2(register class dilprg *p)
     delete v3;
 }
 
+
+// findsymbolic(#,#) 
+void dilfe_fndsidx(class dilprg *p)
+{
+    dilval *v = new dilval;
+    /* Find a symbolic unit */
+    dilval *v2 = p->stack.pop();
+    dilval *v1 = p->stack.pop();
+    char buf1[MAX_STRING_LENGTH], buf2[MAX_STRING_LENGTH];
+    class file_index_type *fi;
+
+    v->type = DILV_UP;
+    switch (dil_getval(v1))
+    {
+    case DILV_FAIL:
+        v->type = DILV_FAIL;
+        break;
+
+    case DILV_SP:
+        if (v1->val.ptr)
+        {
+            switch (dil_getval(v2))
+            {
+            case DILV_INT:
+                v->atyp = DILA_NORM;
+                *buf1 = '\0';
+                *buf2 = '\0';
+                split_fi_ref((const char *) v1->val.ptr, buf1, buf2);
+                fi = find_file_index(buf1, buf2);
+                if (fi)
+                    v->val.ptr = find_symbolic_idx(buf1, buf2, v2->val.num);
+                else
+                {
+                    v->val.ptr = NULL;
+                    v->type = DILV_NULL; /* not found */
+                }
+                break;
+            case DILV_FAIL:
+                v->type = DILV_FAIL;
+                break;
+            case DILV_NULL:
+                v->type = DILV_NULL; /* not found */
+                break;
+            default:
+                v->type = DILV_ERR; /* wrong type */
+                break;
+            }
+        }
+        else
+            v->type = DILV_FAIL;
+        break;
+    case DILV_NULL:
+        v->type = DILV_NULL; /* not found */
+        break;
+    default:
+        v->type = DILV_ERR; /* wrong type */
+        break;
+    }
+
+    p->stack.push(v);
+    delete v1;
+    delete v2;
+}
+
+// findsymbolic(#)
 void dilfe_fnds(register class dilprg *p)
 {
     dilval *v = new dilval;
@@ -5753,6 +5944,8 @@ void dilfe_fndu(register class dilprg *p)
     delete v4;
 }
 
+
+// findrndunit(#,#,#)
 void dilfe_fndru(register class dilprg *p)
 {
     dilval *v = new dilval;

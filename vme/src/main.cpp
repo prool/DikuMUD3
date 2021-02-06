@@ -76,8 +76,8 @@ void ping_multiplexers_event(void *, void *);
 void check_idle_event(void *, void *);
 void perform_violence_event(void *, void *);
 //void point_update_event(void *, void *);
-void update_crimes_event(void *, void *);
-void update_crimes();
+//void update_crimes_event(void *, void *);
+//void update_crimes();
 void check_reboot_event(void *, void *);
 void check_overpopulation_event(void *p1, void *p2);
 int check_reboot();
@@ -98,14 +98,20 @@ int getrlimit(int, struct rlimit *);
 // Need this to be sure the typedefs are right for 64 bit architecture (MS2020)
 void type_validate_64(void)
 {
-    assert(sizeof(void *) == 8);
+    if (sizeof(void *) == 8)
+        slog(LOG_ALL, 0, "Running 64-bit mode");
+    else
+        slog(LOG_ALL, 0, "Running 32-bit mode");
+
+    // If any of these checks fail, update the type-defs so that they match your
+    // particular architecture.
     assert(sizeof(char) == 1);
     assert(sizeof(ubit1) == 1);
     assert(sizeof(ubit8) == 1);
     assert(sizeof(ubit16) == 2);
     assert(sizeof(ubit32) == 4);
     assert(sizeof(ubit64) == 8);
-    slog(LOG_ALL, 0, "64-bit architecture checked out OK");
+    assert(sizeof(int) == 4); // Hell will probably freeze over if this isn't true
 }
 
 int main(int argc, char **argv)
@@ -241,6 +247,7 @@ int main(int argc, char **argv)
     return (0);
 }
 
+
 /* Init sockets, run game, and cleanup sockets */
 void run_the_game(char *srvcfg)
 {
@@ -274,6 +281,10 @@ void run_the_game(char *srvcfg)
     slog(LOG_OFF, 0, "Signal trapping.");
     signal_setup();
 
+    slog(LOG_OFF, 0, "Named pipe setup.");
+    void namedpipe_setup(void);
+    namedpipe_setup();
+
     boot_db();
     mudboot = 0;
     events.process();
@@ -288,7 +299,7 @@ void run_the_game(char *srvcfg)
     events.add(PULSE_SEC * 5, ping_multiplexers_event, 0, 0);
     events.add(PULSE_VIOLENCE, perform_violence_event, 0, 0);
     //events.add(PULSE_POINTS, point_update_event, 0, 0);
-    events.add(PULSE_SEC * SECS_PER_REAL_MIN * 5, update_crimes_event, 0, 0);
+    //events.add(PULSE_SEC * SECS_PER_REAL_MIN * 5, update_crimes_event, 0, 0);
     events.add(PULSE_SEC * SECS_PER_REAL_MIN * 10, check_reboot_event, 0, 0);
     events.add(PULSE_SEC * SECS_PER_REAL_HOUR * 4, check_overpopulation_event, 0, 0);
 
@@ -330,6 +341,7 @@ void game_loop()
     long delay;
     class descriptor_data *d = NULL;
     void clear_destructed(void);
+    std::string str;
 
     tics = 61;
     gettimeofday(&old, (struct timezone *)0);
@@ -338,6 +350,9 @@ void game_loop()
     {
         /* work */
         game_event();
+
+        int pipeMUD_read(std::string &str);
+        pipeMUD_read(str);
 
         events.process();
 
@@ -473,11 +488,11 @@ void perform_violence_event(void *p1, void *p2)
     events.add(PULSE_VIOLENCE, perform_violence_event, 0, 0);
 }
 
-void update_crimes_event(void *p1, void *p2)
-{
-    update_crimes();
-    events.add(1200, update_crimes_event, 0, 0);
-}
+//void update_crimes_event(void *p1, void *p2)
+//{
+//    update_crimes();
+//    events.add(1200, update_crimes_event, 0, 0);
+//}
 
 /*void point_update_event(void *p1, void *p2)
 {
@@ -528,7 +543,7 @@ void check_overpopulation_event(void *p1, void *p2)
 
         if (i >= 50)
         {
-            slog(LOG_ALL, 0, "Too many items in %s@%s(%s) : %d units", UNIT_FI_NAME(u), UNIT_FI_ZONENAME(u), UNIT_NAME(u), i);
+            slog(LOG_ALL, 0, "Too many items in %s@%s(%s) : %d units", UNIT_FI_NAME(u), UNIT_FI_ZONENAME(u), unit_trace_up(u).c_str(), i);
 
             struct diltemplate *worms;
             worms = find_dil_template("worms@basis");
