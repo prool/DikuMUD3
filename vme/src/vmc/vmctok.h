@@ -4,13 +4,11 @@
  $Date: 2001/04/10 21:11:36 $
  $Revision: 2.0 $
  */
-
-#ifndef _MUD_VMCTOK_H
-#define _MUD_VMCTOK_H
+#pragma once
 
 struct symbols
 {
-    const 	char *nam;
+    const char *nam;
     int val;
 } sym[] = {
     /* Unit fields */
@@ -106,9 +104,4 @@ struct symbols
     {"remove", REMOVE},
     {"random", RANDOM},
     {"complete", COMPLETE},
-    {0,0}
-};
-
-#endif /* _MUD_VMCTOK_H */
-
-
+    {0, 0}};

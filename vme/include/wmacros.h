@@ -37,6 +37,12 @@ the direction to climb as well as typing the climb <keyword>
 #define CLIMB_NOT_IN_EXITS 0x02
 */
 
+
+// Use this to wrap constants in quoutes, e.g. QUOTE(DIR_NORTH) -> "0"
+#define QXX(x) #x
+#define QUOTE(x) QXX(x)
+
+
 #define FLEE_LEAVE  "$noflee"
 
 #define NO_FLEE_LEAVE(directions)  \
@@ -68,7 +74,7 @@ extra{FLEE_LEAVE, directions}  \
  (RACE_IS_PCHUMANOID(race)) or (RACE_IS_NPCHUMANOID(race)) )
 
 #define RACE_IS_UNDEAD(race) \
-( ((race) > RACE_SPIRIT_MIN ) and ((race) < RACE_SPIRIT_MAX ) )
+( ((race) > RACE_UNDEAD_MIN ) and ((race) <= RACE_UNDEAD_MAX ) )
 
 
 
@@ -243,6 +249,31 @@ height hgt
    value[1] craftsmanship       \
    value[2] magic_bonus
 
+
+/*  These are for use in dill to check if a item is a certain type of
+ * material.
+ *
+ * ie.
+ *
+ * if (MAT_WOOD in item.extra) {
+ *	 ...
+ *	 ...
+ * }
+ *
+ * if the item has a wooden material it will evualate to true. */
+
+#define MATERIAL "$material"
+#define MAT_WOOD_STR "$mat_wood"
+#define MAT_METAL_STR "$mat_metal"
+#define MAT_STONE_STR "$mat_stone"
+#define MAT_CLOTH_STR "$mat_cloth"
+#define MAT_LEATHER_STR "$mat_leather"
+#define MAT_ORGANIC_STR "$mat_organic"
+#define MAT_GLASS_STR "$mat_glass"
+#define MAT_FIRE_STR "$mat_fire"
+#define MAT_WATER_STR "$mat_water"
+#define MAT_MAGIC_STR "$mat_magic"
+
 /* Material Types
  *  All objects must have a material type!!  Please select one that
  *  best fits your items material.  If your item is composed of
@@ -262,42 +293,19 @@ height hgt
  * than someone that is wearing leather.  Organics might be susceptable to
  * rot, and decay spells, while metal might rust.
 */
-#define MATERIAL_WOOD(DESCR)    extra {"$material", "$mat_wood"} DESCR
-#define MATERIAL_METAL(DESCR)   extra {"$material", "$mat_metal"} DESCR
-#define MATERIAL_STONE(DESCR)   extra {"$material", "$mat_stone"} DESCR
-#define MATERIAL_CLOTH(DESCR)   extra {"$material", "$mat_cloth"} DESCR
-#define MATERIAL_LEATHER(DESCR) extra {"$material", "$mat_leather"} DESCR
-#define MATERIAL_SKIN(DESCR) extra {"$material", "$mat_skin"} DESCR
-#define MATERIAL_ORGANIC(DESCR) extra {"$material", "$mat_organic"} DESCR
-#define MATERIAL_GLASS(DESCR)   extra {"$material", "$mat_glass"} DESCR
-#define MATERIAL_FIRE(DESCR)    extra {"$material", "$mat_fire"} DESCR
-#define MATERIAL_WATER(DESCR)   extra {"$material", "$mat_water"} DESCR
+#define MATERIAL_WOOD(DESCR)    extra {"$material", MAT_WOOD_STR} DESCR
+#define MATERIAL_METAL(DESCR)   extra {"$material", MAT_METAL_STR} DESCR
+#define MATERIAL_STONE(DESCR)   extra {"$material", MAT_STONE_STR} DESCR
+#define MATERIAL_CLOTH(DESCR)   extra {"$material", MAT_CLOTH_STR} DESCR
+#define MATERIAL_LEATHER(DESCR) extra {"$material", MAT_LEATHER_STR} DESCR
+#define MATERIAL_SKIN(DESCR)    extra {"$material", "$mat_skin"} DESCR
+#define MATERIAL_ORGANIC(DESCR) extra {"$material", MAT_ORGANIC_STR} DESCR
+#define MATERIAL_GLASS(DESCR)   extra {"$material", MAT_GLASS_STR} DESCR
+#define MATERIAL_FIRE(DESCR)    extra {"$material", MAT_FIRE_STR} DESCR
+#define MATERIAL_WATER(DESCR)   extra {"$material", MAT_WATER_STR} DESCR
 #define MATERIAL_EARTH(DESCR)   extra {"$material", "$mat_earth"} DESCR
-#define MATERIAL_MAGIC(DESCR)   extra {"$material", "$mat_magic"} DESCR
+#define MATERIAL_MAGIC(DESCR)   extra {"$material", MAT_MAGIC_STR} DESCR
 
-/*  These are for use in dill to check if a item is a certain type of
- * material.
- *
- * ie.
- *
- * if (MAT_WOOD in item.extra) {
- *	 ...
- *	 ...
- * }
- *
- * if the item has a wooden material it will evualate to true. */
-
-#define MATERIAL "$material"
-#define MAT_WOOD "$mat_wood"
-#define MAT_METAL "$mat_wood"
-#define MAT_STONE "$mat_stone"
-#define MAT_CLOTH "$mat_cloth"
-#define MAT_LEATHER "$mat_leather"
-#define MAT_ORGANIC "$mat_organic"
-#define MAT_GLASS "$mat_glass"
-#define MAT_FIRE "$mat_fire"
-#define MAT_WATER "$mat_water"
-#define MAT_MAGIC "$mat_magic"
 /*
 	*Liq defines values.
 	*color - color of liquid when you look at it.
@@ -351,6 +359,12 @@ extra {"$drink_drunk"} #drunk
 #define WEAPON_SLAYER(race) \
   flags {UNIT_FL_MAGIC} \
   value[3] race
+
+/* Will slay dragons */
+#define WEAPON_SLAYER_DRAGONS \
+  flags {UNIT_FL_MAGIC} \
+  value[3] RACE_DRAGON_MIN \
+  extra {"$slayer"} {RACE_DRAGON_MIN, RACE_DRAGON_MAX} "dragon slayer"
 
 /* To be used when a object is cursed so that it can't be unequipped */
 #define CURSED_OBJECT \
@@ -553,23 +567,24 @@ affect                       \
    lastf   TIF_HIT_DEC       \
    applyf  APF_ABILITY;
 
-#define SPEED_TRANSFER(newspeed) \
+#define SPEED_TRANSFER(delta_speed) \
 flags {UNIT_FL_MAGIC}       \
 affect                       \
    id ID_TRANSFER_SPEED      \
    duration -1                /* Must be permanent in the object */  \
-   data[0] newspeed          \
+   data[0] delta_speed       \
    firstf  TIF_SPEED_BETTER  \
    tickf   TIF_NONE          \
    lastf   TIF_SPEED_WORSE   \
    applyf  APF_SPEED;
 
-#define SLOW_TRANSFER(amount) \
+// Must be negative
+#define SLOW_TRANSFER(delta_speed) \
 flags {UNIT_FL_MAGIC}         \
 affect                        \
    id ID_TRANSFER_SPEED       \
    duration -1                \
-   data[0] newspeed           \
+   data[0] delta_speed        \
    firstf  TIF_SPEED_WORSE    \
    tickf   TIF_NONE           \
    lastf   TIF_SPEED_BETTER   \

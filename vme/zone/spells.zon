@@ -26,11 +26,45 @@ v87.01 3919.19.24 ETNA  Restricted entangle to outdoor non frozen rooms.
 #define CORPSE_EXTRA  "$CORPSE_EXTRA"
 
 %dil
+
+// Copy onto object to emit this message.
+// Used e.g. to signal when someone has teleported
+dilbegin sendmsg(s : string);
+code
+{
+   send(s);
+   quit;
+}
+dilend
+
+
 dilbegin integer spellresist(aa : integer, ad : integer,
 			     sa : integer, sd : integer);
 code
 {
    return (openroll(100, 5) + aa + sa - ad - sd - 50);
+}
+dilend
+
+/* A corpse of this race can't be raised (animate dead, raise skeleton, raise skeletal champion,
+   raise horde): it crumbles to dust. Insects, the undead, demons, devils, elementals and other
+   unnatural things. */
+dilbegin integer unraisable(rc : integer);
+code
+{
+   if (((rc > RACE_ARTHROPODA_MIN) and (rc <= RACE_INSECT)) or RACE_IS_UNDEAD(rc) or
+       (rc == RACE_SCORPION) or (rc == RACE_STONE_RENDER) or (rc == RACE_SLIME) or
+       (rc == RACE_LESSER_DEMON) or (rc == RACE_GREATER_DEMON) or
+       (rc == RACE_SNAKE_DEMON) or
+       (rc == RACE_LESSER_DEVIL) or (rc == RACE_GREATER_DEVIL) or
+       (rc == RACE_SHADOW_DEVIL) or (rc == RACE_GARGOYLE) or
+       (rc == RACE_GOLEM) or (rc == RACE_YOGOLOTH) or
+       (rc == RACE_MIST_DWELLER) or (rc == RACE_ELEMENTAL_AIR) or
+       (rc == RACE_ELEMENTAL_FIRE) or (rc == RACE_ELEMENTAL_EARTH) or
+       (rc == RACE_ELEMENTAL_FROST) or (rc == RACE_ELEMENTAL_WATER) or
+       (rc == RACE_ELEMENTAL_LIGHT))
+      return (TRUE);
+   return (FALSE);
 }
 dilend
 
@@ -43,12 +77,6 @@ provoked_attack (victim : unitptr, ch : unitptr);
 code
 {
 
-   if (self.spells[SPL_CONDEMN] <= 0)
-   {
-     act("You must practice first.",
-         A_ALWAYS, self, null, null, TO_CHAR);
-     quit;
-   }
    if (tgt.type == UNIT_ST_PC)
       if ((not(isset(self.pcflags, PC_PK_RELAXED))) or
          (not(isset(tgt.pcflags, PC_PK_RELAXED))))
@@ -62,13 +90,13 @@ provoked_attack (tgt, self);
 if ((isaff(tgt,ID_CONDEMN)) or (hm<=0))
    {
          if (tgt!=self)
-           act ("The magic dissipates as it is cast on $2n",
+           act ("The magic dissipates as it is cast on $2n.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
          else
            act ("The magic dissipates as it is cast on you.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
@@ -79,7 +107,7 @@ if ((isaff(tgt,ID_CONDEMN)) or (hm<=0))
 	    if (hm > 10)
 		hm := 10;
 		hm := -hm;
-    act("You call on the dark forces...",A_SOMEONE, tgt, null, null, TO_CHAR);
+    act("You call on the dark forces...",A_SOMEONE, self, null, null, TO_CHAR);
 
         addaff(tgt, ID_CONDEMN, 20, WAIT_SEC*30,
                ABIL_STR, hm, 0, TIF_STR_INC, TIF_NONE, TIF_STR_DEC,
@@ -94,7 +122,7 @@ if ((isaff(tgt,ID_CONDEMN)) or (hm<=0))
                ABIL_DIV, hm, 0, TIF_DIV_INC, TIF_NONE, TIF_DIV_DEC,
                APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
    quit;
 }
@@ -102,28 +130,38 @@ dilend
 
 
 dilbegin displace_magic(medi : unitptr, tgt : unitptr, arg : string,
-                       hm : integer, effect : string);
+                        hm : integer, effect : string);
 var
-count:integer;
+   count:integer;
 code
 {
-   if ((hm < 0) or (self.endurance<=20))
+   // MS2022. Intentionally changed displace magic to send spl_dispel
+   //    message. So that code reacting to it works either way.
+   //
+   if (self.endurance <= 20)
    {
-      act("Nothing happens.",
-	  A_ALWAYS, self, null, null, TO_CHAR);
+      act("You're too exhausted.", A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-      hm := hm/10+1;
-      if (hm>15)
-	hm := 15;
+   if (hm < 0)
+   {
+      sendto("spl_dispel " + itoa(hm), tgt);
+      act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
+      quit;
+   }
 
-count:=0;
-interrupt (SFB_MSG , "inc displace counter" == argument,inc_count);
-   sendto("spl_displace "+itoa(hm), tgt);
+   count:=0;
+   interrupt (SFB_MSG , "inc displace counter" == argument,inc_count);
+   sendto("spl_dispel "+itoa(hm), tgt);
    interrupt(SFB_DEAD, activator == tgt, stop);
 
-   :loop:
+   hm := hm/10+1;
+   if (hm>15)
+   	hm := 15;
+
+
+:loop:
    count:=count+1;
    if (isaff(tgt, ID_BLESS))
      subaff(tgt, ID_BLESS);
@@ -135,6 +173,8 @@ interrupt (SFB_MSG , "inc displace counter" == argument,inc_count);
      subaff(tgt, ID_BERSERK);
    else if (isaff(tgt, ID_RAGE))
      subaff(tgt, ID_RAGE);
+   else if (isaff(tgt, ID_FRENZY))
+     subaff(tgt, ID_FRENZY);
    else if (isaff(tgt, ID_FOCUS))
      subaff(tgt, ID_FOCUS);
    else if (isaff(tgt, ID_DETECT_ALIGN))
@@ -239,23 +279,26 @@ interrupt (SFB_MSG , "inc displace counter" == argument,inc_count);
      subaff(tgt, ID_MIRE);
    else
      quit;
+
 :inc_count:
-if (self.endurance<30) self.endurance:=0;
-else
-self.endurance:=self.endurance-30;
-if (self.endurance==0)
-  {
-   self.position:=POSITION_STUNNED;
-   quit;
+   if (self.endurance<30)
+      self.endurance:=0;
+   else
+      self.endurance:=self.endurance-30;
+   
+   if (self.endurance==0)
+   {
+      self.position:=POSITION_STUNNED;
+      quit;
    }
 
-if (count==hm)
-  quit;
+   if (count >= hm)
+      quit;
 
    goto loop;
 
 :stop:
-quit;
+   quit;
 }
 dilend
 
@@ -390,26 +433,22 @@ code
 {
    provoked_attack (tgt, self);
 
-   if ((hm < 0) or (tgt.speed >= 16))
+   if (hm < 0)
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
       quit;
    }
-
-   spd := tgt.speed + 4;
-   if (spd > 16)
-     spd := 16;
 
    if (isaff(tgt, ID_MIRE))
      subaff(tgt, ID_MIRE);
 
    addaff(tgt, ID_MIRE, 1 + hm / 25, WAIT_SEC*15,
-	  spd, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER,
+	  -4, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER,
 	  APF_SPEED);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
    quit;
 }
 dilend
@@ -581,7 +620,7 @@ code
         A_ALWAYS, self, null, null, TO_CHAR);
     quit;
   }
-  if (targ.alignment >= +350)
+  if (targ.alignment <= +350)  /* the bonus is against the truly good */
     hm := attack_spell(SPL_UNHOLY_WORD, self, med, targ, 0, effect);
   else
     hm := attack_spell(SPL_UNHOLY_WORD, self, med, targ, +10, effect);
@@ -628,7 +667,7 @@ code
 	 }
 */
 :castit:
-  if (targ.alignment >= +350)
+  if (targ.alignment <= +350)  /* the bonus is against the truly good */
     hm := attack_spell(SPL_UNHOLY_WORD_2, self, med, targ, 0, effect);
   else
     hm := attack_spell(SPL_UNHOLY_WORD_2, self, med, targ, +10, effect);
@@ -675,7 +714,7 @@ code
 	 }
 :castit:
 */
-  if (targ.alignment >= +350)
+  if (targ.alignment <= +350)  /* the bonus is against the truly good */
     hm := attack_spell(SPL_UNHOLY_WORD_3, self, med, targ, 0, effect);
   else
     hm := attack_spell(SPL_UNHOLY_WORD_3, self, med, targ, +10, effect);
@@ -713,7 +752,7 @@ code
 	}
 :castit:
 */
-  if (targ.alignment >= +350)
+  if (targ.alignment <= +350)  /* the bonus is against the truly good */
     hm := attack_spell(SPL_UNHOLY_WORD_4, self, med, targ, 0, effect);
   else
     hm := attack_spell(SPL_UNHOLY_WORD_4, self, med, targ, +10, effect);
@@ -1540,30 +1579,24 @@ dilbegin focus(medi:unitptr, tgt : unitptr, arg : string,
                    hm : integer, effect : string);
 code
 {
-   if (self.spells[SPL_FOCUS] <= 0)
-   {
-     act("You must practice first.",
-         A_ALWAYS, self, null, null, TO_CHAR);
-     quit;
-   }
 
 if ((isaff(tgt,ID_FOCUS)) or (hm<0))
    {
          if (tgt!=self)
-           act ("The magic dissipates as it is cast on $2n",
+           act ("The magic dissipates as it is cast on $2n.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
          else
            act ("The magic dissipates as it is cast on you.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
       hm := hm/10+1;
       if (hm>10)
         hm := 10;
-    act("You feel your mental energies comming into focus.",
+    act("You feel your mental energies coming into focus.",
         A_SOMEONE, tgt, null, null, TO_CHAR);
 
         addaff(tgt, ID_FOCUS, 20, WAIT_SEC*30,
@@ -1573,7 +1606,7 @@ if ((isaff(tgt,ID_FOCUS)) or (hm<0))
                ABIL_CHA, hm, 0, TIF_CHA_INC, TIF_NONE, TIF_CHA_DEC,
                APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
    quit;
 }
@@ -1621,9 +1654,9 @@ code{
  dilcopy ("wizardmark@spells(" + itoa(splpwr) + ")", targ);
  addextra(targ.extra,{"$Protected With a Wizard Mark"},self.name);
 
- act("A silver rune glows furiously on your $2n before it fades away.",
+ act("A silver rune glows furiously on your $2N before it fades away.",
      A_SOMEONE, self, targ, null, TO_CHAR);
- act("A silver rune glows furiously on $1n's $2n before it fades away.",
+ act("A silver rune glows furiously on $1n's $2N before it fades away.",
      A_SOMEONE, self, targ, null, TO_REST);
  quit;
 
@@ -1685,9 +1718,9 @@ pc:=activator;
    }
 
 
-act("A blue flame burns you as a silver rune appears on the $2n!",
+act("A blue flame burns you as a silver rune appears on $2n!",
     A_SOMEONE, activator, self, null, TO_CHAR);
-act("A blue flame burns $1n as a silver rune appears on the $2n!",
+act("A blue flame burns $1n as a silver rune appears on $2n!",
     A_SOMEONE, activator, self, null, TO_REST);
 
 subextra(self.extra,"$Protected With a Wizard Mark");
@@ -1710,9 +1743,9 @@ quit;
   {
    power:=-1;
    block;
-   act("A silver rune appears on your $3n before it flickers and vanishes.",
+   act("A silver rune appears on your $3N before it flickers and vanishes.",
        A_SOMEONE,activator, null, self, TO_CHAR);
-   act("A silver rune appears on $1n's $3n before it flickers and vanishes.",
+   act("A silver rune appears on $1n's $3N before it flickers and vanishes.",
        A_SOMEONE,activator, null, self, TO_REST);
   subextra(self.extra,"$Protected With a Wizard Mark");
   quit;
@@ -1734,9 +1767,9 @@ quit;
 
 :strip:
 
-  act("A silver rune appears on your $3n before it flickers and vanishes.",
+  act("A silver rune appears on your $3N before it flickers and vanishes.",
        A_SOMEONE,activator, null, self, TO_CHAR);
-   act("A silver rune appears on $1n's $3n before it flickers and vanishes.",
+   act("A silver rune appears on $1n's $3N before it flickers and vanishes.",
        A_SOMEONE,activator, null, self, TO_REST);
   subextra(self.extra,"$Protected With a Wizard Mark");
   quit;
@@ -1837,6 +1870,7 @@ external
 
 var
   mboost : integer;
+  ex_ptr : extraptr;
 
 code
 {
@@ -1844,13 +1878,17 @@ if ((tgt==self) and (medi.type!=UNIT_ST_OBJ))
 	{
 	act ("Your magical essence circles your body and returns into you.",
 	A_ALWAYS,self,null,null,TO_CHAR);
-	act ("$1n's Magical essence circles $1s body and then returns into $1m.",
+	act ("$1n's magical essence circles $1s body and then returns into $1m.",
 	A_SOMEONE,self,null,null,TO_REST);
 	self.mana:=self.mana+100;
 	quit;
 	}
-   if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
-     hm := -1;
+
+   ex_ptr:="$owner" in self.extra;
+   if (not((tgt == self) or (ex_ptr.descr == tgt.name))){ // fixes mobs that can't heal themselves and allows familiars to heal owners in rare corner cases
+   	if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
+ 	    hm := -1;
+   }
 
 				    if (hm < 0)
    {
@@ -1945,13 +1983,6 @@ code
           A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
-if (self.type==UNIT_ST_PC)
-   if (not(paycheck( self,targ)))
-   {
-      act("You do not have access to that location, type 'help donation'.",
-          A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
 
 if ((targ.type==UNIT_ST_PC) or (targ.type == UNIT_ST_NPC))
   if ( isset(targ.outside.flags, UNIT_FL_NO_TELEPORT))
@@ -2022,6 +2053,7 @@ if ((targ.type==UNIT_ST_PC) or (targ.type == UNIT_ST_NPC))
         "into the void!",
         A_SOMEONE, self, null, null, TO_CHAR);
     link(self, findroom("void@basis"));
+    dilcopy("sendmsg@spells(teleport)", self);
     self.mana := 0;
     exec("look", self);
     quit;
@@ -2049,7 +2081,7 @@ if ((targ.type==UNIT_ST_PC) or (targ.type == UNIT_ST_NPC))
 
   here := self.outside;
   while (here.type != UNIT_ST_ROOM)
-     here := self.outside;
+     here := here.outside;
 
   act("The power flows into and through you. You channel it through time " +
       "and space...<br/>A horizontal " +
@@ -2083,6 +2115,7 @@ if ((targ.type==UNIT_ST_PC) or (targ.type == UNIT_ST_NPC))
   quit;
 }
 dilend /* travel */
+
 
 dilbegin aware gate_dil(destin : string, location : string, ownr : string,
                         dura : integer, poor : integer);
@@ -2155,26 +2188,13 @@ code
       goto start;
    }
 
-if (pc.type==UNIT_ST_PC)
-   if (not(paycheck(pc, findroom(destin))))
-   {
-      act("You attempt to step through but the gate shocks you and " +
-          "you bounce back!",
-          A_ALWAYS, pc, null, null, TO_CHAR);
-      act("$1n attempts to step through the gate but is shocked and " +
-          "bounces back!",
-          A_ALWAYS, pc, null, null, TO_REST);
-      act("You do not have access to that location, type 'help donation'.",
-          A_ALWAYS, pc, null, null, TO_CHAR);
-      pc.hp := pc.hp - rnd(10, 50);
-      position_update(pc);
-      goto start;
-   }
    act("$1n steps through $2n...",
        A_SOMEONE, pc, self, null, TO_REST);
    act("You step through $2n...",
        A_ALWAYS, pc, self, null, TO_CHAR);
    link (pc, findroom(destin));
+   dilcopy("sendmsg@spells(teleport)", pc);
+
    act("$1n steps out of $2n...",
        A_SOMEONE, pc, self, null, TO_REST);
    exec("look", pc);
@@ -2288,7 +2308,7 @@ if (argument=="lookin")
    }
    else
    {
-      if ((self.level < 250) and (self.spells[SPL_TRAVEL] < 100))
+      if ((pc.level < 250) and (pc.spells[SPL_TRAVEL] < 100))  // the weaver, not the gate
       {
          act("You must practice further in order to do that.",
          A_ALWAYS, pc, null, null, TO_CHAR);
@@ -2330,7 +2350,7 @@ if (argument=="lookin")
    }
    else
    {
-      if ((self.level < 250) and (self.spells[SPL_TRAVEL] < 100))
+      if ((pc.level < 250) and (pc.spells[SPL_TRAVEL] < 100))  // the weaver, not the gate
       {
          act("You must practice further in order to do that.",
          A_ALWAYS, pc, null, null, TO_CHAR);
@@ -2346,7 +2366,7 @@ if (argument=="lookin")
       }
       else if ((i == 2) and ("group" in argument))
       {
-         act("You have already allowed others the use of the gate. " +
+         act("You have already allowed only your followers the use of the gate. " +
              "You can deny others the use of the gate with the command " +
              "'deny'.",
              A_ALWAYS, pc, null, null, TO_CHAR);
@@ -2393,6 +2413,8 @@ if (argument=="lookin")
 }
 dilend /* gate_dil */
 
+
+
 dilbegin portal (med : unitptr, targ : unitptr, arg : string,
                  hm : integer, effect : string);
 var
@@ -2400,12 +2422,10 @@ var
   dest   : unitptr;
   room   : unitptr;
   u      : unitptr;
-
   dura   : integer;
 
 code
 {
-
    if (self.type != UNIT_ST_PC)
    {
       act("$1n cannot contain the power and explodes in a pile of smoke!",
@@ -2440,7 +2460,7 @@ code
   if ( (isset(self.flags, UNIT_FL_NO_TELEPORT)) or
        (isset(room.flags, UNIT_FL_NO_TELEPORT)) )
   {
-    act("Something prevents the you from opening a portal here.",
+    act("Something prevents you from opening a portal here.",
         A_ALWAYS, self, null, null, TO_CHAR);
     quit;
   }
@@ -2459,14 +2479,6 @@ code
     quit;
   }
 
-if (self.type==UNIT_ST_PC)
-  if (not (paycheck(self,targ)))
-  {
-    act("You do not have access to open a portal to $3n, type 'help donation'",
-        A_ALWAYS, self, null, targ, TO_CHAR);
-    quit;
-  }
-
   if(targ.type & UNIT_ST_OBJ|UNIT_ST_ROOM) hm := hm - targ.spells[SPL_NONE];
   if(targ.type == UNIT_ST_NPC) hm := hm - targ.spells[SPL_SUMMONING];
   if(targ.type == UNIT_ST_PC) hm := hm - targ.spells[SPL_PORTAL];
@@ -2479,6 +2491,7 @@ if (self.type==UNIT_ST_PC)
         "great disturbance in the powers of magic!",
         A_SOMEONE, self, null, null, TO_REST);
     link(self, findroom("void@basis"));
+    dilcopy("sendmsg@spells(teleport)", self);
     self.mana := 0;
     exec("look", self);
     quit;
@@ -2503,7 +2516,7 @@ if (self.type==UNIT_ST_PC)
 
   here := self.outside;
   while (here.type != UNIT_ST_ROOM)
-     here := self.outside;
+     here := here.outside;
 
   act("A miasma of light coalesces into a glittering portal which " +
       "stands before you.",
@@ -2531,17 +2544,18 @@ if (self.type==UNIT_ST_PC)
 }
 dilend /* portal */
 
-dilbegin aware portal_dil(destin : string, location : string, dura : integer);
 
+
+dilbegin aware portal_dil(destin : string, location : string, dura : integer);
 var
    pc : unitptr;
    tempu:unitptr;
    tempu2:unitptr;
-nxt:unitptr;
+   nxt:unitptr;
 code
 {
    heartbeat := PULSE_SEC * 60 * dura;
-   interrupt(SFB_TICK, TRUE, stop);
+   interrupt(SFB_TICK, TRUE, tickstop);
    interrupt(SFB_MSG, TRUE, test);
 
 :start:
@@ -2553,27 +2567,13 @@ code
 /*   secure(pc, lost_pc);*/
    block;
 
-if (pc.type==UNIT_ST_PC)
-   if (not(paycheck(pc, findroom(destin))))
-   {
-      act("You attempt to step through but the gate shocks you and " +
-          "you bounce back!",
-          A_ALWAYS, pc, null, null, TO_CHAR);
-      act("$1n attempts to step through the gate but is shocked and " +
-          "bounces back!",
-          A_ALWAYS, pc, null, null, TO_REST);
-      act("You do not have access to that location, type 'help donation'.",
-          A_ALWAYS, pc, null, null, TO_CHAR);
-      pc.hp := pc.hp - rnd(10, 50);
-      position_update(pc);
-      goto start;
-   }
-
    act("$1n steps into $2n and vanishes...",
        A_SOMEONE, pc, self, null, TO_REST);
    act("You step into $2n and vanish...",
        A_ALWAYS, pc, self, null, TO_CHAR);
    link (pc, findroom(destin));
+   dilcopy("sendmsg@spells(teleport)", pc);
+   
    act("$1n appears from nothingness...",
        A_SOMEONE, pc, self, null, TO_REST);
    act("You appear somewhere else...",
@@ -2616,8 +2616,11 @@ if (argument=="lookin")
    else goto start;
 
 :stop:
-   act("$1n flickers and then vanishes.",
-       A_SOMEONE, self, null, null, TO_ALL);
+   interrupt(SFB_TICK, FALSE, tickstop);
+   heartbeat := 1;
+   wait(SFB_TICK, TRUE);
+:tickstop:
+   act("$1n flickers and then vanishes.", A_SOMEONE, self, null, null, TO_ALL);
    destroy(self);
 
 :lost_pc:
@@ -2626,8 +2629,12 @@ if (argument=="lookin")
 }
 dilend /* portal_dil */
 
+
+
 dilbegin raise_horde(medi : unitptr, tgt : unitptr, arg : string,
                     hm : integer, effect : string);
+external
+   integer unraisable@spells(rc : integer);
 var
    u : unitptr;
    chk : integer;
@@ -2639,7 +2646,7 @@ code
    if (hm < 0)
    {
    act ("You fail.",
-   A_ALWAYS,tgt,null,null,TO_ALL);
+   A_ALWAYS,self,null,null,TO_CHAR);
       quit;
    }
    if (self.mana < 100)
@@ -2660,28 +2667,16 @@ foreach(UNIT_ST_OBJ, can)
   if (can == self)
      continue;
 
-  if (not (IS_CORPSE(can)))
-
+  if (not (IS_CORPSE(can)) or (IS_CORPSE(can) and can.value[2] == 1))  // no player corpses
      continue;
 
   chk := (can.value[4]);
 
-  if ( ((chk > RACE_OTHER_MAMMAL) and (chk <= RACE_INSECT)) or
-       ((chk > RACE_OTHER_CREATURE) and (chk <= RACE_UNDEAD)) or
-       (chk == RACE_SCORPION) or (chk == RACE_STONE_RENDER)
-	   or (chk == RACE_VAMPIRE) or (chk == RACE_SLIME) or
-       (chk == RACE_LESSER_DEMON) or (chk == RACE_GREATER_DEMON) or
-       (chk == RACE_LESSER_DEVIL) or (chk == RACE_GREATER_DEVIL) or
-       (chk == RACE_SHADOW_DEVIL) or (chk == RACE_GARGOYLE) or
-       (chk == RACE_GOLEM) or (chk == RACE_YOGOLOTH) or
-       (chk == RACE_MIST_DWELLER) or (chk == RACE_ELEMENTAL_AIR) or
-       (chk == RACE_ELEMENTAL_FIRE) or (chk == RACE_ELEMENTAL_EARTH) or
-       (chk == RACE_ELEMENTAL_FROST) or (chk == RACE_ELEMENTAL_WATER) or
-       (chk == RACE_ELEMENTAL_LIGHT) )
+  if (unraisable@spells(chk))
   {
    act("A corpse glows briefly then suddenly crumbles into dust...",
    A_SOMEONE, self, null, null, TO_REST);
-   act("The corpse glows briefly then suddenly crumbles into dust..." +
+   act("The corpse glows briefly then suddenly crumbles into dust... " +
        "something was amiss with the subject." ,
        A_ALWAYS, self, null, null, TO_CHAR);
 
@@ -2718,9 +2713,8 @@ foreach(UNIT_ST_OBJ, can)
   }
 
   secure (u,lostu);
-  dilcopy("undead_obey@spells("+itoa(hm)+")",u);
   dilcopy ("zombie_summoned@spells("+itoa(hm)+")",u);
-  dilcopy("undead_exec@spells",u);
+  dilcopy("undead_exec@spells("+itoa(hm)+")",u);
 		if (isset(self.pcflags,PC_PK_RELAXED))
 		dilcopy ("catchit@spells(1)",u);
 		else
@@ -2747,6 +2741,8 @@ dilend /* raise_horde  */
 
 dilbegin raise_champ(medi : unitptr, tgt : unitptr, arg : string,
                      hm : integer, effect : string);
+external
+   integer unraisable@spells(rc : integer);
 var
    u : unitptr;
    chk : integer;
@@ -2759,32 +2755,21 @@ code
       quit;
    }
 
-  if (not (IS_CORPSE(tgt)))
+  if (not (IS_CORPSE(tgt)) or (IS_CORPSE(tgt) and tgt.value[2] == 1))
   {
-  act ("You try to bring life to $2n but nothing happens",
+  act ("You try to bring life to $2n but nothing happens.",
   A_ALWAYS,self,tgt,null,TO_CHAR);
-  act ("$1n tries to bring life to $2n but nothing happens",
+  act ("$1n tries to bring life to $2n but nothing happens.",
   A_SOMEONE,self,tgt,null,TO_REST);
   quit;
   }
   chk := (tgt.value[4]);
 
-  if ( ((chk > RACE_OTHER_MAMMAL) and (chk <= RACE_INSECT)) or
-       ((chk > RACE_OTHER_CREATURE) and (chk <= RACE_UNDEAD)) or
-       (chk == RACE_SCORPION) or (chk == RACE_STONE_RENDER)
-	    or (chk == RACE_VAMPIRE) or (chk == RACE_SLIME) or
-       (chk == RACE_LESSER_DEMON) or (chk == RACE_GREATER_DEMON) or
-       (chk == RACE_LESSER_DEVIL) or (chk == RACE_GREATER_DEVIL) or
-       (chk == RACE_SHADOW_DEVIL) or (chk == RACE_GARGOYLE) or
-       (chk == RACE_GOLEM) or (chk == RACE_YOGOLOTH) or
-       (chk == RACE_MIST_DWELLER) or (chk == RACE_ELEMENTAL_AIR) or
-       (chk == RACE_ELEMENTAL_FIRE) or (chk == RACE_ELEMENTAL_EARTH) or
-       (chk == RACE_ELEMENTAL_FROST) or (chk == RACE_ELEMENTAL_WATER) or
-       (chk == RACE_ELEMENTAL_LIGHT) )
+  if (unraisable@spells(chk))
   {
    act("The corpse glows briefly then suddenly crumbles into dust...",
    A_SOMEONE, self, null,null, TO_REST);
-   act("The corpse glows briefly then suddenly crumbles into dust..." +
+   act("The corpse glows briefly then suddenly crumbles into dust... " +
           "something was amiss with the subject." , A_SOMEONE, self, null,
           null, TO_CHAR);
 
@@ -2799,9 +2784,8 @@ unsecure (tgt);
 
    u:= load("skel_champ@spells");
   secure (u,lostu);
-    dilcopy("undead_obey@spells("+itoa(hm)+")",u);
     dilcopy ("zombie_summoned@spells("+itoa(hm)+")",u);
-    dilcopy("undead_exec@spells",u);
+    dilcopy("undead_exec@spells("+itoa(hm)+")",u);
 		if (isset(self.pcflags,PC_PK_RELAXED))
 		dilcopy ("catchit@spells(1)",u);
 		else
@@ -2828,6 +2812,8 @@ dilend /* raise_champ */
 
 dilbegin raise_skel(medi : unitptr, tgt : unitptr, arg : string,
                     hm : integer, effect : string);
+external
+   integer unraisable@spells(rc : integer);
 var
    u : unitptr;
    chk : integer;
@@ -2841,32 +2827,21 @@ code
    }
 
 
-     if (not (IS_CORPSE(tgt)))
+  if (not (IS_CORPSE(tgt)) or (IS_CORPSE(tgt) and tgt.value[2] == 1))
   {
-  act ("You try to bring life to $2n but nothing happens",
+  act ("You try to bring life to $2n but nothing happens.",
   A_ALWAYS,self,tgt,null,TO_CHAR);
-  act ("$1n tries to bring life to $2n but nothing happens",
+  act ("$1n tries to bring life to $2n but nothing happens.",
   A_SOMEONE,self,tgt,null,TO_REST);
   quit;
   }
   chk := (tgt.value[4]);
 
-  if ( ((chk > RACE_OTHER_MAMMAL) and (chk <= RACE_INSECT)) or
-       ((chk > RACE_OTHER_CREATURE) and (chk <= RACE_UNDEAD)) or
-       (chk == RACE_SCORPION) or (chk == RACE_STONE_RENDER) or
-	   (chk == RACE_VAMPIRE) or (chk == RACE_SLIME) or
-       (chk == RACE_LESSER_DEMON) or (chk == RACE_GREATER_DEMON) or
-       (chk == RACE_LESSER_DEVIL) or (chk == RACE_GREATER_DEVIL) or
-       (chk == RACE_SHADOW_DEVIL) or (chk == RACE_GARGOYLE) or
-       (chk == RACE_GOLEM) or (chk == RACE_YOGOLOTH) or
-       (chk == RACE_MIST_DWELLER) or (chk == RACE_ELEMENTAL_AIR) or
-       (chk == RACE_ELEMENTAL_FIRE) or (chk == RACE_ELEMENTAL_EARTH) or
-       (chk == RACE_ELEMENTAL_FROST) or (chk == RACE_ELEMENTAL_WATER) or
-       (chk == RACE_ELEMENTAL_LIGHT) )
+  if (unraisable@spells(chk))
   {
    act("The corpse glows briefly then suddenly crumbles into dust...",
    A_SOMEONE, self, null,null, TO_REST);
-   act("The corpse glows briefly then suddenly crumbles into dust..." +
+   act("The corpse glows briefly then suddenly crumbles into dust... " +
           "something was amiss with the subject." , A_SOMEONE, self, null,
           null, TO_CHAR);
 
@@ -2881,9 +2856,8 @@ unsecure (tgt);
 
    u:= load("skeleton@spells");
   secure (u,lostu);
-    dilcopy("undead_obey@spells("+itoa(hm)+")",u);
     dilcopy ("zombie_summoned@spells("+itoa(hm)+")",u);
-    dilcopy("undead_exec@spells",u);
+    dilcopy("undead_exec@spells("+itoa(hm)+")",u);
 		if (isset(self.pcflags,PC_PK_RELAXED))
 		dilcopy ("catchit@spells(1)",u);
 		else
@@ -2946,16 +2920,13 @@ dilbegin final_rest(med : unitptr, targ : unitptr, arg : string,
                    hm : integer, effect : string);
 code
 {
-  if ((not RACE_IS_UNDEAD(targ.race)))
-    hm := -1;
-/*
-  if (hm <= 0)
+  /* Only the undead are granted their final rest */
+  if (not RACE_IS_UNDEAD(targ.race))
   {
     act("Nothing happens.",
         A_ALWAYS, self, null, null, TO_CHAR);
     quit;
   }
-*/
 
   hm := attack_spell(SPL_FINAL_REST, self, med, targ, 0, effect);
   quit;
@@ -2968,10 +2939,9 @@ var
    heal : integer;
 code
 {
+   /* Only the undead, demons and devils */
    if ((not(RACE_IS_UNDEAD(targ.race))) and
-        (not(targ.race == RACE_GREATER_DEMON)) and
-        (not(targ.race >= RACE_LESSER_DEMON)) and (hm <= RACE_LESSER_DEVIL))
-
+       ((targ.race < RACE_DEMON_MIN) or (targ.race > RACE_DEMON_MAX)))
      hm := -1;
 
    if (hm < 0)
@@ -2993,7 +2963,7 @@ code
       if (self != targ)
       {
         act("$3n appears to have regained some strength.",
-            A_SOMEONE, self, null, null, TO_REST);
+            A_SOMEONE, self, null, targ, TO_NOTVICT);
         act("You feel refreshed.",
             A_SOMEONE, self, null, targ, TO_VICT);
       }
@@ -3054,15 +3024,7 @@ code
       act("Something prevents the soul shift from happening at $3n.",
           A_ALWAYS, self, null, targ, TO_CHAR);
       quit;
-   }
-
-if (self.type==UNIT_ST_PC)
-if (not(paycheck(self,room)))
-    {
-      act("You do not have access to where $3n is located, type 'help donation'.",
-          A_ALWAYS, self, null, targ, TO_CHAR);
-      quit;
-    }  */
+   }  */
 
 /*
   if (targ.master != self)
@@ -3116,7 +3078,9 @@ if (not(paycheck(self,room)))
           A_ALWAYS, self, null, null, TO_CHAR); */
 
       link(targ, (findrndunit(targ, FIND_UNIT_WORLD, UNIT_ST_ROOM)));
+      dilcopy("sendmsg@spells(teleport)", targ);
       link(self, (findrndunit(self, FIND_UNIT_WORLD, UNIT_ST_ROOM)));
+      dilcopy("sendmsg@spells(teleport)", self);
       exec("look", targ);
       exec("look", self);
 
@@ -3146,7 +3110,9 @@ if (not(paycheck(self,room)))
 
   dest := targ.outside;
   link(targ, self.outside);
+  dilcopy("sendmsg@spells(teleport)", targ);
   link(self, dest);
+  dilcopy("sendmsg@spells(teleport)", self);
 
   act("You are surrounded by a purple glow...",
       A_ALWAYS, self, null, null, TO_CHAR);
@@ -3169,24 +3135,18 @@ dilbegin raise_hpp(medi:unitptr, tgt : unitptr, arg : string,
                    hm : integer, effect : string);
 code
 {
-   if (self.spells[SPL_RAISE_HPP] <= 0)
-   {
-     act("You must practice first.",
-         A_ALWAYS, self, null, null, TO_CHAR);
-     quit;
-   }
 
 if ((isaff(tgt,ID_SPL_RAISE_HPP)) or
 (hm<0))
    {
          if (tgt!=self)
-           act ("The magic dissipates as it is cast on $2n",
+           act ("The magic dissipates as it is cast on $2n.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
          else
            act ("The magic dissipates as it is cast on you.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
@@ -3199,7 +3159,7 @@ if ((isaff(tgt,ID_SPL_RAISE_HPP)) or
                APF_ABILITY);
 
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
    quit;
 }
@@ -3219,13 +3179,6 @@ code
           A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
-if (self.type==UNIT_ST_PC)
-if (not(paycheck(self,targ)))
-   {
-      act("There is a disturbance in the powers of magic...",
-          A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
 
    act("$1n vanishes in a puff of blue smoke!",
        A_SOMEONE, self, null, null, TO_REST);
@@ -3233,6 +3186,7 @@ if (not(paycheck(self,targ)))
        A_ALWAYS, self, null, null, TO_CHAR);
 
       link(self, targ);
+   dilcopy("sendmsg@spells(teleport)", self);
 
    act("$1n appears from a puff of blue smoke!",
         A_SOMEONE, self, null, null, TO_REST);
@@ -3243,115 +3197,108 @@ if (not(paycheck(self,targ)))
 }
 dilend /* indiv_tele */
 
-dilbegin group_tele(med : unitptr, targ : unitptr, arg : string,
-                    hm : integer, effect : string);
+// group teleport spell
+//
+dilbegin group_tele(med : unitptr, targ : unitptr, arg : string, hm : integer, effect : string);
 external
-	integer may_tele_away(u : unitptr);
-	rift_failure(targ : unitptr);
-
+    integer may_tele_away(u : unitptr);
+    rift_failure(targ : unitptr);
 var
-   u      : unitptr;
-   mast   : unitptr;
-   u_mast : unitptr;
-   dest   : unitptr;
-   in_gr  : integer;
-   kids   : integer;
-   mta    : integer;
+    u      : unitptr;
+    mast   : unitptr;
+    u_mast : unitptr;
+    dest   : unitptr;
+    in_gr  : integer;
+    kids   : integer;
+    mta    : integer;
+    gtpcost   : integer;
 
 code
 {
-  if (self.spells[SPL_GROUP_TELEPORT] <= 0)
-  {
-     act("I don't think so.",
-         A_ALWAYS, self, null, null, TO_CHAR);
-     quit;
-  }
+    if (self.spells[SPL_GROUP_TELEPORT] <= 0)
+    {
+        act("I don't think so.", A_ALWAYS, self, null, null, TO_CHAR);
+        quit;
+    }
 
-  if(hm < 0)
-  {
-	act("Nothing happens.",
-	A_ALWAYS, self, null, null, TO_CHAR);
-	goto end;
-  }
+    if (hm < 0)
+    {
+        if (rnd(1, RIFT_RISK) <= 3)
+        {
+            rift_failure(targ);
+            quit;
+        }
 
-  if(rnd(1, RIFT_RISK) <= 5)
-  {
-	rift_failure(targ);
-	quit;
-  }
-
-if (self.zoneidx=="g_q")
-	{
-	act ("$1n is struck by lightning.",
-		A_ALWAYS, self,null,null,TO_ROOM);
-	self.mana:=0;
-	position_update(self);
-	quit;
-	}
-
-  if (targ.outside == self.outside)
-  {
-    act("$3n is right here!",
-        A_ALWAYS, self, null, targ, TO_CHAR);
-    goto end;
-  }
-
-  mta := may_tele_away(self);
-  if (not mta)
-      {
-        act("Something prevents you from teleporting from here.",
-            A_ALWAYS, self, null, null, TO_CHAR);
+        act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
         goto end;
-      }
+    }
 
-  mta := TRUE;
+    if (rnd(1, RIFT_RISK) <= 5)
+    {
+        rift_failure(targ);
+        quit;
+    }
 
-/* This spell currently allows people to tele to the room/etc of
-   a target mob or object even if that mob or object is notele. To
-   disable this, uncomment the following lines. - Eirinn */
+    if (self.zoneidx=="g_q")
+    {
+        act ("$1n is struck by lightning.", A_ALWAYS, self,null,null,TO_ROOM);
+        self.mana:=0;
+        position_update(self);
+        quit;
+    }
 
-   if (targ.flags & UNIT_FL_NO_TELEPORT)
-  {
-    mta := FALSE;
-    goto check_it;
-  }
+    if (targ.outside == self.outside)
+    {
+        act("$3n is right here!", A_ALWAYS, self, null, targ, TO_CHAR);
+        goto end;
+    }
+
+    mta := may_tele_away(self);
+    if (not mta)
+    {
+        act("Something prevents you from teleporting from here.", A_ALWAYS, self, null, null, TO_CHAR);
+        goto end;
+    }
+
+    mta := TRUE;
+
+    /* This spell currently allows people to tele to the room/etc of
+    a target mob or object even if that mob or object is notele. To
+    disable this, uncomment the following lines. - Eirinn */
+
+    if (targ.flags & UNIT_FL_NO_TELEPORT)
+    {
+        mta := FALSE;
+        goto check_it;
+    }
 
 
-  dest := targ;
-  while (dest.type != UNIT_ST_ROOM)
-     dest := dest.outside;
+    dest := targ;
+    while (dest.type != UNIT_ST_ROOM)
+    dest := dest.outside;
 
-  if (dest.flags & UNIT_FL_NO_TELEPORT)
+    if (dest.flags & UNIT_FL_NO_TELEPORT)
         mta := FALSE;
 
-:check_it:
-  if (not mta)
-      {
-  /* Man, look at that act. I wonder what dipshit wrote it. If you ever
-     happen to read this, you should be using A_ALWAYS. */
+    :check_it:
+    if (not mta)
+    {
+        /* Man, look at that act. I wonder what dipshit wrote it. If you ever
+        happen to read this, you should be using A_ALWAYS. */
 
-        act("Something prevents you from teleporting to there.",
-            A_ALWAYS, self, null, null, TO_CHAR);
+        act("Something prevents you from teleporting to there.", A_ALWAYS, self, null, null, TO_CHAR);
         goto end;
-      }
+    }
 
-if (self.type==UNIT_ST_PC)
-if (not(paycheck(self,dest))){
-        act("You don't have access to that location, type 'help donation'.",
-            A_SOMEONE, self, null, null, TO_CHAR);
-        goto end;
-      }
-
-  if ((dest.movement == SECT_WATER_SWIM) or
-      (dest.movement == SECT_WATER_SAIL))
-  {
+    if ((dest.movement == SECT_WATER_SWIM) or (dest.movement == SECT_WATER_SAIL))
+    {
     act("You sense a watery grave for yourself should you appear " +
         "there.",
         A_ALWAYS, self, null, null, TO_CHAR);
     goto end;
-  }
+    }
 
-if (self.master)        /* Bob is not a leader */
+    if (self.master)        /* Bob is not a leader */
     {
     if (self.master.master) /* Bob's leader cannot be group leader */
         {
@@ -3383,7 +3330,7 @@ if (self.master)        /* Bob is not a leader */
         }
     }
 
-else        /* Bob is a leader */
+    else        /* Bob is a leader */
     {
     mast := self;
 
@@ -3405,21 +3352,22 @@ else        /* Bob is a leader */
         }
     }
 
+    gtpcost := 10 - (hm/120); // benefit for good casters for group teleport
 
-if (self.mana < (kids * 10)) /* 10 mana per grouped char */
+    if (self.mana < (kids * gtpcost)) /* 10 mana per grouped char */
     {
     act("You have insufficient mana to teleport everyone in your group.",
         A_ALWAYS, self, null, null, TO_CHAR);
     goto tele_self;
     }
 
-self.mana:= self.mana - (kids * 10);
+    self.mana:= self.mana - (kids * gtpcost);
 
-if (in_gr == FALSE)
+    if (in_gr == FALSE)
     goto tele_self;
 
-foreach (UNIT_ST_PC|UNIT_ST_NPC, u)
-	{
+    foreach (UNIT_ST_PC|UNIT_ST_NPC, u)
+    {
 
     if (u == self)
         continue;
@@ -3450,17 +3398,17 @@ foreach (UNIT_ST_PC|UNIT_ST_NPC, u)
     act("$3n vanishes in a flash of blue light!",
         A_ALWAYS, self, null, u, TO_CHAR);
     dilcopy("indiv_tele@spells("+dest.nameidx + "@" + dest.zoneidx +
-                               "," + self.name +")", u);
+                                "," + self.name +")", u);
     }
 
-/*  act("You clap your hands and find yourself at " + targ.name + ".",
-      A_ALWAYS, self, null, null, TO_CHAR);*/
-:tele_self:
-dilcopy("indiv_tele@spells("+dest.nameidx + "@" + dest.zoneidx +
+    /*  act("You clap your hands and find yourself at " + targ.name + ".",
+    A_ALWAYS, self, null, null, TO_CHAR);*/
+    :tele_self:
+    dilcopy("indiv_tele@spells("+dest.nameidx + "@" + dest.zoneidx +
     "," + self.name +")", self);
 
-:end:
-quit;
+    :end:
+    quit;
 
 }
 dilend /* group_tele */
@@ -3497,16 +3445,19 @@ code
 	}
 	else
 	{
+	/* A dispel at least as strong breaks the control early, ending it as if it
+	   had run out; other messages don't touch it */
 	dispel := getwords(argument);
 	if(dispel.[0] == "spl_dispel")
 	 {
 	 if (atoi(dispel.[1]) >= i)
-	 	goto loop;
+	 	goto released;
 	 }
-	else goto byebye;
+	goto loop;
 	}
     }
 
+	:released:
 	exq := "$undead control" in self.extra;
 
 	mast := findunit(self,exq.descr,FIND_UNIT_SURRO,null);
@@ -3523,7 +3474,7 @@ code
 	}
 	else
 	{
-	act("$1n howls and rebels against $1 master!",
+	act("$1n howls and rebels against $1s master!",
 		A_SOMEONE, self, null, mast, TO_NOTVICT);
 	act("$1n howls and rebels against you!",
 		A_SOMEONE, self, null, mast, TO_VICT);
@@ -3562,8 +3513,6 @@ var ext : extraptr;
 
 code
 {
-interrupt(SFB_MSG, TRUE, test);
-priority;
 
 :loop:
 wait(SFB_CMD, command("tell"));
@@ -3622,17 +3571,6 @@ addextra (self.extra,{"$pc obey"},activator.name);
 exec(argument, self);
 goto loop;
 
-:test:
-if (getword(argument) == "spl_dispel")
-  if (atoi(getword(argument)) >= i)
-    goto stop;
-goto loop;
-
-:stop:
-i:= dildestroy("undead_exec@spells", self);
-subextra (self.extra, "$undead control");
-exec("follow", self);
-quit;
 }
 dilend
 
@@ -4049,8 +3987,10 @@ A_ALWAYS, self, null, null, TO_REST);
    }
    if("storm gate" in tgt.names)
    {
+     secure(tgt, lost);
      pause;
      sendto("OPENCAST "+itoa(self.abilities[ABIL_BRA]), tgt);
+     unsecure(tgt);
    }
    else
    {
@@ -4062,6 +4002,7 @@ self, null, tgt, TO_NOTVICT);
 tgt, self, null,  TO_CHAR);
       quit;
    }
+:lost:
    quit;
 }
 dilend
@@ -4100,31 +4041,51 @@ else
 dilend
 
 
-dilbegin aware undead_exec();
-var
-   cancast : integer;
+dilbegin aware undead_exec(i : integer);
 code
 {
-   cancast := dilfind("combat_mag ", self);
-
+dilcopy ("undead_obey@spells("+itoa(i)+")",self);
+heartbeat:=PULSE_SEC*3;
    :loop:
    wait(SFB_CMD, activator == self);
 
-   /* This is what the undeads cant do... */
-   if (command("sneak") or command("hide") or
-       command("steal") or command("recite") or command("use") or
-       command ("shout") or command ("tell") or command ("pick") or
-       command ("filch") or command ("pickpocket") or
-       command("aid") or command("trip"))
-   {
-      block;
-      exec("moan", self);
-   }
-   else if ((command("cast")) and (cancast!=1))
-   {
-      block;
-      exec("moan", self);
-   }
+   /* This is what the undeads can do... */
+if ((command("cast")) and ("$undeadcaster" in self.extra))
+   	{
+	      	goto loop;
+  	 }
+else if (not(((command ("kill")) or
+	(command ("up")) or
+	(command ("down")) or
+	(command ("north")) or
+	(command ("south")) or
+	(command ("east")) or
+	(command ("west")) or
+	(command ("northeast")) or
+	(command ("northwest")) or
+	(command ("southwest")) or
+	(command ("southeast")) or
+	(command ("climb")) or
+	(command ("enter")) or
+	(command ("sleep")) or
+	(command ("wake")) or
+	(command ("stand")) or
+	(command ("rest")) or
+	(command ("sit")) or
+	(command ("kill")) or
+	(command ("get")) or
+	(command ("drop")) or
+	(command ("give")) or
+	(command ("follow")) or
+	(command ("flee")) or
+	(command ("look")) or
+	(command ("dig")) or
+	(command ("bury")) or
+	(command ("put"))))){
+			block;
+      		exec("moan", self);
+   	}
+
    goto loop;
 }
 dilend
@@ -4192,12 +4153,14 @@ dilend
 dilbegin integer skill_duration(hm : integer);
 code
 {
+
    if (hm < 20)
-     return (2);
-   else if (hm > 150)
-     return (15);
+      return (2);
+   else if (hm <= 150)
+      return (hm/10);
    else
-     return (hm / 10);
+      return (15+((hm-150)/20));
+
 }
 dilend
 dilbegin unitptr unit_room(u : unitptr);
@@ -4319,7 +4282,9 @@ code
     quit;
    }
 
-   if( not dilfind( "magic_summoned@spells", tgt ) ) {
+   /* Summoned creatures; eagle cry's eagle has its own timer */
+   if( not( dilfind( "magic_summoned@spells", tgt ) or
+            dilfind( "magic_eagle@spells", tgt ) ) ) {
     act( "Nothing happens.",A_ALWAYS,self,null,null,TO_CHAR);
     quit;
    }
@@ -4354,7 +4319,7 @@ var
 code{
      if(hm<=0)
      {
-      act("A small ball of pure light appears in front of $1n, but fades away",
+      act("A small ball of pure light appears in front of $1n, but fades away.",
              A_SOMEONE,self,null,null,TO_REST);
       act("A small ball of pure light appears in front of you, but fades away.",
              A_ALWAYS,self,null,null,TO_CHAR);
@@ -4400,10 +4365,10 @@ code{
        skilla:=self.abilities[ABIL_BRA];
        skillb:=u.abilities[ABIL_BRA];
 
-       if((u.race>=RACE_SPIRIT_MIN) and (u.race<=RACE_SPIRIT_MIN))
+       if((u.race>=RACE_SPIRIT_MIN) and (u.race<=RACE_SPIRIT_MAX))
        {
-        skilla:=skillb/2;
-        skillb:=skilld/2;
+        skillb:=skillb/2;
+        skilld:=skilld/2;
         res:=spellresist (skilla,skillb,skillc,skilld);
 
         if(res>0)
@@ -4527,7 +4492,8 @@ room */
 
      foreach( UNIT_ST_NPC, u )
      {
-      if( dilfind( "magic_summoned@spells", u ) )
+      if( dilfind( "magic_summoned@spells", u ) or
+          dilfind( "magic_eagle@spells", u ) )
       {
        skilla := self.abilities[ABIL_BRA];
        skillb := u.abilities[ABIL_BRA];
@@ -4557,7 +4523,7 @@ room */
                  A_SOMEONE,self,null,u,TO_NOTVICT);
         act("$3n is unaffected by the sudden breeze and growls at you.",
                  A_SOMEONE,self,null,u,TO_CHAR);
-        act("You is unaffected by the sudden breeze.",
+        act("You are unaffected by the sudden breeze.",
                  A_ALWAYS,self,null,u,TO_VICT);
         provoked_attack (u,self);
        }
@@ -4641,14 +4607,14 @@ code
      skillb:=self.abilities[ABIL_BRA];
 
      if(self.type & UNIT_ST_PC)
-      skilld:=self.spells[SPL_CAUSE_FLIGHT];
+      skilld:=self.spells[SPL_CAUSE_PANIC];
      else
       skilld:=self.abilities[ABIL_BRA];
 
      res:=spellresist (skilla,skillb,skillc,skilld);
 
 
-     if(res<0)
+     if(res>0)
      {
       act("Your neck hair rises.",A_ALWAYS,self,null,null,TO_CHAR);
       exec("flee",self);
@@ -4692,7 +4658,7 @@ code{
       act("You are not fighting.",A_ALWAYS,self,null,null,TO_CHAR);
       quit;
      }
-     act("You feel you hands pulsating with power.",
+     act("You feel your hands pulsating with power.",
               A_ALWAYS,tgt,null,null,TO_CHAR);
      dilcopy("hammer@spells",tgt);
      quit;
@@ -4716,11 +4682,11 @@ code{
      if(command(CMD_AUTO_COMBAT) and not(equipment(self,WEAR_WIELD)))
      {
       if(self.speed<=12)
-       res:=meleeattack(self,self.fighting,3,WPN_UNARMED);
+       res:=meleeattack(self,self.fighting,3,WPN_UNARMED,TRUE);
       if(self.speed<=8)
-       res:=meleeattack(self,self.fighting,3,WPN_UNARMED);
+       res:=meleeattack(self,self.fighting,3,WPN_UNARMED,TRUE);
       if(self.speed<=4)
-       res:=meleeattack(self,self.fighting,3,WPN_UNARMED);
+       res:=meleeattack(self,self.fighting,3,WPN_UNARMED,TRUE);
      }
      goto loop;
 }
@@ -4752,7 +4718,7 @@ code{
    :hold:
      if(hm<=0)
      {
-      act("You are unable to focus, and therefor unable to prevent $3n from fleeing.",
+      act("You are unable to focus, and therefore unable to prevent $3n from fleeing.",
                A_HIDEINV,self,null,tgt,TO_CHAR);
       quit;
      }
@@ -4773,6 +4739,13 @@ var
  i    : integer;
 code{
      if(hm <= 0)
+     {
+      act("Nothing happens.",A_ALWAYS,self,null,null,TO_CHAR);
+      quit;
+     }
+     /* A player's corpse already keeps far longer than this spell's 8 minutes,
+        and has a way home; slowing it would destroy it, gear and all, sooner */
+     if (IS_CORPSE(tgt) and (tgt.value[2] == 1))
      {
       act("Nothing happens.",A_ALWAYS,self,null,null,TO_CHAR);
       quit;
@@ -4815,7 +4788,7 @@ code{
      else if(dilfind("rotting@spells",tgt))
       act("Nothing happens.",A_ALWAYS,self,null,null,TO_CHAR);
      else
-      act("Target is not a corpse",A_ALWAYS,self,null,null,TO_CHAR);
+      act("Target is not a corpse.",A_ALWAYS,self,null,null,TO_CHAR);
      quit;
 }
 dilend
@@ -4922,9 +4895,9 @@ i:=0;
       {
         if (self.position != POSITION_FIGHTING)
         {
-           act("You lay down and go to sleep.",
+           act("You lie down and go to sleep.",
                A_ALWAYS, self, null, null, TO_CHAR);
-           act("$1n lays down and goes to sleep.",
+           act("$1n lies down and goes to sleep.",
                A_HIDEINV, self, null, null, TO_REST);
            self.position := POSITION_SLEEPING;
         }
@@ -5006,8 +4979,15 @@ code
       i := i + 1;
 
       self.hp := self.hp - j;
+      
       self.mana := self.mana - 2*j;
+      if (self.mana < 0)
+      	self.mana := 0;	
+
       self.endurance := self.endurance - 2*j;
+      if (self.endurance < 0)
+        self.endurance := 0;
+      
       if (self.hp >= -10)
           position_update(self);
 
@@ -5087,7 +5067,7 @@ code
    :case3:
    act("You feel sick.",
        A_ALWAYS, self, null, null, TO_CHAR);
-   act("$1n look very pale.",
+   act("$1n looks very pale.",
        A_HIDEINV,self,null,null,TO_ROOM);
    if (self.type == UNIT_ST_PC)
    {
@@ -5130,16 +5110,20 @@ code
 
    u := findrndunit(self, FIND_UNIT_SURRO, UNIT_ST_PC|UNIT_ST_NPC);
 
+   if (u == null)
+     goto cough;
+
    if (dilfind("spl_plague@spells", u))
-     goto loop;
+     goto cough;
 
    j :=spellresist (pwr, u.abilities[ABIL_CON], pwr, u.abilities[ABIL_CHA]);
 
    if (j < 0)
-     goto loop;
+     goto cough;
 
    dilcopy("spl_plague@spells("+itoa((3*pwr)/5)+")", u);
 
+   :cough:
    self.hp := self.hp - self.max_hp / 5;
    position_update(self);
    goto loop;
@@ -5194,7 +5178,7 @@ addextra (self.extra,{"$pc obey"},self.master.name);
    goto loop;
 
    :byebye:
-   exec("emote howls in pain as it loses his link to the real world.",self);
+   exec("emote howls in pain as it loses its link to the real world.",self);
    exec("emote vanishes in a cloud of grey dust.",self);
    destroy(self);
    quit;
@@ -5229,7 +5213,7 @@ code
 	 if (parse.[0] == "spl_dispel")
 	 {
 	    if (atoi(parse.[1]) >= pwr)
-	      goto loop;
+	      goto vanish;
 	 }
       }
    }
@@ -5337,6 +5321,7 @@ if (t_recall==0)
        A_ALWAYS,self,null,null,TO_CHAR);
 
    link(self, u);
+   dilcopy("sendmsg@spells(teleport)", self);
    act("$1n appears in a cloud of blue sparks.",
        A_ALWAYS,self,null,null,TO_ROOM);
 
@@ -5351,41 +5336,66 @@ if (t_recall==0)
 }
 dilend
 
+
+
 // locate wanted
+//
 dilbegin loc_want(medi:unitptr, tgt : unitptr, arg : string, hm : integer, effect : string);
 external
-  unitptr unit_room (u : unitptr);
-  string npc_name@justice(cr_name : string);
+   unitptr unit_room(u : unitptr);
+   unitptr FindCriminal@justice(criminalName : string);
+   integer spellresist@spells(aa : integer, ad : integer,
+                              sa : integer, sd : integer);
 var
-  u : unitptr;
-  n_name : string;
-
+   skilla : integer;
+   skillb : integer;
+   skillc : integer;
+   skilld : integer;
+   targ : unitptr;
+   rm : unitptr;
+   i : integer;
 code
 {
-   if (tgt.type == UNIT_ST_NPC)
+   // log("Locate wanted ["+arg+"]" + effect);
+
+   targ := FindCriminal@justice(arg);
+
+   if (targ == null)
    {
-     n_name := npc_name@justice(tgt.name);
-      if(n_name)
-       tgt := findunit(self, n_name, FIND_UNIT_GLOBAL, null);
+      act("There seems to be no such '"+arg+"' with a reward.", A_SOMEONE, self, null, null, TO_CHAR);
+      quit;
    }
 
-   if (hm < 0)
+   if(self.type == UNIT_ST_PC)
+      skillc:=self.spells[SPL_LOCATE_WANTED];
+   else
+      skillc:=self.abilities[ABIL_BRA];
+
+   if (targ.type==UNIT_ST_PC)
+      skilld:=targ.spells[SPL_LOCATE_ANIMAL];
+   else
+      skilld:=targ.abilities[ABIL_BRA];
+
+   skilla := self.abilities[ABIL_BRA];
+   skillb := targ.abilities[ABIL_BRA];
+
+   hm:=spellresist (skilla,skillb,skillc,skilld);
+
+   if (hm >= 0)
+   {
+      // log("FindCriminal() = " + u.symname);
+      rm := unit_room(targ);
+      act("$2n at $3t", A_SOMEONE, self, targ, rm.title, TO_CHAR);
+   }
+   else
    {
       act("You feel confused.", A_ALWAYS, self, null, null, TO_CHAR);
 
       if (hm < -50)
       {
-         act("You realize that $2n attempted to locate you.", A_ALWAYS, tgt, self, null, TO_CHAR);
+         act("You realize that $2n attempted to locate you.", A_ALWAYS, targ, self, null, TO_CHAR);
       }
-      quit;
    }
-
-   u := unit_room(tgt);
-
-   if (isset(tgt.charflags,CHAR_OUTLAW))
-      act("$2n at $3t", A_SOMEONE, self, tgt, u.title, TO_CHAR);
-   else
-      act("$2n doesn't seem to be wanted.", A_ALWAYS, self, tgt, null, TO_CHAR);
    quit;
 }
 dilend
@@ -5394,56 +5404,101 @@ dilend
 
 dilbegin find_want(medi:unitptr, tgt : unitptr, arg : string, hm : integer, effect : string);
 external
-   string dirstring   (dr:integer);
-   string npc_name@justice(cr_name : string);
+   unitptr unit_room(u : unitptr);
+   unitptr FindCriminal@justice(criminalName : string);
+   integer spellresist@spells(aa : integer, ad : integer,
+                              sa : integer, sd : integer);
+   string dirstring(dr:integer);
 var
    dir_string:string;
-   i:integer;
-   n_name : string;
+   skilla : integer;
+   skillb : integer;
+   skillc : integer;
+   skilld : integer;
+   targ : unitptr;
+   i : integer;
+   tries : integer;
 code
 {
-  if (tgt.type == UNIT_ST_NPC)
-  {
-     n_name := npc_name@justice(tgt.name);
-      if(n_name)
-       tgt := findunit(self, n_name, FIND_UNIT_GLOBAL, null);
-  }
-  if (hm < 0)
+   // log("Locate wanted ["+arg+"]" + effect);
+
+   targ := FindCriminal@justice(arg);
+
+   if (targ == null)
    {
-      act("You feel confused.", A_ALWAYS, self, null, null, TO_CHAR);
+      act("There seems to be no such '"+arg+"' with a reward.", A_SOMEONE, self, null, null, TO_CHAR);
       quit;
    }
 
-   if (not isset(tgt.charflags,CHAR_OUTLAW))
-   {
-      act("$2n doesn't seem to be wanted.", A_ALWAYS, self, tgt, null, TO_CHAR);
-      quit;
-   }
+   if(self.type == UNIT_ST_PC)
+      skillc:=self.spells[SPL_LOCATE_WANTED];
+   else
+      skillc:=self.abilities[ABIL_BRA];
 
-   i := pathto (self,tgt);
+   if (targ.type==UNIT_ST_PC)
+      skilld:=targ.spells[SPL_LOCATE_ANIMAL];
+   else
+      skilld:=targ.abilities[ABIL_BRA];
 
-   if (i==DIR_IMPOSSIBLE)
+   skilla := self.abilities[ABIL_BRA];
+   skillb := targ.abilities[ABIL_BRA];
+
+   hm := spellresist(skilla,skillb,skillc,skilld);
+
+   if (hm >= 0)
    {
-      act ("You get the feeling it is impossible from here.",
-	   A_ALWAYS,self,null,null,TO_CHAR);
-   }
-   else if (i==DIR_HERE)
-   {
-      act ("This is the place.", A_ALWAYS,self,null,null,TO_CHAR);
-   }
-   else if (i == DIR_ENTER)
-   {
-      act ("You should enter something here.", A_ALWAYS,self,null,null,TO_CHAR);
-   }
-   else if (i == DIR_EXIT)
-   {
-      act ("You should exit this place.", A_ALWAYS,self,null,null,TO_CHAR);
+      i := pathto(self, targ);
+
+      // The first path from a room is worked out in the background; wait for it
+      // as find_path does (targ is found again after each pause)
+      heartbeat := PULSE_SEC;
+      while ((i == DIR_TRYAGAIN) and (tries < 10))
+      {
+         tries := tries + 1;
+         pause;
+         targ := FindCriminal@justice(arg);
+         if (targ == null)
+            break;
+         i := pathto(self, targ);
+      }
+
+      if (i == DIR_TRYAGAIN)
+      {
+         act("The magic is elusive. Maybe you should try again.", A_ALWAYS, self, null, null, TO_CHAR);
+      }
+      else if (i==DIR_IMPOSSIBLE)
+      {
+         act ("You get the feeling it is impossible from here.",
+         A_ALWAYS,self,null,null,TO_CHAR);
+      }
+      else if (i==DIR_HERE)
+      {
+         act ("This is the place.", A_ALWAYS,self,null,null,TO_CHAR);
+      }
+      else if (i == DIR_ENTER)
+      {
+         act ("You should enter something here.", A_ALWAYS,self,null,null,TO_CHAR);
+      }
+      else if (i == DIR_EXIT)
+      {
+         act ("You should exit this place.", A_ALWAYS,self,null,null,TO_CHAR);
+      }
+      else
+      {
+         dir_string := dirstring  (i);
+         act ("You should leave $2t.", A_ALWAYS,self,dir_string,null,TO_CHAR);
+      }
    }
    else
    {
-      dir_string := dirstring  (i);
-      act ("You should leave $2t.", A_ALWAYS,self,dir_string,null,TO_CHAR);
+      act("You feel confused.", A_ALWAYS, self, null, null, TO_CHAR);
+
+      if (hm < -50)
+      {
+         act("You realize that $2n attempted to locate you.", A_ALWAYS, targ, self, null, TO_CHAR);
+      }
    }
+
    quit;
 }
 dilend
@@ -5452,12 +5507,12 @@ dilend
 
 dilbegin find_path(medi:unitptr, tgt : unitptr, arg : string, hm : integer, effect : string);
 external
-   string dirstring@function   (dr:integer);
+   string dirstring@function(dr:integer);
 
 var
    dir_string:string;
    i : integer;
-   first:integer;
+   tries:integer;
   
 code
 {
@@ -5469,15 +5524,24 @@ code
    }
 
    /* do the actual path to call and display results */
-   heartbeat:=1;
-   first:=0;
+   heartbeat:=PULSE_SEC;
+   tries:=0;
 
 :repeater:
    i := pathto(self, tgt);   
    
+   // The first path from a room is worked out in the background; wait for it
+   // (tgt is secured by the spell system for as long as this runs)
+   if ((i == DIR_TRYAGAIN) and (tries < 10))
+   {
+      tries := tries + 1;
+      pause;
+      goto repeater;
+   }
+
    if (i == DIR_TRYAGAIN)
    {
-      act("The magic is illusive. Maybe you should try again.", A_ALWAYS, self, null, null, TO_CHAR);
+      act("The magic is elusive. Maybe you should try again.", A_ALWAYS, self, null, null, TO_CHAR);
    }
    else if (i == DIR_IMPOSSIBLE)
    {
@@ -5520,7 +5584,11 @@ code
    }
 
    if (arg == "")
-     pc := null;
+   {
+      act("Refit it for whom?",
+	  A_ALWAYS, self, null, null, TO_CHAR);
+      quit;
+   }
    else
    {
       pc := findunit(self, arg, FIND_UNIT_SURRO, null);
@@ -5560,12 +5628,12 @@ code
        (tgt.objecttype == ITEM_WEAPON))
    {
       /* Material quality makes it harder / easier */
-      hm := hm - (2*tgt.value[2]);
+      hm := hm - (2*tgt.value[1]);
    }
 
    if ("$resized" in tgt.extra)
    {
-      act("The $2N appear to quiver for a moment, "+
+      act("The $2N appears to quiver for a moment, "+
           "but nothing seems to happen.",
 	   A_ALWAYS,self,tgt,null,TO_CHAR);
       quit;
@@ -5587,48 +5655,44 @@ code
      size := "enlarges"
    else
      size := "shrinks";
-   act("Your $2n glows brightly as it $3t",
+   act("Your $2N glows brightly as it $3t.",
        A_ALWAYS, self, tgt, size, TO_CHAR);
-   act("$1n's $2n glows as it $3t",
+   act("$1n's $2N glows as it $3t.",
        A_ALWAYS, self, tgt, size, TO_REST);
    :lostpc:
    quit;
 }
 dilend
 
+// Copied onto a refitted item: it keeps the new size until a dispel magic at least as
+// strong as the refit ends it (Help/Refit). It only waits for messages, no ticks. The
+// item's own height is kept in its $resized extra, so it comes back right after a reboot,
+// when this program starts over on the already resized item.
 dilbegin recall refit_aff(pwr :integer,size:integer);
 var
-   i : integer;
-   j : integer;
    oldheight:integer;
+   exd : extraptr;
    parse : stringlist;
-
 code
 {
-   addextra(self.extra, {"$resized"}, "");
-
-   interrupt(SFB_MSG, TRUE, check);
-
-   heartbeat := PULSE_SEC * 60;
-   j:=60;
-   oldheight:=self.height;
-   self.height:=size;
+   exd := "$resized" in self.extra;
+   if (exd == null)
+   {
+      oldheight := self.height;
+      addextra(self.extra, {"$resized"}, itoa(oldheight));
+      self.height := size;
+   }
+   else if (exd.descr != "")
+      oldheight := atoi(exd.descr);
+   else
+      oldheight := self.height;  // refitted before its height was kept: unknown
    set (self.flags,UNIT_FL_MAGIC);
-   i:=0;
-   while (i < j)
-   {
-      :loop:
-      wait(SFB_TICK , TRUE);
-      i := i + 1;
-   }
 
-   :check:
+   :loop:
+   wait(SFB_MSG, TRUE);
    parse := getwords(argument);
-   if (parse.[0] == "spl_dispel")
-   {
-      if (atoi(parse.[1]) >= pwr)
-	goto the_end;
-   }
+   if ((parse.[0] == "spl_dispel") and (atoi(parse.[1]) >= pwr))
+      goto the_end;
    goto loop;
 
    :the_end:
@@ -5641,13 +5705,11 @@ code
       act ("$2n returns to its normal size and falls off.",
 	   A_ALWAYS, self.outside, self, null, TO_CHAR);
       act ("$2n returns to its normal size and falls off $1n.",
-	   A_ALWAYS, self.outside, self, null, TO_CHAR);
+	   A_ALWAYS, self.outside, self, null, TO_REST);
    }
    self.height:=oldheight;
    unset (self.flags,UNIT_FL_MAGIC);
    unequip (self);
-
-   :stop:
    quit;
 }
 dilend
@@ -5690,205 +5752,380 @@ dilend
 //
 dilbegin string identify_str(tgt : unitptr, lvl : integer);
 external
-	string quality_str(i : integer);
-	string magic_str(i : integer);
-   string race_name@skills(i : integer);
+    string quality_str(i : integer);
+    string magic_str(i : integer);
+    string race_name@skills(i : integer);
+    string abistr@function(ability:integer);
 var
-   exd : extraptr;
-   craft_str : string;
-   mag_str : string;
-   s : string;
-   s2 : string;
-   sl : stringlist;
-   i : integer;
+    exd : extraptr;
+    craft_str : string;
+    mag_str : string;
+    s : string;
+    s2 : string;
+    i : integer;
+    n : integer;
+    i2 : integer;
+    sl : stringlist;
+    sl2 : stringlist;
 
 code
 {
-   if (tgt.objecttype == ITEM_LIGHT)
-   {
-      s := sact("$3n is light source with "+itoa(tgt.value[0])+" hours left, and an illumination of "+itoa(tgt.value[1])+".<br/>",
-	            A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_SCROLL)
-   {
-      s := sact("$3n is a scroll with a magical power of "+itoa(tgt.value[0])+"<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-      if (lvl >= 2)
-      {
-         s2 := spellinfo(tgt.value[1], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
+    if (tgt.objecttype == ITEM_LIGHT)
+    {
+        s := sact("$3n is a light source with "+itoa(tgt.value[0])+" hours left, and an illumination of "+itoa(tgt.value[1])+".<br/>",
+                    A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_SCROLL)
+    {
+        s := sact("$3n is a scroll with a magical power of "+itoa(tgt.value[0])+".<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (lvl >= 2)
+        {
+            s2 := spellinfo(tgt.value[1], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
 
-         s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
+            s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
 
-         s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
-      }
-   }
-   else if (tgt.objecttype == ITEM_WAND)
-   {
-      s := sact("$3n is a wand with a magical power of "+itoa(tgt.value[0])+" and "+itoa(tgt.value[1])+
+            s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
+        }
+    }
+    else if (tgt.objecttype == ITEM_WAND)
+    {
+        s := sact("$3n is a wand with a magical power of "+itoa(tgt.value[0])+" and "+itoa(tgt.value[1])+
+                    " charges of " + itoa(tgt.value[4]) + " left.<br/>",
+                    A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (lvl >= 2)
+        {
+            s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
+
+            s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
+        }
+    }
+    else if (tgt.objecttype == ITEM_STAFF)
+    {
+        s := sact("$3n is a staff with power "+itoa(tgt.value[0])+" and " + itoa(tgt.value[1])+
                 " charges of " + itoa(tgt.value[4]) + " left.<br/>",
-            	  A_SOMEONE, self, null, tgt, TO_CHAR);
-      if (lvl >= 2)
-      {
-         s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
+                A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (lvl >= 2)
+        {
+            s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
 
-         s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
-      }
-   }
-   else if (tgt.objecttype == ITEM_STAFF)
-   {
-      s := sact("$3n is a staff with power "+itoa(tgt.value[0])+" and " + itoa(tgt.value[1])+
-               " charges of " + itoa(tgt.value[4]) + " left.<br/>",
-      	      A_SOMEONE, self, null, tgt, TO_CHAR);
-      if (lvl >= 2)
-      {
-         s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
+            s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
+        }
+    }
+    else if (tgt.objecttype == ITEM_WEAPON)
+    {
+        craft_str := quality_str(tgt.value[1]);
+        mag_str := magic_str(tgt.value[2]);
 
-         s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
-      }
-   }
-   else if (tgt.objecttype == ITEM_WEAPON)
-   {
-      craft_str := quality_str(tgt.value[1]);
-      mag_str := magic_str(tgt.value[2]);
+        s := sact("$3n is a weapon that requires a " + weapon_name(tgt.value[0]) + " fighting style, is of " + craft_str + 
+                    " craftsmanship and has a " + mag_str + " magical modifier.<br/>",
+                    A_SOMEONE, self, null, tgt, TO_CHAR);
 
-      s := sact("$3n is a weapon that requires a " + weapon_name(tgt.value[0]) + " fighting style, is of " + craft_str + 
-                " craftsmanship " + " and has a " + mag_str + " magical modifier.<br/>",
-	               A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (lvl >= 2)
+        {
+            s := s + "Craftsmanship: " + itoa(tgt.value[1]) + "<br/>";
+            s := s + "Magic: " + itoa(tgt.value[2]) + "<br/>";
+            if (tgt.value[3] != RACE_DO_NOT_USE)
+                s := s + "Slaying: " + race_name@skills(tgt.value[3]) + "<br/>";  // Find race string
+        }
+    }
+    else if (tgt.objecttype == ITEM_ARMOR)
+    {
+        sl := {"clothing", "soft leather", "hard leather", "chain mail", "plate mail"};
 
-      if (lvl >= 2)
-      {
-         s := s + "Craftsmanship: " + itoa(tgt.value[1]) + "<br/>";
-         s := s + "Magic: " + itoa(tgt.value[2]) + "<br/>";
-         if (tgt.value[3] != RACE_DO_NOT_USE)
-            s := s + "Slaying: " + race_name@skills(tgt.value[3]) + "<br/>";  // Find race string
-      }
-   }
-   else if (tgt.objecttype == ITEM_ARMOR)
-   {
-      sl := {"clothing", "soft leather", "hard leather", "chain mail", "plate mail"};
+        craft_str := quality_str(tgt.value[1]);
+        mag_str := magic_str(tgt.value[2]);
+        s := sact("$3n is a "+sl.[tgt.value[0]]+ " equivalent armor with "+craft_str+" craftsmanship and has a "+mag_str+" magical modifier.<br/>",
+            A_SOMEONE, self, null, tgt, TO_CHAR);
 
-      craft_str := quality_str(tgt.value[1]);
-      mag_str := magic_str(tgt.value[2]);
-      s := sact("$3n is a "+sl.[tgt.value[0]]+ " equivalent armor with "+craft_str+" craftsmanship and has a "+mag_str+" magical modifier.<br/>",
-      	  A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (lvl >= 2)
+        {
+            s := s + "Craftsmanship: " + itoa(tgt.value[1]) + "<br/>";
+            s := s + "Magic: " + itoa(tgt.value[2]) + "<br/>";
+        }
+    }
+    else if (tgt.objecttype == ITEM_TREASURE)
+    {
+        s := sact("$3n appears to be nothing less than a treasure!<br/>",
+                    A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_POTION)
+    {
+        s := sact("$3n is a potion with power "+itoa(tgt.value[0])+".<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (lvl >= 2)
+        {
+            s2 := spellinfo(tgt.value[1], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
 
-      if (lvl >= 2)
-      {
-         s := s + "Craftsmanship: " + itoa(tgt.value[1]) + "<br/>";
-         s := s + "Magic: " + itoa(tgt.value[2]) + "<br/>";
-      }
-   }
-   else if (tgt.objecttype == ITEM_TREASURE)
-   {
-      s := sact("$3n appears to be nothing less than a treasure!<br/>",
-	               A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_POTION)
-   {
-      s := sact("$3n is a potion with power "+itoa(tgt.value[0])+".<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-      if (lvl >= 2)
-      {
-         s2 := spellinfo(tgt.value[1], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
+            s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
 
-         s2 := spellinfo(tgt.value[2], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
+            s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
+            if (s2 != null)
+                s := s + "Spell: " + s2 + "<br/>";
+        }
+    }
+    else if (tgt.objecttype == ITEM_SHIELD)
+    {
+        craft_str := quality_str(tgt.value[1]);
+        mag_str := magic_str(tgt.value[2]);
 
-         s2 := spellinfo(tgt.value[3], i, i, i,i ,i ,i ,i);
-         if (s2 != null)
-             s := s + "Spell: " + s2 + "<br/>";
-      }
-   }
-   else if (tgt.objecttype == ITEM_SHIELD)
-   {
-      craft_str := quality_str(tgt.value[1]);
-      mag_str := magic_str(tgt.value[2]);
+        s := sact("$3n is a shield with "+craft_str+" craftsmanship and has a "+mag_str+" magical modifier.<br/>",
+            A_SOMEONE, self, null, tgt, TO_CHAR);
 
-      s := sact("$3n is a shield with "+craft_str+" craftsmanship and has a "+mag_str+" magical modifier.<br/>",
-      	  A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (lvl >= 2)
+        {
+            s := s + "Craftsmanship: " + itoa(tgt.value[1]) + "<br/>";
+            s := s + "Magic: " + itoa(tgt.value[2]) + "<br/>";
+        }
+    }
+    else if (tgt.objecttype == ITEM_WORN)
+    {
+        s := sact("$3n appears to be an item designed to be worn.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_NOTE)
+    {
+        s := sact("$3n seems to be of literary value.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_FOOD)
+    {
+        s := sact("$3n is consumable.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (tgt.value[3] > 0)
+            s := s + sact("It is poisoned.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_DRINKCON)
+    {
+        s := sact("$3n is a drink container.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
 
-      if (lvl >= 2)
-      {
-         s := s + "Craftsmanship: " + itoa(tgt.value[1]) + "<br/>";
-         s := s + "Magic: " + itoa(tgt.value[2]) + "<br/>";
-      }
-   }
-   else if (tgt.objecttype == ITEM_WORN)
-   {
-      s := sact("$3n appears to be an item designed to be worn.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_NOTE)
-   {
-      s := sact("$3n seems to be of literary value.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_FOOD)
-   {
-      s := sact("$3n is consumable.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-      if (tgt.value[3] > 0)
-      	s := s + sact("It is poisoned.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_DRINKCON)
-   {
-      s := sact("$3n is a drink container.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+        if (tgt.value[3] > 0)
+            s := s + sact("It is poisoned.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_KEY)
+    {
+        s := sact("$3n is a key.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_MONEY)
+    {
+        s := sact("$3n is money.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_PEN)
+    {
+        s := sact("$3n is a pen.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_BOAT)
+    {
+        s := sact("$3n is a boat which can carry "+itoa(tgt.capacity)+" pounds.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else if (tgt.objecttype == ITEM_CONTAINER)
+    {
+        if (dilfind("rot_corpse@death",tgt) or dilfind("rotting@spells",tgt))
+            s := sact("It is a dead body.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+        else
+            s := sact("It is a container.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
+    else
+    {
+        s := sact("You gain no additional insight into this item.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+    }
 
-      if (tgt.value[3] > 0)
-      	s := s + sact("It is poisoned.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_KEY)
-   {
-      s := sact("$3n is a key.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_MONEY)
-   {
-      s := sact("$3n is money.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_PEN)
-   {
-      s := sact("$3n is a pen.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_BOAT)
-   {
-      s := sact("$3n is a boat which can carry "+itoa(tgt.capacity)+" pounds.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else if (tgt.objecttype == ITEM_CONTAINER)
-   {
-      if (dilfind("rot_corpse@death",tgt) or dilfind("rotting@spells",tgt))
-	      s := sact("It is a dead body.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-      else
-	      s := sact("It is a container.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
-   else
-   {
-      s := sact("You gain no additional insight into this item.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
-   }
+    if (tgt.bright != 0)
+    {
+        if (tgt.bright > 0)
+        {
+            if (lvl >= 2)
+                s := s + sact("$3n emits light with an illumination of "+itoa(tgt.bright)+".<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+            else
+                s := s + sact("$3n emits light.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+        }
+        else
+        {
+            if (lvl >= 2)
+                s := s + sact("$3n enshrouds darkness with a dampening of "+itoa(-tgt.bright)+".<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+            else
+                s := s + sact("$3n enshrouds darkness.<br/>", A_SOMEONE, self, null, tgt, TO_CHAR);
+        }
+    }
 
-   exd := "$identify" in tgt.extra;
-   if (exd)
-      s := exd.descr + s;
+    // Now let's parse any (transfer) affects 
+    sl := getaffects(tgt);
+    n := length(sl);
 
-   if (lvl >= 2)
-   {
-      exd := "$improved identify" in tgt.extra;
-      if (exd)
-         s := exd.descr + s;
-   }
+    if (n > 0)
+    {
+        s := s + "----<br/>";
+    }
 
-   return(s);
+    i := 0;
+    while (i < n)
+    {
+        sl2 := split(sl.[i], ",");
+        i2 := atoi(sl2.[0]);
+        if (i2 < 0)
+            i2 := -i2;
+
+        if (i2 == ID_SANCTUARY) // Sanctuary transfer
+        {
+            s := s + "Sanctuary spell.<br/>";
+        }
+        else if (sl2.[1] == "0") // Ability adjustment
+        {
+            s := s + "Ability bonus: ";
+            i2 := atoi(sl2.[2]);
+            s := s + abistr@function(i2) + " "; // e.g. "strength"
+
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "1") // Spell adjustment
+        {
+            s := s + "Spell bonus: ";
+            i2 := atoi(sl2.[2]);
+            s2 := spellinfo(i2, i2, i2, i2, i2 ,i2 ,i2 ,i2);
+            s := s + s2 + " "; // e.g. "fireball"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "2") // Modify bright/light
+        {
+            s := s + "Light bonus: "+sl.[i];
+            i2 := atoi(sl2.[2]);
+            s := s + skill_name(i2) + " "; // e.g. "fleeing"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "3") // Modify char flags
+        {
+            s := s + "Special ability C: "+sl.[i];
+            i2 := atoi(sl2.[2]);
+            s := s + skill_name(i2) + " "; // e.g. "fleeing"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "4") // Modify UNIT_FLAGS()
+        {
+            s := s + "Special ability U: "+sl.[i];
+            i2 := atoi(sl2.[2]);
+            s := s + skill_name(i2) + " "; // e.g. "fleeing"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "5") // Modify OBJ_FLAGS()
+        {
+            s := s + "Special ability O: "+sl.[i];
+            i2 := atoi(sl2.[2]);
+            s := s + skill_name(i2) + " "; // e.g. "fleeing"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "6") // Modify skill adjustment
+        {
+            s := s + "Skill bonus: ";
+            i2 := atoi(sl2.[2]);
+            s := s + skill_name(i2) + " "; // e.g. "fleeing"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "7") // Modify weapon adjustment
+        {
+            s := s + "Weapon bonus: ";
+            i2 := atoi(sl2.[2]);
+            s := s + weapon_name(i2) + " "; // e.g. "fleeing"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "8") // Modify Natural armor
+        {
+            s := s + "Natural armor modification: "+sl.[i];
+            i2 := atoi(sl2.[2]);
+            s := s + skill_name(i2) + " "; // e.g. "fleeing"
+            i2 := atoi(sl2.[3]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + sl2.[3] + "<br/>";
+        }
+        else if (sl2.[1] == "9") // Modify speed
+        {
+            s := s + "Speed bonus: "; //+sl.[i];
+            i2 := atoi(sl2.[2]);
+            if (i2 >= 0)
+                s := s + "+";
+            s := s + itoa(i2) + "<br/>";
+        }
+        else if (sl2.[1] == "-1")
+        {
+            i2 := atoi(sl2.[0]);
+            if (i2 < 0)
+                i2 := -i2;
+            if (i2 == ID_PROT_GOOD)
+            {
+                s := s + "Protection from Good<br/>";
+            }
+            else if (i2 == ID_PROT_EVIL)
+            {
+                s := s + "Protection from Evil<br/>";
+            }
+            else if (i2 == ID_SANCTUARY)
+            {
+                s := s + "Sanctuary<br/>";
+            }
+            else
+            {
+                s := s + "-1 please report to an admin. Unknown secondary kind. " + sl.[i] + "<br/>";
+            }
+        }
+        else if (sl2.[1] != "-1")
+        {
+            s := s + "Oh no, please report to an admin. Unknown kind. " + sl.[i] + "<br/>";
+        }
+
+        i := i + 1;
+    }
+
+    // Finally copy in the description from $identify / $improved identify
+
+    exd := "$identify" in tgt.extra;
+    if (exd)
+        s := exd.descr + s;
+
+    if (lvl >= 2)
+    {
+        exd := "$improved identify" in tgt.extra;
+        if (exd)
+            s := exd.descr + s;
+    }
+
+    return(s);
 }
 dilend
 
@@ -5907,7 +6144,7 @@ code
    }
 
    s := identify_str(tgt, 1);
-   sendtext(s, medi);
+   sendtext(s, self);
 
    quit;
 }
@@ -5932,7 +6169,7 @@ code
    }
 
    s := identify_str(tgt, 2);
-   sendtext(s, medi);
+   sendtext(s, self);
    quit;
 }
 dilend
@@ -5975,8 +6212,7 @@ code
       {
 		act("$3n is controlled by $1n.",
 		A_HIDEINV, self, null, tgt, TO_ROOM);
-		dilcopy("undead_obey@spells("+itoa(hm)+")", tgt);
-		dilcopy("undead_exec@spells", tgt);
+		dilcopy("undead_exec@spells("+itoa(hm)+")", tgt);
 		dilcopy("undead_timer@spells("+itoa(hm)+")", tgt);
 		addextra(tgt.extra,{"$undead control"},self.name);
 		if (isset(self.pcflags,PC_PK_RELAXED))
@@ -6033,9 +6269,9 @@ code
 
    if (hm >= 0)
    {
-      act("You feel a battle with your own mind begins.",
+      act("You feel a battle with your own mind begin.",
 	  A_ALWAYS, tgt, null, null, TO_CHAR);
-      act("A mad look appears on $1n's face",
+      act("A mad look appears on $1n's face.",
 	  A_HIDEINV, tgt, null, null, TO_ROOM);
       dilcopy("spl_madness@spells("+itoa(hm)+")", tgt);
    }
@@ -6081,7 +6317,7 @@ code
 
    degree := 32 - i / 2;
 
-   act("The mad look in $1n's eyes intensifies",
+   act("The mad look in $1n's eyes intensifies.",
        A_HIDEINV, self, null, null,TO_ROOM);
 
    on rnd(degree, degree + 10) goto
@@ -6099,7 +6335,7 @@ code
 
    if (visible(self, u))
    {
-      act("You sudden realize that $2n has betrayed you.",
+      act("You suddenly realize that $2n has betrayed you.",
 	  A_SOMEONE, self, u, null, TO_CHAR);
       act("$1n screams 'You evil thing of betrayal' "+
 	  "and growls at $2n.", A_SOMEONE, self, u, null, TO_ROOM);
@@ -6147,10 +6383,10 @@ code
 
    if (u and (u.type == UNIT_ST_OBJ))
    {
-      if (self.name in self.extra)
+      if (self.name in u.extra)
       {
-	 act("You despair, as you see, the other text written "+
-	     " on the page.", A_ALWAYS, self, null, null, TO_CHAR);
+	 act("You despair, as you see the other text written "+
+	     "on the page.", A_ALWAYS, self, null, null, TO_CHAR);
 	 act("You spit at the page.", A_ALWAYS, self, null, null, TO_CHAR);
 	 act("$1n looks desperate and spits at $2n.",
 	     A_HIDEINV, self,u,null,TO_ROOM);
@@ -6159,10 +6395,11 @@ code
       {
 	 act("You despair, as you can't remember anything.",
 	     A_ALWAYS, self, null, null, TO_CHAR);
-	 act("$1n looks desperately at a $2n.",
+	 act("$1n looks desperately at $2n.",
 	     A_HIDEINV, self,u,null,TO_ROOM);
       }
-      exec("drop letter", self);
+      if (u.outside == self)
+         exec("drop " + u.name, self);
    }
    else
    {
@@ -6179,11 +6416,11 @@ code
    :case20:
    :case21:
    :case9:
-   act("You sing 'Hare Khrisna Hare Khrisna Hare "+
+   act("You sing 'Hare Krishna Hare Krishna Hare "+
        "Rama Hare Hare Hare Hare Hare'.",
        A_ALWAYS, self, null, null, TO_CHAR);
 
-   act("$1n sing 'Hare Khrisna Hare Khrisna Hare "+
+   act("$1n sings 'Hare Krishna Hare Krishna Hare "+
        "Rama Hare Hare Hare Hare Hare'.",
        A_HIDEINV, self, null, null, TO_ROOM);
    goto loop;
@@ -6205,7 +6442,7 @@ code
    goto loop;
 
    :case12:
-   act("You fear for your life!.",
+   act("You fear for your life!",
        A_ALWAYS, self, null, null, TO_CHAR);
    exec("peer ", self);
    goto loop;
@@ -6291,7 +6528,7 @@ code
    :case34:
    act("Someone is following you around!",
        A_ALWAYS, self, null, null, TO_CHAR);
-   act("$1n looks paranoidal at everyone.",
+   act("$1n looks at everyone paranoidly.",
        A_HIDEINV,self,null,null,TO_ROOM);
    goto loop;
 
@@ -6299,7 +6536,7 @@ code
    :case36:
    act("This is funny...",
        A_ALWAYS, self, null, null, TO_CHAR);
-   act("$1n laughs like he heard something extremely funny.",
+   act("$1n laughs like $1e heard something extremely funny.",
        A_SOMEONE,self,null,null,TO_ROOM);
    goto loop;
 
@@ -6391,7 +6628,7 @@ code
 	  (tgt.objecttype == ITEM_DRINKCON))
 	tgt.value[3] := 0;
    }
-   else if (tgt.type & UNIT_ST_PC|UNIT_ST_NPC)
+   else if (tgt.type & (UNIT_ST_PC|UNIT_ST_NPC))
      sendto("spl_rem_poison "+itoa(4*hm), tgt);
 
    quit;
@@ -6529,7 +6766,7 @@ code
    if ( c < 1) c := 1;
    if ( (targ.value[1] + c) > targ.value[4])
    {
-      act("You have recharged the wand enough to use " +
+      act("You have recharged the staff enough to use " +
           itoa((targ.value[4] - targ.value[1]))+
           " more time(s).", A_SOMEONE, self, null, null, TO_CHAR);
       targ.value[1] := targ.value[4];
@@ -6537,7 +6774,7 @@ code
    else
    {
       targ.value[1] := (targ.value[1] + c);
-      act("You have recharged the wand enough to use " +itoa(c)+
+      act("You have recharged the staff enough to use " +itoa(c)+
 	  " more time(s).", A_SOMEONE, self, null, null, TO_CHAR);
    }
    quit;
@@ -6574,7 +6811,7 @@ code
 
   if (targ.hp <= 0)
   {
-     act("Your spell is too weak to mend the $2N",
+     act("Your spell is too weak to mend the $2N.",
 	 A_SOMEONE, self, targ, null, TO_CHAR);
      quit;
   }
@@ -6592,10 +6829,10 @@ code
     targ.hp := (targ.max_hp);
   else targ.hp := (targ.hp + fix_ran);
 
-  act("Your $2n glows with a warm light...", A_SOMEONE, self, targ, null,
+  act("Your $2N glows with a warm light...", A_SOMEONE, self, targ, null,
       TO_CHAR);
 
-  act("$1n's $2n glows with a warm light...", A_SOMEONE, self, targ, null,
+  act("$1n's $2N glows with a warm light...", A_SOMEONE, self, targ, null,
       TO_ROOM);
   quit;
 }
@@ -6631,7 +6868,7 @@ code
 
    if (targ.hp <= 0)
    {
-      act("Your spell is too weak to mend the $2N",
+      act("Your spell is too weak to mend the $2N.",
 	  A_SOMEONE, self, targ, null, TO_CHAR);
       quit;
    }
@@ -6648,9 +6885,9 @@ code
    if ( (targ.hp + fix_ran) > (targ.max_hp) )
      targ.hp := (targ.max_hp);
    else targ.hp := (targ.hp + fix_ran);
-   act("Your $2n glows with a warm light...", A_SOMEONE, self, targ, null,
+   act("Your $2N glows with a warm light...", A_SOMEONE, self, targ, null,
        TO_CHAR);
-   act("$1n's $2n glows with a warm light...", A_SOMEONE, self, targ, null,
+   act("$1n's $2N glows with a warm light...", A_SOMEONE, self, targ, null,
        TO_ROOM);
    quit;
 }
@@ -6690,7 +6927,7 @@ code
 
    if (targ.hp <= 0)
    {
-      act("Your spell is too weak to mend the $2N",
+      act("Your spell is too weak to mend the $2N.",
 	  A_SOMEONE, self, targ, null, TO_CHAR);
       quit;
    }
@@ -6707,9 +6944,9 @@ code
    if ( (targ.hp + fix_ran) > (targ.max_hp) )
      targ.hp := (targ.max_hp);
    else targ.hp := (targ.hp + fix_ran);
-   act("Your $2n glows with a warm light...", A_SOMEONE, self, targ, null,
+   act("Your $2N glows with a warm light...", A_SOMEONE, self, targ, null,
        TO_CHAR);
-   act("$1n's $2n glows with a warm light...", A_SOMEONE, self, targ, null,
+   act("$1n's $2N glows with a warm light...", A_SOMEONE, self, targ, null,
        TO_ROOM);
    quit;
 }
@@ -6803,9 +7040,9 @@ code
 	  targ, null, TO_CHAR);
       act("A small swirling disk of gray forms above $1n.", A_SOMEONE, self,
 	  targ, null, TO_ROOM);
-      act("Slowly, your $2n rises toward the disk...", A_SOMEONE, self, targ,
+      act("Slowly, your $2N rises toward the disk...", A_SOMEONE, self, targ,
 	  null, TO_CHAR);
-      act("Slowly, $1n's $2n rises toward the disk...", A_SOMEONE, self, targ,
+      act("Slowly, $1n's $2N rises toward the disk...", A_SOMEONE, self, targ,
 	  null, TO_ROOM);
       act("As it touches the disk, you feel something go wrong!", A_SOMEONE,
 	  self, targ, null, TO_CHAR);
@@ -6820,14 +7057,15 @@ code
        targ, null, TO_CHAR);
    act("A small swirling disk of gray forms above $1n.", A_SOMEONE, self,
        targ, null, TO_ROOM);
-   act("Slowly, your $2n rises toward the disk...", A_SOMEONE, self, targ,
+   act("Slowly, your $2N rises toward the disk...", A_SOMEONE, self, targ,
        null, TO_CHAR);
-   act("Slowly, $1n's $2n rises toward the disk...", A_SOMEONE, self, targ,
+   act("Slowly, $1n's $2N rises toward the disk...", A_SOMEONE, self, targ,
        null, TO_ROOM);
    act("$2n touches the swirling rift and vanishes in a flash of light!",
        A_SOMEONE, self, targ, null, TO_ALL);
 
    link(targ, recept.outside);
+   dilcopy("sendmsg@spells(teleport)", targ);
 
    act("Suddenly, a swirling grey rift forms above you...", A_SOMEONE, recept,
        targ, null, TO_CHAR);
@@ -6865,7 +7103,7 @@ code
    act("The earth opens as $2n is summoned before you.",
        A_HIDEINV, self, u, null, TO_CHAR);
 
-   act("The earth opens and $2n appears before $1n", A_HIDEINV,
+   act("The earth opens and $2n appears before $1n.", A_HIDEINV,
        self, u, null, TO_ROOM);
 
    dilcopy("magic_summoned@spells("+itoa(hm)+")", u);
@@ -6901,7 +7139,7 @@ code
    act("The portal of air opens and $2n appears before you.",
        A_HIDEINV, self, u, null, TO_CHAR);
 
-   act("The portal of air opens, and $2n emerges before $1n",
+   act("The portal of air opens, and $2n emerges before $1n.",
        A_HIDEINV, self, u, null, TO_ROOM);
 
    dilcopy("magic_summoned@spells("+itoa(hm)+")", u);
@@ -6995,6 +7233,7 @@ dilbegin demon_summon(medi : unitptr, tgt : unitptr, arg : string,
 		      hm : integer, effect : string);
 var
    u : unitptr;
+   i : integer;
 
 code
 {
@@ -7006,9 +7245,17 @@ code
       act("A large portal opens and a beast emerges!",
 	  A_HIDEINV, self, u, null, TO_ROOM);
       u := load("demon@spells");
+      link(u, self.outside);
+      /* Not bound: the caster can't order or dismiss it */
+      i := dildestroy("obey_animal@function", u);
+      i := dildestroy("obey@function", u);   // obey_animal starts it at load: it takes any order
+      i := dildestroy("sum_check@spells", u);
+      /* Free, but still summoned: it goes back in a while (longer the worse
+         the miss), and banish works on it */
+      dilcopy("magic_summoned@spells("+itoa(-hm)+")", u);
       exec("follow "+self.name, u);
       exec("say Thank you "+self.name+", for bringing me here "+
-	   "unbonded!", u);
+	   "unbound!", u);
       exec("kill "+self.name, u);
       quit;
    }
@@ -7040,6 +7287,7 @@ dilbegin devil_summon(medi : unitptr, tgt : unitptr, arg : string,
 		      hm : integer, effect : string);
 var
    u : unitptr;
+   i : integer;
 code
 {
    if (hm < 0)
@@ -7048,6 +7296,13 @@ code
 	  A_SOMEONE, self, null, null, TO_ALL);
       u := load("devil@spells");
       link(u, self.outside);
+      /* Not bound: the caster can't order or dismiss it */
+      i := dildestroy("obey_animal@function", u);
+      i := dildestroy("obey@function", u);   // obey_animal starts it at load: it takes any order
+      i := dildestroy("sum_check@spells", u);
+      /* Free, but still summoned: it goes back in a while (longer the worse
+         the miss), and banish works on it */
+      dilcopy("magic_summoned@spells("+itoa(-hm)+")", u);
       exec("follow "+self.name, u);
       exec("say Ahh, to be summoned here and free!", u);
       exec("kill "+self.name, u);
@@ -7101,28 +7356,36 @@ code
 dilend
 
 
+// See also Displace Magic (DIV version)
 dilbegin dispel_magic(medi : unitptr, tgt : unitptr,
-		      arg : string,
-		      hm : integer, effect : string);
-          var
-          count:integer;
+                        arg : string,
+                        hm : integer, effect : string);
+                        var
+                        count:integer;
 code
 {
-   if ((hm < 0) or (self.endurance<=20))
+   if (self.endurance <= 20)
    {
-      act("Nothing happens.",
-	  A_ALWAYS, self, null, null, TO_CHAR);
+      act("You're too exhausted.", A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-      hm := hm/10+1;
-      if (hm>15)
-	hm := 15;
+   if (hm < 0)
+   {
+      sendto("spl_dispel " + itoa(hm), tgt);
+      act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
+      quit;
+   }
 
-count:=0;
-interrupt (SFB_MSG , "inc despel counter" == argument,inc_count);
+
+   count:=0;
+   interrupt(SFB_MSG , "inc despel counter" == argument,inc_count);
    sendto("spl_dispel "+itoa(hm), tgt);
    interrupt(SFB_DEAD, activator == tgt, stop);
+
+   hm := hm/10+1;
+   if (hm>15)
+   	hm := 15;
 
    :loop:
    count:=count+1;
@@ -7134,6 +7397,8 @@ interrupt (SFB_MSG , "inc despel counter" == argument,inc_count);
      subaff(tgt, ID_DETECT_ALIGN);
    else if (isaff(tgt, ID_RAGE))
      subaff(tgt, ID_RAGE);
+   else if (isaff(tgt, ID_FRENZY))
+     subaff(tgt, ID_FRENZY);
    else if (isaff(tgt, ID_BERSERK))
      subaff(tgt, ID_BERSERK);
    else if (isaff(tgt, ID_DETECT_INVISIBLE))
@@ -7241,24 +7506,29 @@ interrupt (SFB_MSG , "inc despel counter" == argument,inc_count);
    else
      quit;
 :inc_count:
-if (self.endurance<20) self.endurance:=0;
-else
-self.endurance:=self.endurance-20;
-if (self.endurance==0)
-  {
-   self.position:=POSITION_STUNNED;
-   quit;
+   if (self.endurance<20)
+      self.endurance:=0;
+   else
+      self.endurance:=self.endurance-20;
+   
+   if (self.endurance==0)
+   {
+      self.position:=POSITION_STUNNED;
+      quit;
    }
 
-if (count==hm)
-  quit;
+   if (count==hm)
+      quit;
 
    goto loop;
 
 :stop:
-quit;
+   quit;
 }
 dilend
+
+
+
 dilbegin fire_breath(medi : unitptr, tgt : unitptr, arg : string,
 		     hm : integer, effect : string);
 var
@@ -7614,8 +7884,24 @@ code
 }
 dilend
 
+/* The sun spells' bonus for the hour: +30 at noon, 5 less for each hour
+   before or after (0 at 6 and 18, -10 at 20). */
+dilbegin integer sun_bonus();
+code
+{
+   if (mudhour < 12)
+     return (30 - 5*(12 - mudhour));
+   else
+     return (30 - 5*(mudhour - 12));
+}
+dilend
+
+
 dilbegin sun_beam(medi : unitptr, tgt : unitptr,
                  arg : string, hm : integer, effect : string);
+external
+   integer sun_bonus();
+
 var
    u : unitptr;
 
@@ -7634,15 +7920,7 @@ code
       }
       u := u.outside;
    }
-/* I changed this so maybe it will work until we fix weather Darg
-   if (weather != SKY_CLOUDLESS)
-   {
-      act("The skies are not clear.",
-          A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
-*/
-   if ((weather != SKY_CLOUDLESS) or (weather != SKY_CLOUDY))
+   if ((weather != SKY_CLOUDLESS) and (weather != SKY_CLOUDY))
    {
       act("The heavy rain clouds block any chance of casting the spell.",
           A_ALWAYS, self, null, null, TO_CHAR);
@@ -7656,10 +7934,7 @@ code
    }
 
    /* Most powerful at noon */
-   if (mudhour < 12)
-     hm := 18*(mudhour - 12);
-   else
-     hm := -15*(mudhour - 12);
+   hm := sun_bonus();
 
    if (RACE_IS_UNDEAD(tgt.race))
      hm := hm + 100;
@@ -7673,6 +7948,9 @@ dilend
 dilbegin solar_flare(medi : unitptr, tgt : unitptr,
                  arg : string,
                  hm : integer, effect : string);
+external
+   integer sun_bonus();
+
 var
    u : unitptr;
 
@@ -7692,15 +7970,7 @@ code
       u := u.outside;
    }
 
-/* I changed this so maybe it will work until we fix weather Darg
-   if (weather != SKY_CLOUDLESS)
-   {
-      act("The skies are not clear.",
-          A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
-*/
-   if ((weather != SKY_CLOUDLESS) or (weather != SKY_CLOUDY))
+   if ((weather != SKY_CLOUDLESS) and (weather != SKY_CLOUDY))
    {
       act("The heavy rain clouds block any chance of casting the spell.",
           A_ALWAYS, self, null, null, TO_CHAR);
@@ -7715,15 +7985,10 @@ code
    }
 
    /* Most powerful at noon */
-   if (mudhour < 12)
-     hm := 18*(mudhour - 12);
-   else
-     hm := -15*(mudhour - 12);
+   hm := 2*sun_bonus();
 
    if (RACE_IS_UNDEAD(tgt.race))
      hm := hm + 100;
-
-   hm := hm*3;
    hm := attack_spell(SPL_SOLAR_FLARE, self, medi, tgt, hm, effect);
    quit;
 }
@@ -7753,49 +8018,54 @@ code
    quit;
 }
 dilend
-dilbegin sacred(medi:unitptr, tgt : unitptr, arg : string,
-		    hm : integer, effect : string);
-   var
+
+//
+//
+dilbegin sacred(medi:unitptr, tgt : unitptr, arg : string, hm : integer, effect : string);
+var
     rm:unitptr;
 code
 {
-rm:=self.outside;
-secure (rm,dend);
-if (rm.type!=UNIT_ST_ROOM)
-  {
-  act ("You must have a big area to cast this spell.",
-  A_ALWAYS,self,null,null,TO_CHAR);
-  unsecure (rm);
-  quit;
-  }
-   if (isset(rm.flags, UNIT_FL_SACRED))
-     quit;
+    rm:=self.outside;
+    secure (rm,dend);
+    if (rm.type!=UNIT_ST_ROOM)
+    {
+        act ("You must have a big area to cast this spell.", A_ALWAYS,self,null,null,TO_CHAR);
+        unsecure (rm);
+        quit;
+    }
 
-   if (hm < 0)
-     quit;
+    if (isset(rm.flags, UNIT_FL_SACRED))
+        quit;
 
-      hm :=(4*self.spells[SPL_SACRED])+100;
-dilcopy("spl_sacred@spells("+itoa(hm)+")",rm);
-unsecure (rm);
-   quit;
-   :dend:
-   quit;
+    if (hm < 0)
+        quit;
+
+    hm :=(4*self.spells[SPL_SACRED])+100;
+    dilcopy("spl_sacred@spells("+itoa(hm)+")",rm);
+    unsecure (rm);
+    quit;
+
+:dend:
+    quit;
 }
 dilend
 
-dilbegin spl_sacred (time:integer);
+
+
+dilbegin spl_sacred(time : integer);
 code
 {
-  set (self.flags,UNIT_FL_SACRED);
-  act ("A peaceful feeling settles over this area.",
-  A_ALWAYS,self.inside,null,null,TO_ALL);
-  heartbeat:=PULSE_SEC*time;
-  wait (SFB_TICK, TRUE);
-  unset (self.flags,UNIT_FL_SACRED);
-  act ("You feel the veil of protection over this area lift.", A_ALWAYS,self.inside,null,null,TO_ALL);
-  quit;
-  }
-  dilend
+    set(self.flags, UNIT_FL_SACRED);
+    act("A peaceful feeling settles over this area.", A_ALWAYS,self.inside,null,null,TO_ALL);
+    heartbeat := PULSE_SEC*time;
+    wait(SFB_TICK, TRUE);
+    unset(self.flags, UNIT_FL_SACRED);
+    act("You feel the veil of protection over this area lift.", A_ALWAYS,self.inside,null,null,TO_ALL);
+
+    quit;
+}
+dilend
 
 
 dilbegin cont_light(medi:unitptr, tgt : unitptr, arg : string,
@@ -8040,6 +8310,7 @@ external
 var
   heal : integer;
   i : integer;
+  ex_ptr:extraptr;
 code
 {
    /*
@@ -8048,8 +8319,11 @@ code
       of the target character.
       */
 
-   if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
-     hm := -1;
+   ex_ptr:="$owner" in self.extra;
+   if (not((tgt == self) or (ex_ptr.descr == tgt.name))){ // fixes mobs that can't heal themselves and allows familiars to heal owners in rare corner cases
+   	if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
+ 	    hm := -1;
+   }
 
    if (hm < 0)
    {
@@ -8085,17 +8359,21 @@ external
 var
   heal : integer;
   i : integer;
+  ex_ptr:extraptr;
 code
 {
-   /*
-      Spell Cure Light Wounds
-      This spell cures minor wounds, or partly heals major wounds
+      /*
+      Spell Cure Serious Wounds
+      This spell cures moderate wounds, or partly heals major wounds
       of the target character.
       */
 
-   if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
-     hm := -1;
 
+   ex_ptr:="$owner" in self.extra;
+   if (not((tgt == self) or (ex_ptr.descr == tgt.name))){ // fixes mobs that can't heal themselves and allows familiars to heal owners in rare corner cases
+   	if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
+ 	    hm := -1;
+   }
    if (hm < 0)
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
@@ -8124,11 +8402,15 @@ external
 var
   heal : integer;
   i : integer;
+  ex_ptr:extraptr;
 code
 {
 
-   if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
-     hm := -1;
+   ex_ptr:="$owner" in self.extra;
+   if (not((tgt == self) or (ex_ptr.descr == tgt.name))){ // fixes mobs that can't heal themselves and allows familiars to heal owners in rare corner cases
+   	if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
+ 	    hm := -1;
+   }
 
    if (hm < 0)
    {
@@ -8151,8 +8433,14 @@ dilend
 
 dilbegin bless(medi:unitptr, tgt : unitptr, arg : string,
 	       hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
+var
+     ex_ptr:extraptr;
 code
 {
+
    /*
       Spell Bless:
       This spell raises the gods good attention to a character.
@@ -8160,31 +8448,33 @@ code
       is raised temporarily.
       */
 
-   if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
-     hm := -1;
 
+   ex_ptr:="$owner" in self.extra;
+   if (not((tgt == self) or (ex_ptr.descr == tgt.name))){ // fixes mobs that can't bless themselves and allows familiars to bless owners in rare corner cases
+   	if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
+ 	    hm := -1;
+   }
    if ((hm < 0) or isaff(tgt, ID_BLESS) or isaff(tgt, ID_UNHOLY_BLESSING))
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-   hm := 1 + hm / 10;
-   if (hm > 10) hm := 10;
+      hm := bonusCalc(hm);
 
-   addaff(tgt, ID_BLESS, 10, WAIT_SEC*30,
+   addaff(tgt, ID_BLESS, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_DIV, hm, 0, TIF_BLESS_ON, TIF_BLESS_TICK, TIF_BLESS_OFF,
 	  APF_ABILITY);
 
-   addaff(tgt, ID_BLESS, 10, WAIT_SEC*30,
+   addaff(tgt, ID_BLESS, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_DEX, hm, 0, TIF_NONE, TIF_NONE, TIF_NONE,
 	  APF_ABILITY);
 
-   addaff(tgt, ID_BLESS, 10, WAIT_SEC*30,
+   addaff(tgt, ID_BLESS, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_STR, hm, 0, TIF_NONE, TIF_NONE, TIF_NONE,
 	  APF_ABILITY);
 
-   addaff(tgt, ID_BLESS, 10, WAIT_SEC*30,
+   addaff(tgt, ID_BLESS, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_BRA, hm, 0, TIF_NONE, TIF_NONE, TIF_NONE,
 	  APF_ABILITY);
 
@@ -8200,6 +8490,11 @@ code
 dilend
 
 dilbegin ubless(medi:unitptr,tgt:unitptr,arg:string,hm:integer,effect:string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
+var
+     ex_ptr:extraptr;
 code
 {
    /*
@@ -8209,31 +8504,32 @@ code
       is raised temporarily.
       */
 
-   if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
-     hm := -1;
-
+   ex_ptr:="$owner" in self.extra;
+   if (not((tgt == self) or (ex_ptr.descr == tgt.name))){ // fixes mobs that can't cast unholy blessing on themselves and allows familiars to cast unholy blessing on owners in rare corner cases
+   	if ((not RACE_IS_HUMANOID(tgt.race)) and (not RACE_IS_MAMMAL(tgt.race)))
+ 	    hm := -1;
+   }
    if ((hm < 0) or isaff(tgt, ID_BLESS) or isaff(tgt, ID_UNHOLY_BLESSING))
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-   hm := 1 + hm / 10;
-   if (hm > 10) hm := 10;
+      hm := bonusCalc(hm);
 
-   addaff(tgt, ID_UNHOLY_BLESSING, 10, WAIT_SEC*30,
+   addaff(tgt, ID_UNHOLY_BLESSING, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_DIV, hm, 0, TIF_BLESS_ON, TIF_BLESS_TICK, TIF_BLESS_OFF,
 	  APF_ABILITY);
 
-   addaff(tgt, ID_UNHOLY_BLESSING, 10, WAIT_SEC*30,
+   addaff(tgt, ID_UNHOLY_BLESSING, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_DEX, hm, 0, TIF_NONE, TIF_NONE, TIF_NONE,
 	  APF_ABILITY);
 
-   addaff(tgt, ID_UNHOLY_BLESSING, 10, WAIT_SEC*30,
+   addaff(tgt, ID_UNHOLY_BLESSING, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_STR, hm, 0, TIF_NONE, TIF_NONE, TIF_NONE,
 	  APF_ABILITY);
 
-   addaff(tgt, ID_UNHOLY_BLESSING, 10, WAIT_SEC*30,
+   addaff(tgt, ID_UNHOLY_BLESSING, max@function(10,hm), WAIT_SEC*30,
 	  ABIL_BRA, hm, 0, TIF_NONE, TIF_NONE, TIF_NONE,
 	  APF_ABILITY);
    quit;
@@ -8315,6 +8611,9 @@ dilend
 
 dilbegin raise_div(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8322,25 +8621,23 @@ if ((isaff(tgt,ID_SPL_RAISE_DIV)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_DIV, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_DIV, max@function(20,hm*2), WAIT_SEC*30,
 	       ABIL_DIV, hm, 0, TIF_DIV_INC, TIF_NONE, TIF_DIV_DEC,
 	       APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8349,6 +8646,9 @@ dilend
 
 dilbegin raise_mag(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8356,25 +8656,23 @@ if ((isaff(tgt,ID_SPL_RAISE_MAG)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_MAG, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_MAG, max@function(20,hm*2), WAIT_SEC*30,
 	       ABIL_MAG, hm, 0, TIF_MAG_INC, TIF_NONE, TIF_MAG_DEC,
 	       APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8383,6 +8681,10 @@ dilend
 
 dilbegin raise_str(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
+
 code
 {
 
@@ -8390,25 +8692,24 @@ if ((isaff(tgt,ID_SPL_RAISE_STR)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
-
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
-
-	addaff(tgt, ID_SPL_RAISE_STR, 20, WAIT_SEC*30,
+         
+         
+      hm := bonusCalc(hm);
+	
+	addaff(tgt, ID_SPL_RAISE_STR, max@function(20,hm*2), WAIT_SEC*30,
 	       ABIL_STR, hm, 0, TIF_STR_INC, TIF_NONE, TIF_STR_DEC,
 	       APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8417,6 +8718,9 @@ dilend
 
 dilbegin raise_dex(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8424,25 +8728,23 @@ if ((isaff(tgt,ID_SPL_RAISE_DEX)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_DEX, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_DEX, max@function(20,hm*2), WAIT_SEC*30,
 	       ABIL_DEX, hm, 0, TIF_DEX_INC, TIF_NONE, TIF_DEX_DEC,
 	       APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8451,6 +8753,9 @@ dilend
 
 dilbegin raise_con(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8458,25 +8763,23 @@ if ((isaff(tgt,ID_SPL_RAISE_CON)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_CON, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_CON, max@function(20,hm*2), WAIT_SEC*30,
 	       ABIL_CON, hm, 0, TIF_CON_INC, TIF_NONE, TIF_CON_DEC,
 	       APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8484,6 +8787,9 @@ if ((isaff(tgt,ID_SPL_RAISE_CON)) or
 dilend
 dilbegin raise_cha(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8491,25 +8797,23 @@ if ((isaff(tgt,ID_SPL_RAISE_CHA)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_CHA, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_CHA, max@function(20,hm*2), WAIT_SEC*30,
 	       ABIL_CHA, hm, 0, TIF_CHA_INC, TIF_NONE, TIF_CHA_DEC,
 	       APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8518,6 +8822,9 @@ dilend
 
 dilbegin raise_bra(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8525,25 +8832,23 @@ if ((isaff(tgt,ID_SPL_RAISE_BRA)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_BRA, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_BRA, max@function(20,hm*2), WAIT_SEC*30,
 	       ABIL_BRA, hm, 0, TIF_BRA_INC, TIF_NONE, TIF_BRA_DEC,
 	       APF_ABILITY);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8553,6 +8858,9 @@ dilend
 
 dilbegin raise_divine(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8560,25 +8868,23 @@ if ((isaff(tgt,ID_SPL_RAISE_DIVINE)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_DIVINE, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_DIVINE, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_DIVINE, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8587,6 +8893,9 @@ dilend
 
 dilbegin raise_heat(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8594,25 +8903,23 @@ if ((isaff(tgt,ID_SPL_RAISE_HEAT)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_HEAT, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_HEAT, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_HEAT, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8621,6 +8928,9 @@ dilend
 
 dilbegin raise_summoning(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8628,25 +8938,23 @@ if ((isaff(tgt,ID_SPL_RAISE_SUMMONING)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_SUMMONING, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_SUMMONING, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_SUMMONING, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8655,6 +8963,9 @@ dilend
 
 dilbegin raise_cold(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8662,25 +8973,23 @@ if ((isaff(tgt,ID_SPL_RAISE_COLD)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_COLD, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_COLD, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_COLD, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8689,6 +8998,9 @@ dilend
 
 dilbegin raise_elect(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8696,25 +9008,23 @@ if ((isaff(tgt,ID_SPL_RAISE_CELL)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_CELL, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_CELL, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_CELL, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8723,6 +9033,9 @@ dilend
 
 dilbegin raise_poison(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8730,25 +9043,23 @@ if ((isaff(tgt,ID_SPL_RAISE_INTERNAL)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_INTERNAL, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_INTERNAL, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_INTERNAL, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8757,6 +9068,9 @@ dilend
 
 dilbegin raise_acid(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8764,25 +9078,23 @@ if ((isaff(tgt,ID_SPL_RAISE_EXTERNAL)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_EXTERNAL, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_EXTERNAL, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_EXTERNAL, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8791,6 +9103,9 @@ dilend
 
 dilbegin mind_shield(medi:unitptr, tgt : unitptr, arg : string,
 	           hm : integer, effect : string);
+external
+     integer bonusCalc(hm : integer);
+     integer max@function(a:integer, b:integer);
 code
 {
 
@@ -8798,25 +9113,23 @@ if ((isaff(tgt,ID_SPL_RAISE_MIND)) or
 (hm<0))
    {
 	 if (tgt!=self)
-	   act ("The magic dissipates as it is cast on $2n",
+	   act ("The magic dissipates as it is cast on $2n.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
 	 else
 	   act ("The magic dissipates as it is cast on you.",
 		A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
 
-      hm := hm/10+1;
-      if (hm>10)
-	hm := 10;
+      hm := bonusCalc(hm);
 
-	addaff(tgt, ID_SPL_RAISE_MIND, 20, WAIT_SEC*30,
+	addaff(tgt, ID_SPL_RAISE_MIND, max@function(20,hm*2), WAIT_SEC*30,
 	       SPL_MIND, hm, 0, TIF_PROTECT_INC, TIF_NONE, TIF_PROTECT_DEC,
 	       APF_SPELL_ADJ);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
 
    quit;
@@ -8844,8 +9157,9 @@ code
       if (hm < -50)
       {
          u := unit_char (tgt);
-         act("You realize that $2n attempted to locate your $3n.",
-             A_ALWAYS, u, self, tgt, TO_CHAR);
+         if (u != null)
+            act("You realize that $2n attempted to locate your $3N.",
+                A_ALWAYS, u, self, tgt, TO_CHAR);
       }
    }
    quit;
@@ -8999,7 +9313,7 @@ code
       act("As you touch $3n your drainage is prevented by a life "+
 	  "protection spell.",
 	  A_SOMEONE, self, null, tgt, TO_CHAR);
-      act("$1n touches $3n and chant in a strange tongue with no result.",
+      act("$1n touches $3n and chants in a strange tongue with no result.",
 	  A_SOMEONE, self, null, tgt, TO_NOTVICT);
       act("$1n tries to drain your energy but your life force is protected.",
 	  A_SOMEONE, self, null, tgt, TO_VICT);
@@ -9010,13 +9324,13 @@ code
 if ((isaff(tgt,ID_ENERGY_DRAIN)) or (hm<0))
    {
          if (tgt!=self)
-           act ("The magic dissipates as it is cast on $2n",
+           act ("The magic dissipates as it is cast on $2n.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
          else
            act ("The magic dissipates as it is cast on you.",
                 A_ALWAYS,self,tgt,null,TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
          quit;
          }
    hm := skill_duration (hm);
@@ -9030,11 +9344,11 @@ if ((isaff(tgt,ID_ENERGY_DRAIN)) or (hm<0))
 
    experience(-500, tgt); /* Loose XP! */
 
-   act("$1n lay hands on $3n and chant in a strange tongue.",
+   act("$1n lays hands on $3n and chants in a strange tongue.",
        A_SOMEONE, self, null, tgt, TO_NOTVICT);
    act("You lay hands on $3n and chant in a strange tongue.",
        A_SOMEONE, self, null, tgt, TO_CHAR);
-   act("$1n lay hands on you and drain your energy.",
+   act("$1n lays hands on you and drains your energy.",
        A_SOMEONE, self, null, tgt, TO_VICT);
    quit;
 }
@@ -9118,21 +9432,17 @@ code
 {
    provoked_attack (tgt, self);
 
-   if ((hm < 0) or (tgt.speed >= 20))
+   if (hm < 0)
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-   spd := tgt.speed + 8;
-   if (spd > 20)
-     spd := 20;
-
    if (isaff(tgt, ID_SPEED))
      subaff(tgt, ID_SPEED);
 
    addaff(tgt, ID_SPEED, 1 + hm / 25, WAIT_SEC*15,
-	  spd, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER,
+	  -8, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER,
 	  APF_SPEED);
    quit;
 }
@@ -9140,35 +9450,30 @@ dilend
 
 
 dilbegin slow(medi:unitptr, tgt : unitptr, arg : string,
-	      hm : integer, effect : string);
+	            hm : integer, effect : string);
 external
-provoked_attack (victim : unitptr, ch : unitptr);
+   provoked_attack (victim : unitptr, ch : unitptr);
 var
    spd : integer;
 code
 {
    provoked_attack (tgt, self);
 
-   if ((hm < 0) or (tgt.speed >= 16))
+   if (hm < 0)
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
       quit;
    }
-
-   spd := tgt.speed + 4;
-   if (spd > 16)
-     spd := 16;
 
    if (isaff(tgt, ID_SPEED))
      subaff(tgt, ID_SPEED);
 
    addaff(tgt, ID_SPEED, 1 + hm / 25, WAIT_SEC*15,
-	  spd, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER,
-	  APF_SPEED);
+          -6, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER, APF_SPEED);
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
    quit;
 }
 dilend
@@ -9180,27 +9485,22 @@ var
    spd : integer;
 code
 {
-   if ((hm < 0) or (tgt.speed <= 6))
+   if (hm < 0)
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
       if (effect != "")
-         effect(tgt, medi, -1);
+         effect(medi, tgt, -1);
       quit;
    }
-
-   spd := tgt.speed - 6;
-   if (spd < 6)
-     spd := 6;
 
    if (isaff(tgt, ID_SPEED))
      subaff(tgt, ID_SPEED);
 
    addaff(tgt, ID_SPEED, 1 + hm / 25, WAIT_SEC*15,
-	  spd, 0, 0, TIF_SPEED_BETTER, TIF_NONE, TIF_SPEED_WORSE,
-	  APF_SPEED);
+	  +6, 0, 0, TIF_SPEED_BETTER, TIF_NONE, TIF_SPEED_WORSE, APF_SPEED);
 
    if (effect != "")
-      effect(tgt, medi, hm);
+      effect(medi, tgt, hm);
 
    quit;
 }
@@ -9213,21 +9513,17 @@ var
    spd : integer;
 code
 {
-   if ((hm < 0) or (tgt.speed <= 9))
+   if (hm < 0)
    {
       act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-   spd := tgt.speed - 3;
-   if (spd < 9)
-     spd := 9;
-
    if (isaff(tgt, ID_SPEED))
      subaff(tgt, ID_SPEED);
 
    addaff(tgt, ID_SPEED, 1 + hm / 25, WAIT_SEC*15,
-	  spd, 0, 0, TIF_SPEED_BETTER, TIF_NONE, TIF_SPEED_WORSE,
+	  +3, 0, 0, TIF_SPEED_BETTER, TIF_NONE, TIF_SPEED_WORSE,
 	  APF_SPEED);
    quit;
 }
@@ -9236,11 +9532,10 @@ dilend
 
 /* Improves the speed of a character by 3. Is not accumulative with other  */
 /* speed spells such as haste.                                             */
-
 dilbegin stun(medi : unitptr, tgt : unitptr, arg : string,
-	      hm : integer, effect : string);
+              hm : integer, effect : string);
 external
-provoked_attack (victim : unitptr, ch : unitptr);
+   provoked_attack (victim : unitptr, ch : unitptr);
 
 code
 {
@@ -9275,9 +9570,7 @@ external
 provoked_attack (victim : unitptr, ch : unitptr);
 code
 {
- unset (self.charflags, CHAR_PEACEFUL);
- provoked_attack(tgt, self);
- set (self.charflags, CHAR_PEACEFUL);
+ provoked_attack(tgt, self);  // it checks only the victim's peaceful flag
 
    if ((hm < 35) or ((not RACE_IS_HUMANOID(tgt.race)) and
                     (not RACE_IS_MAMMAL(tgt.race))))
@@ -9303,24 +9596,20 @@ code
 dilend
 
 
- dilbegin hold_monster(medi : unitptr, tgt : unitptr,
+dilbegin hold_monster(medi : unitptr, tgt : unitptr,
          arg : string,
          hm : integer, effect : string);
 
- external
- provoked_attack(victim : unitptr, ch : unitptr);
+external
+   provoked_attack(victim : unitptr, ch : unitptr);
 
-var mod: integer;
-    dump: integer;
+var
+   mod: integer;
+   dump: integer;
 
  code
  {
- if(isset(self.charflags, CHAR_PEACEFUL))
- {
- unset (self.charflags, CHAR_PEACEFUL); // So that provoked_attack
- provoked_attack(tgt, self);            // doesn't fail
- set (self.charflags, CHAR_PEACEFUL);
- }
+ provoked_attack(tgt, self);  // it checks only the victim's peaceful flag
 
  if (RACE_IS_HUMANOID(tgt.race))
          hm := hm - 25;
@@ -9339,11 +9628,11 @@ var mod: integer;
          sendto ("1closetimer1", self); /* remove old wimpy block */
          dilcopy ("block_wimpy@spells("+itoa(3*PULSE_VIOLENCE)+")", self);
 
-         act("Your spell misfires and you manage to hold yourself",
+         act("Your spell misfires and you manage to hold yourself.",
                  A_ALWAYS,self,null, tgt, TO_CHAR);
-         act("$1n attempts to hold you but manages to hold $1mself instead",
+         act("$1n attempts to hold you but manages to hold $1mself instead.",
                  A_ALWAYS, self, null, tgt, TO_VICT);
-         act("$1n attempts to hold $3n ,but the spell misfires ,and $1n holds $1mself",
+         act("$1n attempts to hold $3n, but the spell misfires and $1n holds $1mself.",
                  A_ALWAYS, self, null, tgt, TO_NOTVICT);
          quit;
          }
@@ -9358,11 +9647,11 @@ var mod: integer;
          sendto ("1closetimer1", tgt);
          dilcopy ("block_wimpy@spells("+itoa(3*PULSE_VIOLENCE)+")", tgt);
 
-         act("Your spell misfires and you end up holding both of you",
+         act("Your spell misfires and you end up holding both of you.",
                  A_ALWAYS, self,null,tgt,TO_CHAR);
-         act("$1n attempts to hold you but manages to hold you both instead",
+         act("$1n attempts to hold you but manages to hold you both instead.",
                  A_ALWAYS,self,null,tgt,TO_VICT);
-         act("$1n attempts to hold $3n but misfires",
+         act("$1n attempts to hold $3n but misfires.",
          A_ALWAYS,self,null,tgt,TO_NOTVICT);
          quit;
          }
@@ -9454,9 +9743,7 @@ external
 provoked_attack (victim : unitptr, ch : unitptr);
 code
 {
- unset (self.charflags, CHAR_PEACEFUL);
- provoked_attack(tgt, self);
- set (self.charflags, CHAR_PEACEFUL);
+ provoked_attack(tgt, self);  // it checks only the victim's peaceful flag
 
    if ((hm < 35) or (not RACE_IS_UNDEAD(tgt.race)))
    {
@@ -9503,7 +9790,7 @@ code
      subaff(tgt, ID_FEAR);
 
    act("You feel less paranoid.", A_ALWAYS, self, null, tgt, TO_VICT);
-   act("$1n seems less paranoid.", A_ALWAYS, self, null, tgt, TO_NOTVICT);
+   act("$3n seems less paranoid.", A_ALWAYS, self, null, tgt, TO_NOTVICT);
    act("$3n seems less paranoid.", A_ALWAYS, self, null, tgt, TO_CHAR);
    }
    quit;
@@ -9686,6 +9973,9 @@ dilend
 dilbegin sun_ray(medi : unitptr, tgt : unitptr,
 		 arg : string,
 		 hm : integer, effect : string);
+external
+   integer sun_bonus();
+
 var
    u : unitptr;
 
@@ -9720,10 +10010,7 @@ code
    }
 
    /* Most powerful at noon */
-   if (mudhour < 12)
-     hm := 18*(mudhour - 12);
-   else
-     hm := -15*(mudhour - 12);
+   hm := sun_bonus();
 
    if (RACE_IS_UNDEAD(tgt.race))
      hm := hm + 100;
@@ -9817,6 +10104,12 @@ code
 {
 arg:=getword(arg);
 
+if (arg == "")
+{
+	act("Command $3n to do what?", A_ALWAYS, self, null, tgt, TO_CHAR);
+	quit;
+}
+
 tmp:= lst_parse(arg);
 
 if((tmp != "aok") and (tmp != "sleep"))
@@ -9824,28 +10117,28 @@ if((tmp != "aok") and (tmp != "sleep"))
 	if(tgt==self)
 	 act("Why not use the command '$2t'?", A_ALWAYS, self, tmp, null, TO_CHAR);
 	else
-	 act("Thats not nice! Why not ask them to '$2t'?",
+	 act("That's not nice! Why not ask them to '$2t'?",
 	 A_ALWAYS, self, tmp, null, TO_CHAR);
 	quit;
 }
 
 if (hm < 0)
   {
-   act("You unsuccessfully tried to command $3n to '$2t'",
+   act("You unsuccessfully tried to command $3n to '$2t'.",
        A_SOMEONE, self, arg, tgt,TO_CHAR);
-   act("$1n unsuccessfully tried to command $3n to '$2t'",
+   act("$1n unsuccessfully tried to command $3n to '$2t'.",
        A_SOMEONE, self, arg, tgt,TO_NOTVICT);
-   act("$1n unsuccessfully tried to command you to '$2t'",
+   act("$1n unsuccessfully tried to command you to '$2t'.",
        A_SOMEONE, self, arg, tgt, TO_VICT);
    provoked_attack (tgt, self);
    quit;
    }
 
-act ("You command $3n to '$2t'",
+act ("You command $3n to '$2t'.",
        A_SOMEONE, self, arg, tgt, TO_CHAR);
-act ("$1n  commands you to '$2t'",
+act ("$1n commands you to '$2t'.",
        A_SOMEONE, self, arg, tgt, TO_VICT);
-act ("$1n  commands $3n to '$2t'",
+act ("$1n commands $3n to '$2t'.",
        A_SOMEONE, self, arg, tgt, TO_NOTVICT);
        if ((tmp=="sleep") and
        (tgt.type==UNIT_ST_NPC))
@@ -9867,14 +10160,14 @@ else
 		position_update(tgt);
 		quit;
 		}
-	if (self.position==POSITION_SLEEPING)
+	if (tgt.position==POSITION_SLEEPING)
 		{
 		sendtext("You are already sound asleep.<br/>", tgt);
 		quit;
 		}
 	if (tgt.position==POSITION_FIGHTING)
 		{
-		sendtext("Sleep while fighting? are you MAD?<br/>", tgt);
+		sendtext("Sleep while fighting? Are you MAD?<br/>", tgt);
 		quit;
 		}
 	}
@@ -9888,7 +10181,6 @@ external
 provoked_attack (victim : unitptr, ch : unitptr);
 code
 {
-   provoked_attack (tgt, self);
      if(dilfind("spl_sleep@spells",tgt))
      {
       act("Nothing happens.",
@@ -9909,6 +10201,9 @@ code
    :failure:
    act("$1n unsuccessfully tried to make you sleep.",
        A_SOMEONE, self, null, tgt, TO_VICT);
+   /* Only a failed spell starts a fight: provoked first, the target was always
+      fighting by the time the sleep took hold, and only "tried to sleep" */
+   provoked_attack (tgt, self);
 
    quit;
 }
@@ -9925,7 +10220,7 @@ code
 {
    if (hm < 0)
    {
-      act("Dust swirl around in the air.",
+      act("Dust swirls around in the air.",
           A_SOMEONE, self, null, null, TO_ALL);
       quit;
    }
@@ -9936,7 +10231,7 @@ code
    act("$2n is summoned before you.",
        A_HIDEINV, self, u, null, TO_CHAR);
 
-   act("$2n is summoned before $1n",
+   act("$2n is summoned before $1n.",
        A_HIDEINV, self, u, null, TO_ROOM);
 
    dilcopy("magic_summoned@spells("+itoa(hm)+")", u);
@@ -10065,104 +10360,100 @@ dilend
 
 
 /* Called from both 'self leaving' and 'leaving' */
-/* Advanced for of flee. */
-dilbegin leaving(medi : unitptr, tgt : unitptr, arg : string,
-		 hm : integer, effect : string);
+/* Advanced form of flee.                        */
+dilbegin leaving(medi : unitptr, tgt : unitptr, arg : string, hm : integer, effect : string);
 var
-   u : unitptr;
-   i : integer;
-   d : string;
+    u : unitptr;
+    i : integer;
+    d : string;
 
 code
 {
-   if (hm < 0)
-   {
-      act("Nothing happens.", A_SOMEONE, self, null, null, TO_CHAR);
-      quit;
-   }
+    if (hm < 0)
+    {
+        act("Nothing happens.", A_SOMEONE, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   /* Find the room that the tgt is inside */
+    /* Find the room that the tgt is inside */
 
-   u := self.outside;
-   while (u.type != UNIT_ST_ROOM)
-     u := u.outside;
+    u := self.outside;
+    while (u.type != UNIT_ST_ROOM)
+        u := u.outside;
 
-   arg := getword(arg);
+    arg := getword(arg);
 
-   if (arg in "north") {
-     i := DIR_NORTH;
-     d := "north"; }
-   else if ((arg in "east") and (arg != "s")) {
-     i := DIR_EAST;
-     d := "east"; }
-   else if ((arg in "south") and (arg != "u")) {
-     i := DIR_SOUTH;
-     d := "south"; }
-   else if (arg in "west") {
-     i := DIR_WEST;
-     d := "west"; }
-   else if (arg in "up") {
-     i := DIR_UP;
-     d := "up"; }
-   else if (arg in "down") {
-     i := DIR_DOWN;
-     d := "down"; }
-   else if ((arg in "northeast") or (arg == "ne")) {
-     i := DIR_NORTHEAST;
-     d := "northeast"; }
-   else if ((arg in "northwest") or (arg == "nw")) {
-     i := DIR_NORTHWEST;
-     d := "northwest"; }
-   else if ((arg in "southeast") or (arg == "se")) {
-     i := DIR_SOUTHEAST;
-     d := "southeast"; }
-   else if ((arg in "southwest") or (arg == "sw")) {
-     i := DIR_SOUTHWEST;
-     d := "southwest"; }
-   else
-   {
-      act("You must specify a direction to leave in.",
-	  A_SOMEONE, self, null, null, TO_CHAR);
-      quit;
-   }
+    if (arg == "") {
+        act("You must specify a direction to leave in.",
+        A_SOMEONE, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   if ((not u.exit_to[i]) or (u.exit_info[i] & EX_CLOSED) or
-       (u.exit_to[i].movement == SECT_WATER_SAIL))
-   {
-      act("No such direction.",
-	  A_SOMEONE, self, null, null, TO_CHAR);
-      quit;
-   }
+    if (arg in "north") {
+        i := DIR_NORTH;
+        d := "north"; }
+    else if ((arg in "east") and (arg != "s")) {
+        i := DIR_EAST;
+        d := "east"; }
+    else if ((arg in "south") and (arg != "u")) {
+        i := DIR_SOUTH;
+        d := "south"; }
+    else if (arg in "west") {
+        i := DIR_WEST;
+        d := "west"; }
+    else if (arg in "up") {
+        i := DIR_UP;
+        d := "up"; }
+    else if (arg in "down") {
+        i := DIR_DOWN;
+        d := "down"; }
+    else if ((arg in "northeast") or (arg == "ne")) {
+        i := DIR_NORTHEAST;
+        d := "northeast"; }
+    else if ((arg in "northwest") or (arg == "nw")) {
+        i := DIR_NORTHWEST;
+        d := "northwest"; }
+    else if ((arg in "southeast") or (arg == "se")) {
+        i := DIR_SOUTHEAST;
+        d := "southeast"; }
+    else if ((arg in "southwest") or (arg == "sw")) {
+        i := DIR_SOUTHWEST;
+        d := "southwest"; }
+    else
+    {
+        act("You must specify a direction to leave in.",
+        A_SOMEONE, self, null, null, TO_CHAR);
+        quit;
+    }
 
-if (self.type==UNIT_ST_PC)
-if (not(paycheck(self,u.exit_to[i]))){
-      act("You don't have access to that location, type 'help donation'.",
-           A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-     }
+    if ((not u.exit_to[i]) or (u.exit_info[i] & EX_CLOSED))
+    {
+        act("No such direction.", A_SOMEONE, self, null, null, TO_CHAR);
+        quit;
+    }
 
-if ("$no_leaving_clan" in self.outside.extra)
-	{
-	act ("Magical Clan powers stop you from succeeding in that spell.",
-	A_ALWAYS, self, null,null,TO_CHAR);
-	act ("Magical Clan powers stop $1n from casting the Leaving spell.",
-	A_ALWAYS, self, null,null,TO_REST);
-	quit;
-	}
+    if ((u.exit_to[i].movement == SECT_WATER_SAIL))
+    {
+        act("That is impossibly far.", A_SOMEONE, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   act("$1n vanishes.",
-       A_HIDEINV, self, null, null, TO_ROOM);
-   act("You are teleported "+d+".",
-       A_SOMEONE, self, null, null, TO_CHAR);
+    if ("$no_leaving_clan" in self.outside.extra)
+    {
+        act ("Magical Clan powers stop you from succeeding in that spell.", A_ALWAYS, self, null,null,TO_CHAR);
+        act ("Magical Clan powers stop $1n from casting the Leaving spell.", A_ALWAYS, self, null,null,TO_REST);
+        quit;
+    }
 
-   link(self, u.exit_to[i]);
+    act("$1n vanishes.", A_HIDEINV, self, null, null, TO_ROOM);
+    act("You are teleported "+d+".", A_SOMEONE, self, null, null, TO_CHAR);
 
-   act("$1n appears from thin air.",
-       A_HIDEINV, self, null, null, TO_ROOM);
+    link(self, u.exit_to[i]);
+    dilcopy("sendmsg@spells(teleport)", self);
 
-   exec("look", self);
-
-   quit;
+    act("$1n appears from thin air.", A_HIDEINV, self, null, null, TO_ROOM);
+    exec("look", self);
+    quit;
 }
 dilend
 
@@ -10241,6 +10532,7 @@ dilbegin resurrect(medi : unitptr, tgt : unitptr, arg : string,
 		   hm : integer, effect : string);
 var
    u : unitptr;
+   uh : unitptr;
    t:integer;
    c:integer;
    i:integer;
@@ -10260,39 +10552,44 @@ if (self.extra.["$RES_TIME"]==null)
 
 
 c:=realtime-atoi(self.extra.["$RES_TIME"].descr);
-if (c<120)
+if (c<150) // increased by 30s time because of power level now affecting time before recast
 {
 self.mana:=self.mana+80;
-act ("You are still too queasy to cast this spell try waiting a minute or so and try again.",
+act ("You are still too queasy to cast this spell. Wait a minute or so and try again.",
 A_ALWAYS,self,null,null,TO_CHAR);
 return;
 }
 
 
-
 :skiptimer:
-subextra (self.extra,"$RES_TIME");
-addextra (self.extra,{"$RES_TIME"},itoa(realtime));
    foreach (UNIT_ST_OBJ, u)
    {
       if ((IS_CORPSE(u)) and ((" "+tgt.name+" ") in u.outside_descr))
       {
-	  if ("headless" in u.outside_descr)
-	  	  {
+	  if ("headless" in u.outside_descr){
+	  	  uh := findunit( self, "head_of_" +tgt.name, FIND_UNIT_INVEN, null );
+	  	  if(uh != null){
+	  	  	destroy(uh);
+	  	  	goto startres;
+	  	  }
 	  act("The headless corpse of "+tgt.name+" stands up, realizes it "
 	  +"has no head, runs around the room like a chicken with its head chopped"
 	  +" off then flops to the ground.",A_ALWAYS, tgt, null, self, TO_VICT);
 	 act("$1n thinks they are Dr. Frankenstein and attempts to resurrect "
 	 +"the headless corpse of "+tgt.name+" to no avail.",A_ALWAYS, self, null, null, TO_ROOM);
         quit;
-	   }
+        }
+        :startres:
+         // the wait before the next cast starts once a resurrection happens, not when none can
+         subextra (self.extra,"$RES_TIME");
+         addextra (self.extra,{"$RES_TIME"},itoa(realtime-(hm/3))); // allow power level to change time to next cast
 	 act("A vortex appears above you dragging your soul out of "+
 	     "Valhalla and back into your mutilated body.",
 	     A_ALWAYS, tgt, null, null, TO_CHAR);
 	 act("A vortex appears above $1n sucking $1s soul out of Valhalla.",
 	     A_ALWAYS, tgt, null, null, TO_ROOM);
 
-act ("Something about the resurrection has made you queasy you might want to wait a bit before trying again.",
+act ("Something about the resurrection has made you queasy; you might want to wait a bit before trying again.",
 		 A_ALWAYS,self,null,null,TO_CHAR);
 
 
@@ -10302,6 +10599,7 @@ unset (tgt.pcflags,PC_SPIRIT);
 unset (tgt.charflags,CHAR_KILL_SELF);
 
 	 link(tgt, self.outside);
+    dilcopy("sendmsg@spells(teleport)", tgt);
 
 	 while (u.inside)
 	   link(u.inside, tgt);
@@ -10409,7 +10707,7 @@ var
 code
 {
    interrupt(SFB_DEAD, activator == self, vanish);
-interrupt (SFB_MSG,TRUE,gotmsg);
+   interrupt (SFB_MSG,TRUE,gotmsg);
    heartbeat := PULSE_SEC * 100;
    d := pwr / 15 + 2;
 
@@ -10420,14 +10718,21 @@ if (d>0)
 	d := d - 1;
 	goto start;
 	}
-
 goto vanish;
 
 :gotmsg:
 parse:= getwords(argument);
-if (parse.[0] == "spl_dispel")
-	if (atoi(parse.[1]) <= pwr)
-		goto start;
+if (parse.[0] == "spl_dispel"){
+	if (atoi(parse.[1]) >= pwr){
+		goto vanish;
+   	} else {
+   		if (atoi(parse.[1]) >= (pwr/2)){
+   		d := d - 1;
+   		}
+   	}
+}
+goto start;
+
 
 :vanish:
 u:=load ("dust_bones@spells");
@@ -10449,6 +10754,8 @@ dilend
 
 dilbegin animate(medi : unitptr, tgt : unitptr, arg : string,
 		      hm : integer, effect : string);
+external
+   integer unraisable@spells(rc : integer);
 var
    u : unitptr;
   chk : integer;
@@ -10461,32 +10768,21 @@ code
       quit;
    }
 
-	       if (not (IS_CORPSE(tgt)))
+  if (not (IS_CORPSE(tgt)) or (IS_CORPSE(tgt) and tgt.value[2] == 1))
   {
-  act ("You try to bring life to $2n but nothing happens",
+  act ("You try to bring life to $2n but nothing happens.",
   A_ALWAYS,self,tgt,null,TO_CHAR);
-  act ("$1n tries to bring life to $2n but nothing happens",
+  act ("$1n tries to bring life to $2n but nothing happens.",
   A_SOMEONE,self,tgt,null,TO_REST);
   quit;
   }
   chk := (tgt.value[4]);
 
-  if ( ((chk > RACE_OTHER_MAMMAL) and (chk <= RACE_INSECT)) or
-       ((chk > RACE_OTHER_CREATURE) and (chk <= RACE_UNDEAD)) or
-       (chk == RACE_SCORPION) or (chk == RACE_STONE_RENDER) or
-	   (chk == RACE_VAMPIRE) or (chk == RACE_SLIME) or
-       (chk == RACE_LESSER_DEMON) or (chk == RACE_GREATER_DEMON) or
-       (chk == RACE_LESSER_DEVIL) or (chk == RACE_GREATER_DEVIL) or
-       (chk == RACE_SHADOW_DEVIL) or (chk == RACE_GARGOYLE) or
-       (chk == RACE_GOLEM) or (chk == RACE_YOGOLOTH) or
-       (chk == RACE_MIST_DWELLER) or (chk == RACE_ELEMENTAL_AIR) or
-       (chk == RACE_ELEMENTAL_FIRE) or (chk == RACE_ELEMENTAL_EARTH) or
-       (chk == RACE_ELEMENTAL_FROST) or (chk == RACE_ELEMENTAL_WATER) or
-       (chk == RACE_ELEMENTAL_LIGHT))
+  if (unraisable@spells(chk))
   {
    act("The corpse glows briefly then suddenly crumbles into dust...",
    A_SOMEONE, self, null,null, TO_REST);
-   act("The corpse glows briefly then suddenly crumbles into dust..." +
+   act("The corpse glows briefly then suddenly crumbles into dust... " +
    "something was amiss with the subject." , A_SOMEONE, self, null,null, TO_CHAR);
 
    u:=load ("dust_bones@spells");
@@ -10500,9 +10796,8 @@ unsecure (tgt);
 
    u:= load("zombie@spells");
   secure (u,lostu);
-    dilcopy("undead_obey@spells("+itoa(hm)+")",u);
     dilcopy ("zombie_summoned@spells("+itoa(hm)+")",u);
-    dilcopy("undead_exec@spells",u);
+    dilcopy("undead_exec@spells("+itoa(hm)+")",u);
    if (isset(self.pcflags,PC_PK_RELAXED))
    dilcopy ("catchit@spells(1)",u);
    else
@@ -10646,7 +10941,7 @@ code
          if (parse.[0] == "spl_dispel")
          {
             if (atoi(parse.[1]) >= pwr)
-              goto loop;
+              break;
          }
       }
    }
@@ -10667,10 +10962,15 @@ dilbegin refresh(med : unitptr, targ : unitptr, arg : string,
                  hm : integer, effect : string);
 var
    amount : integer;
+   ex_ptr : extraptr;
 code
 {
-   if ((not RACE_IS_HUMANOID(targ.race)) and (not RACE_IS_MAMMAL(targ.race)))
-     hm := -1;
+
+   ex_ptr:="$owner" in self.extra;
+   if (not((targ == self) or (ex_ptr.descr == targ.name))){ // fixes mobs that can't refres themselves and allows familiars to refresh owners in rare corner cases
+   	if ((not RACE_IS_HUMANOID(targ.race)) and (not RACE_IS_MAMMAL(targ.race)))
+ 	    hm := -1;
+   }
 
    if (hm < 0)
    {
@@ -10722,10 +11022,12 @@ skilld : integer;
 
 code
 {
-   if (not(self.outside.movement &
-   (SECT_FIELD|SECT_FOREST|SECT_HILLS|SECT_SWAMP|SECT_CITY)))
+   /* Sector types are numbers, not flags */
+   f := self.outside.movement;
+   if (not((f == SECT_FIELD) or (f == SECT_FOREST) or (f == SECT_HILLS) or
+           (f == SECT_SWAMP) or (f == SECT_CITY)))
    {
-      act("This environment is not condusive to the art of horticulture.",
+      act("This environment is not conducive to the art of horticulture.",
           A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
@@ -10737,7 +11039,7 @@ code
    }
    if (targ.level >=51)
    {
-      act("The forces of nature wont let you cast that spell on "+targ.name+"!",
+      act("The forces of nature won't let you cast that spell on "+targ.name+"!",
           A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
@@ -10752,7 +11054,7 @@ code
         skilld:=targ.abilities[ABIL_BRA];
 
        skilla:=self.abilities[ABIL_BRA];
-       skillc:=targ.abilities[ABIL_BRA] + 20;
+       skillb:=targ.abilities[ABIL_BRA];
 /*
        if(((u.race>=RACE_SPIRIT_MIN) and (u.race<=RACE_SPIRIT_MAX)) or
            (u.race==RACE_VAMPIRE))
@@ -10767,7 +11069,7 @@ code
 
 /*
 
-   hm := skillresist@skills(self.abilities[ABIL_DIV] + self.abilities[ABIL_BRA],
+   hm := skillresist@function(self.abilities[ABIL_DIV] + self.abilities[ABIL_BRA],
                            targ.abilities[ABIL_DIV] * 2,
                            self.spells[SPL_ENTANGLE],
                            targ.abilities[ABIL_BRA] + 20);
@@ -10789,8 +11091,9 @@ code
    if ( (targ.type == UNIT_ST_PC) and not (dilfind ("entangled_2@spells", targ)) )
       dilcopy ("entangled_2@spells", targ);
 
-   if (targ.position &
-       (POSITION_RESTING | POSITION_SITTING | POSITION_SLEEPING))
+   if ((targ.position == POSITION_RESTING) or
+       (targ.position == POSITION_SITTING) or
+       (targ.position == POSITION_SLEEPING))
       {
       targ.position := POSITION_STANDING;
       position_update(targ);
@@ -11028,6 +11331,7 @@ external
                              bb : integer);
 
 var
+   n : integer;
   i : integer;
   i2 : integer;
   u : unitptr;
@@ -11045,23 +11349,20 @@ code
       quit;
    }
 
-   i2 := 0; /* Now check for already following animals. */
+   i2 := 0; /* Now check for already following animals, wherever they are */
 
-   foreach (UNIT_ST_NPC, u)
+   n := 0;
+   while (n < self.followercount)
    {
-      if( (u.master == self) and (u != self) and
-          (race_lower_animal(u.race)))
-      {
+      u := getfollower(self, n);
+      if ((u.type == UNIT_ST_NPC) and (race_lower_animal(u.race)))
          i2 := 1;
-      }
+      n := n + 1;
    }
-
-   if ((self.follower.type == UNIT_ST_NPC) and (race_lower_animal(u.race)))
-      i2 := 1; // This is easy to bypass but no way to find all followers
 
    if (i2)
    {
-      act("You already have an animal in your service, why summon "+
+      act("You already have an animal in your service, why charm "+
           "another?",
           A_ALWAYS, self, null, null, TO_CHAR);
       quit;
@@ -11090,7 +11391,7 @@ code
 
 
 /*
-   hm := skillresist@skills(self.abilities[ABIL_BRA],
+   hm := skillresist@function(self.abilities[ABIL_BRA],
                            targ.abilities[ABIL_BRA],
                            self.spells[SPL_CHARM_ANIMAL],
                            targ.abilities[ABIL_MAG] + 25);
@@ -11142,9 +11443,7 @@ var
 
 code
 {
- unset (self.charflags, CHAR_PEACEFUL);
- provoked_attack@skills(tgt, self);
- set (self.charflags, CHAR_PEACEFUL);
+ provoked_attack@skills(tgt, self);  // it checks only the victim's peaceful flag
 
    if (hm < 35) goto fail_it;
        if(self.type==UNIT_ST_PC)
@@ -11164,7 +11463,7 @@ code
 
 
 /*
-   hm := skillresist@skills(self.abilities[ABIL_MAG],
+   hm := skillresist@function(self.abilities[ABIL_MAG],
                            tgt.abilities[ABIL_BRA],
                            self.spells[SPL_HOLD_ANIMAL],
                            tgt.abilities[ABIL_MAG] + 25);
@@ -11207,7 +11506,7 @@ var
 
 code
 {
-   if ((tgt.type != UNIT_ST_NPC) or (not(race_lower_animal(tgt.race))))
+   if ((not(race_lower_animal(tgt.race)))) // there are cases where an PC can be a 'lower animal' - Removing NPC check
    {
       act("Your spell will only heal animals.",
           A_ALWAYS, self, null, null, TO_CHAR);
@@ -11224,13 +11523,12 @@ code
    if (tgt.hp == tgt.max_hp)
    {
       act("It is in excellent health - your spell does nothing more " +
-          "it.",
+          "for it.",
           A_ALWAYS, self, null, null, TO_CHAR);
       quit;
    }
 
-   heal_ran := rnd(self.spells[SPL_HEAL_ANIMAL]/2,
-                  self.spells[SPL_HEAL_ANIMAL]/2 + 30);
+   heal_ran := rnd(hm/2, hm/2 + 30);
 
    if ( (tgt.hp + heal_ran) > (tgt.max_hp) )
       tgt.hp := (tgt.max_hp);
@@ -11254,6 +11552,7 @@ external
 
 var
    i    : integer;
+   n    : integer;
    u    : unitptr;
    pow  : integer;
  skilla : integer;
@@ -11271,8 +11570,10 @@ code
       quit;
    }
 
-   if (not(self.outside.movement &
-   (SECT_FIELD|SECT_FOREST|SECT_HILLS|SECT_SWAMP|SECT_SNOW|SECT_SLUSH)))
+   /* Sector types are numbers, not flags */
+   i := self.outside.movement;
+   if (not((i == SECT_FIELD) or (i == SECT_FOREST) or (i == SECT_HILLS) or
+           (i == SECT_SWAMP) or (i == SECT_SNOW) or (i == SECT_SLUSH)))
    {
       act("Animals don't like these surroundings - a summoning " +
           "would be impossible.",
@@ -11306,15 +11607,13 @@ code
 
    i := 0; /* Now check for already following animals. */
 
-   foreach (UNIT_ST_NPC, u)
+   n := 0;
+   while (n < self.followercount)
    {
-      if( (u.master == self) and (u != self) and
-          (race_lower_animal(u.race)))
-      {
+      u := getfollower(self, n);
+      if ((u.type == UNIT_ST_NPC) and (race_lower_animal(u.race)))
          i := 1;
-      }
-      if (self.follower.type == UNIT_ST_NPC)
-         i :=1;
+      n := n + 1;
    }
 
    if (i)
@@ -11347,14 +11646,16 @@ code
         hm:=spellresist(skilla,skillb,skillc,skilld);
 /*
 
-   hm := skillresist@skills(self.abilities[ABIL_BRA],
+   hm := skillresist@function(self.abilities[ABIL_BRA],
                            tgt.abilities[ABIL_BRA],
                            self.spells[SPL_SUMMON_ANIMAL],
                            tgt.abilities[ABIL_MAG] + 25);
 */
+   /* The worse the miss, the worse it goes: a slight miss fizzles, a worse one
+      brings the animal unbound, and a bad one brings it angry */
    pow := hm/25;
 
-   if (hm <= -5)
+   if ((hm < 0) and (hm >= -10))
    {
       act("You fail to summon the animal.",
           A_ALWAYS, self, null, null, TO_CHAR);
@@ -11380,15 +11681,28 @@ code
       quit;
    }
 
-   if ((hm >5) and (hm <=0))
+   if (hm < -90)
    {
       act("You cause a great disturbance in the powers of magic!",
           A_ALWAYS, self, null, null, TO_CHAR);
-      act("$3n appears and attacks you!",
-          A_ALWAYS, self, null, null, TO_CHAR);
       link (tgt, self.outside);
+      act("$3n appears and attacks you!",
+          A_ALWAYS, self, null, tgt, TO_CHAR);
+      act("$3n appears and attacks $1n!",
+          A_SOMEONE, self, null, tgt, TO_REST);
       tgt.position := POSITION_STANDING;
       set_fighting(tgt, self);
+      quit;
+   }
+   if (hm < 0)
+   {
+      link (tgt, self.outside);
+      act("$3n appears in answer to your calling, but pays you no heed.",
+          A_ALWAYS, self, null, tgt, TO_CHAR);
+      act("$3n appears in answer to $1n's calling.",
+          A_SOMEONE, self, null, tgt, TO_REST);
+      exec("wake", tgt);
+      exec("stand", tgt);
       quit;
    }
 
@@ -11398,6 +11712,7 @@ code
        A_SOMEONE, self, null, tgt, TO_REST);
    link(tgt, self.outside);
 
+   i := dildestroy("ani_fol@spells", tgt);
    if (isset(self.pcflags, PC_PK_RELAXED))
       dilcopy ("ani_fol@spells(1," + itoa(pow) + ")",tgt);
    else
@@ -11427,7 +11742,7 @@ var
 code
 {
 priority;
-heartbeat:= PULSE_SEC*(pow + 20);
+heartbeat:= PULSE_SEC*60*(pow + 20);  /* The animal serves 20 minutes and more */
 
 h:= interrupt(SFB_MSG, TRUE, dispel_check);
 i:= interrupt(SFB_TICK, TRUE, control_over);
@@ -11459,6 +11774,12 @@ i:= interrupt(SFB_TICK, TRUE, control_over);
    }
 
 
+   // A direction, even one letter, is a move: "s" or "u" isn't say or use
+   if (tstr2 in {"n", "e", "s", "w", "u", "d", "ne", "nw", "se", "sw", "north", "east", "south",
+                 "west", "up", "down", "northeast", "northwest", "southeast", "southwest"})
+      goto cleared;
+
+   // The rest by abbreviation: "sa" is say, "rec" recite
    if ((tstr2 in "tell") or (tstr2 in "recite") or (tstr2 in "use") or
        (tstr2 in "trip") or (tstr2 in "disarm") or (tstr2 in "say") or
        (tstr2 in "shout") or (tstr2 in "pick") or (tstr2 in "cast") or
@@ -11482,9 +11803,11 @@ i:= interrupt(SFB_TICK, TRUE, control_over);
 
 :dispel_check:
    if (getword(argument) == "spl_dispel")
+   {
       jpc := getword(argument);
       if (atoi(jpc) >= pow)
          goto stop;
+   }
    goto start;
 
 :control_over:
@@ -11530,10 +11853,46 @@ dilend
 
 /* Begin new Druid Guild spells */
 
+// A random open exit of room for the wave, never up or down; -1 when there is none
+dilbegin integer tsu_exit(room : unitptr);
+var
+   dir      : integer;
+   dircount : integer;
+   freedir  : stringlist;
+code
+{
+   dircount := 0;
+   freedir := null;
+   dir := 0;
+   while (dir < 10)
+   {
+      if ((room.exit_to[dir] != null) and
+          (not(isset(room.exit_info[dir], EX_CLOSED))) and
+          (not(isset(room.exit_info[dir], EX_LOCKED))) and
+          (not(isset(room.exit_info[dir], EX_HIDDEN))) and
+          (dir != 4) and (dir != 5))
+      {
+         addstring(freedir, itoa(dir));
+         dircount := dircount + 1;
+      }
+      dir := dir + 1;
+   }
+   if (dircount == 0)
+      return (-1);
+   dir := rnd(0, (dircount - 1));
+   return (atoi(freedir.[dir]));
+}
+dilend
+
 dilbegin tsunami(medi : unitptr, tgt : unitptr, arg : string,
                   hm : integer, effect : string);
+external
+   integer tsu_exit(room : unitptr);
+   string dirstring@function(dr : integer);
 var
    room       : unitptr;
+   u          : unitptr;
+   dir        : integer;
 
 code
 {
@@ -11549,6 +11908,29 @@ code
      quit;
     }
 
+   // a failed cast turns the wave on the caster alone (and their boat, if in one)
+   if (hm < 0)
+   {
+      dir := tsu_exit(room);
+      if (dir < 0)
+      {
+         act("<br/>Nothing happens.", A_ALWAYS, self, null, null, TO_ALL);
+         quit;
+      }
+      u := self;
+      if (self.outside != room)
+         u := self.outside;
+      act("Your tidal wave rears up and turns on you, washing you away to "+
+          "the "+dirstring@function(dir)+"!", A_ALWAYS, self, null, null, TO_CHAR);
+      act("$1n's tidal wave turns on $1m and washes $1m away!",
+          A_SOMEONE, self, null, null, TO_REST);
+      link(u, room.exit_to[dir]);
+      exec("look", self);
+      act("$1n is swept in by a sudden flood of water!",
+          A_SOMEONE, self, null, null, TO_REST);
+      quit;
+   }
+
 dilcopy ("tsu_eff@spells("+self.name+")", room);
 
 quit;
@@ -11559,12 +11941,11 @@ dilbegin tsu_eff(caster: string);
 
 external
    string dirstring@function(dr : integer);
+   integer tsu_exit(room : unitptr);
 
 var
    u          : unitptr;
    dir        : integer;
-   dircount   : integer;
-   freedir    : stringlist;
    x          : integer;
    room       : unitptr;
    dir_string : string;
@@ -11573,35 +11954,22 @@ var
 code
 {
 
-pc:= findunit(self, caster, FIND_UNIT_ZONE, null);
+// self is the room, which can't see anyone to findunit() them: look for the caster's name
+pc := null;
+foreach (UNIT_ST_PC|UNIT_ST_NPC, u)
+   if (u.name == caster)
+   {
+      pc := u;
+      break;
+   }
 
 x:= 0;
-:dircheck:
-   dircount := 0;
-   freedir := {""};
-   dir := 0;
-   while(dir < 10)
-    {
-     if((self.exit_to[dir] != null) and
-      (not(isset(self.exit_info[dir],EX_CLOSED))) and
-      (not(isset(self.exit_info[dir],EX_LOCKED))) and
-      (not(isset(self.exit_info[dir],EX_HIDDEN))) and
-      (dir != 4) and (dir != 5))
-       {
-        addstring(freedir, itoa(dir));
-        dircount := dircount + 1;
-       }
-     dir := dir + 1;
-    }
-
-:dirchoose:
- if(dircount == 0)
-     {
-     act("<br/>Nothing happens.", A_ALWAYS, self, null, null, TO_ALL);
-     quit;
-     }
- dir := rnd(0,(dircount - 1));
- dir := atoi(freedir.[dir]);
+   dir := tsu_exit(self);
+   if (dir < 0)
+   {
+      act("<br/>Nothing happens.", A_ALWAYS, self, null, null, TO_ALL);
+      quit;
+   }
 
     room := self.exit_to[dir];
     dir_string := dirstring@function(dir);
@@ -11616,9 +11984,10 @@ x:= 0;
     if ((u.type == UNIT_ST_OBJ) and
        (not(isset(u.manipulate,MANIPULATE_TAKE)))) continue;
 
-        act("$1n summons a powerful tidal wave that washes you away!",
-             A_SOMEONE, pc, null, u, TO_VICT);
-        act("$3n is washed away!", A_SOMEONE, self, null, u, TO_NOTVICT);
+        if (u != pc)
+           act("$1n summons a powerful tidal wave that washes you away!",
+                A_SOMEONE, pc, null, u, TO_VICT);
+        act("$1n is washed away!", A_SOMEONE, u, null, null, TO_ROOM);
         link(u,room);
         exec("look", u);
         act("$1n is swept in by a sudden flood of water!",
@@ -11634,8 +12003,8 @@ dilend
 dilbegin quicksand(medi:unitptr, tgt : unitptr, arg : string,
 	      hm : integer, effect : string);
 var
-   spd : integer;
-   u   : unitptr;
+   u    : unitptr;
+   mast : unitptr;
 
 code
 {
@@ -11671,29 +12040,42 @@ code
       quit;
    }
 
-act("The ground becomes a mire of quicksand!",
-     A_ALWAYS, self, null, null, TO_ALL);
+   if (hm < 0)
+   {
+      act("The ground trembles for a moment, then holds firm.",
+          A_ALWAYS, self, null, null, TO_ALL);
+      if (effect != "") effect(medi, tgt, -1);
+      quit;
+   }
+
+   act("The ground becomes a mire of quicksand!",
+       A_ALWAYS, self, null, null, TO_ALL);
+
+   /* Everyone in the room but the caster's group, as meteor shower; players
+      only if both have signed the Book of Blood */
+   mast := self.master;
+   if (not(self.master))
+      mast := self;
 
    foreach(UNIT_ST_PC|UNIT_ST_NPC, u)
    {
-    if(u == self) continue;
-    if(u.minv > 200) continue;
-    if(u.level >= IMMORTAL_LEVEL) continue;
+      if (u == self) continue;
+      if (u.minv > 200) continue;
+      if (u.level >= IMMORTAL_LEVEL) continue;
+      if ((u.master == mast) or (u == mast)) continue;
+      if ((u.type == UNIT_ST_PC) and (self.type == UNIT_ST_PC) and
+          ((not(isset(u.pcflags, PC_PK_RELAXED))) or
+           (not(isset(self.pcflags, PC_PK_RELAXED)))))
+         continue;
 
-      if ((hm < 0) or (tgt.speed >= 16))
-       {
-        if (effect != "") effect(tgt, medi, -1);
-        quit;
-       }
-    act("The quicksand severely hampers your movement...",
-         A_ALWAYS, u, null, null, TO_CHAR);
-    spd := tgt.speed + 4;
-    if (spd > 16) spd := 16;
+      act("The quicksand severely hampers your movement...",
+          A_ALWAYS, u, null, null, TO_CHAR);
 
-    if (isaff(tgt, ID_SPEED)) subaff(tgt, ID_SPEED);
-    addaff(tgt, ID_SPEED, 1 + hm / 25, WAIT_SEC*15,
-           spd, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER, APF_SPEED);
-    if (effect != "") effect(tgt, medi, hm);
+      if (isaff(u, ID_SPEED))
+         subaff(u, ID_SPEED);
+      addaff(u, ID_SPEED, 1 + hm / 25, WAIT_SEC*15,
+             -4, 0, 0, TIF_SPEED_WORSE, TIF_NONE, TIF_SPEED_BETTER, APF_SPEED);
+      if (effect != "") effect(medi, u, hm);
    }
   quit;
 }
@@ -11836,7 +12218,8 @@ var
 
 code
 {
-   interrupt(SFB_MSG, TRUE, check);
+   interrupt(SFB_MSG, (getword(argument) == "spl_rem_disease") and
+                      (atoi(getword(argument)) >= atoi(hm)), finished);
    interrupt(SFB_DEAD, activator == self, stop);
 
    x := 0;
@@ -11876,13 +12259,6 @@ act("Your rash has healed.", A_ALWAYS, self, null, null, TO_CHAR);
 act("$1n's rash heals.", A_SOMEONE, self, null, null, TO_REST);
 :stop:
 quit;
-
-   :check:
-   if (getword(argument) == "spl_rem_disease")
-    {
-     if (atoi(getword(argument)) >= atoi(hm)) goto finished;
-    }
-   goto itch;
 }
 dilend
 
@@ -11948,7 +12324,7 @@ code
 :castit:
 */  
 
-  amod := {" natural-looking","n angry-looking"," seemingly agonized",
+   amod := {" natural-looking","n angry-looking"," seemingly agonized",
             " visibly terrified"};
    pmod := {"standing","sitting","lying"};
    slist := getwords(tgt.names.[0]);
@@ -11961,14 +12337,23 @@ code
    addstring(tinfo, tgt.outside.zoneidx);
 
    room := tgt.outside;
+
+   addextra(tgt.extra, {"$petrify"}, itoa(self.abilities[ABIL_DIV])); // Needed in make_corpse() if char dies
    hm := attack_spell(SPL_PETRIFY, self, medi, tgt, 0, effect);
-   if(tgt == null) goto stoned;
+   if (tgt == null)
+      goto stoned;
+   subextra(tgt.extra, "$petrify");
    quit;
 
 :stoned:
+   quit;
+
+   // Code below disabled. Replaced with improvement in make_corpse@death
+   // and expanded with use of displace magic spell.
+
    statue := load("stat_corpse@spells");
    link(statue, room);
-
+ 
    set_weight_base(statue, atoi(tinfo.[3]));
    if(atoi(tinfo.[4]) == POSITION_STANDING)
    {
@@ -12130,13 +12515,13 @@ code
       if (command(CMD_AUTO_TICK))
       {
          d := d - 1;
-         goto loop;
+         continue;
       }
       pc := activator;
       if(pc.level >= IMMORTAL_LEVEL) goto loop;
       if(pc.position <= POSITION_SITTING) goto loop;
 
-       if(self.type==UNIT_ST_PC)
+       if(pc.type==UNIT_ST_PC)
         skillc:=pc.spells[SPL_MUD_PUDDLE];
        else
         skillc:=pc.abilities[ABIL_BRA];
@@ -12155,7 +12540,7 @@ code
 
 
 /*
-      i := skillresist@skills(pc.abilities[ABIL_DEX], 0,
+      i := skillresist@function(pc.abilities[ABIL_DEX], 0,
                               pc.abilities[ABIL_BRA], 100);
 */
        if(i > 50) goto loop;
@@ -12222,7 +12607,7 @@ code
             act("You are knocked off your feet by the tremors!", A_ALWAYS,
                 null, null, u, TO_VICT);
             act("$3n is knocked off $3s feet by the tremors!", A_SOMEONE,
-                null, null, u, TO_NOTVICT);
+                self, null, u, TO_NOTVICT);
             act("$3n is knocked off $3s feet by the tremors!", A_SOMEONE,
                 self, null, u, TO_CHAR);
          }
@@ -12242,6 +12627,12 @@ var
 
 code
 {
+   if (hm < 0)
+   {
+      act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
+      quit;
+   }
+
  spl := self.spells[SPL_ICE_THORN];
  abil := self.abilities[ABIL_DIV];
    combo := (spl + abil) / 10;
@@ -12337,7 +12728,7 @@ code
       if (command(CMD_AUTO_TICK))
       {
          d := d - 1;
-         goto loop;
+         continue;
       }
 
       pc := activator;
@@ -12396,13 +12787,19 @@ code
    if ((self == tgt) or ((tgt.type == UNIT_ST_OBJ) or
        (tgt.type == UNIT_ST_ROOM))) hm := -1;
 
-   if ((tgt.type == UNIT_ST_PC) and ((tgt.alignment == 1000) or
-       (tgt.alignment == -1000))) hm := 1;
-
    :nix:
    if (hm < 0)
    {
       act("The spell failed.", A_ALWAYS, self, null, null, TO_CHAR);
+      quit;
+   }
+
+   /* The undead, demons and devils, and the gods are what they are */
+   if (((tgt.race >= RACE_UNDEAD_MIN) and (tgt.race <= RACE_UNDEAD_MAX)) or
+       ((tgt.race >= RACE_DEMON_MIN) and (tgt.race <= RACE_DEMON_MAX)) or
+       ((tgt.race >= RACE_NORSE_GOD_MIN) and (tgt.race <= RACE_NORSE_GOD_MAX)))
+   {
+      act("There is nothing in $3n to turn.", A_ALWAYS, self, null, tgt, TO_CHAR);
       quit;
    }
 
@@ -12691,6 +13088,7 @@ code
      dilcopy("capture_room@spells("+roomstr+")", mob);
 
      link(mob,u.outside);
+     dilcopy("sendmsg@spells(teleport)", mob);
 
      act("$1n appears through a rift!",
          A_SOMEONE, mob, null, null, TO_ROOM);
@@ -12744,6 +13142,7 @@ code
 
    tick := tick + 1;
    if(tick > 1) goto relink;
+   goto start;
 
   :relink:
   heartbeat := PULSE_SEC * rnd(1,4);
@@ -12762,6 +13161,7 @@ code
   act("$1n disappears into a rift!",
        A_SOMEONE, self, null, null, TO_ROOM);
   link(self,dest);
+   dilcopy("sendmsg@spells(teleport)", self);
   act("$1n appears through a rift!",
       A_SOMEONE, self, null, null, TO_ROOM);
   quit;
@@ -12885,7 +13285,10 @@ code
 {
 
   if(hm < 0)
+  {
+     act("Nothing happens.", A_ALWAYS, self, null, null, TO_CHAR);
      return;
+  }
 
 :start:
   plce := findrndunit(self,FIND_UNIT_WORLD,UNIT_ST_ROOM);
@@ -12928,14 +13331,11 @@ code
    defined so I coded this support anyway. Comment out if you want to
    be able to random tele to trans-continental zones
 */
-   if (not(paycheck( self,plce)))
-   {
-      goto start;
-   }
 
     act("$1n disappears in a puff of green smoke.",
          A_ALWAYS, self, null, null, TO_REST);
     link(self,plce);
+    dilcopy("sendmsg@spells(teleport)", self);
     act("$1n appears in a puff of green smoke.",
          A_SOMEONE, self, null, null, TO_REST);
     act("You feel confused.",
@@ -13004,13 +13404,6 @@ code
       quit;
      }
 
-if (self.type==UNIT_ST_PC)
-if (not(paycheck(self,plce))){
-      act("You don't have access to that location, type 'help donation'.",
-           A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-     }
-
    walk := pathto(self,plce);
 
    if(walk == DIR_IMPOSSIBLE)
@@ -13024,6 +13417,7 @@ if (not(paycheck(self,plce))){
          A_SOMEONE, self, null, null, TO_REST);
 
     link(self,plce);
+    dilcopy("sendmsg@spells(teleport)", self);
 
     act("$1n appears in a puff of green smoke.",
          A_SOMEONE, self, null, null, TO_REST);
@@ -13076,13 +13470,6 @@ code
     quit;
  }
 
-if (self.type==UNIT_ST_PC)
-if (not(paycheck(self,room))){
-      act("You don't have access to that location, type 'help donation'.",
-           A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-     }
-
  if(hm < 0)
  {
 
@@ -13101,6 +13488,7 @@ if (not(paycheck(self,room))){
       A_SOMEONE, self, null, null, TO_REST);
 
  link(self,room);
+dilcopy("sendmsg@spells(teleport)", self);
 
  act("$1n appears in a puff of green smoke.",
      A_SOMEONE, self, null, null, TO_REST);
@@ -13148,13 +13536,6 @@ code
     quit;
    }
 
-if (self.type==UNIT_ST_PC)
-if (not(paycheck(self,tgt))){
-      act("You don't have access to the location that the undead is in, type 'help donation'.",
-           A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-     }
-
   if(hm < 0)
    {
     act("You can't seem to clearly locate the target.",
@@ -13178,7 +13559,9 @@ if (not(paycheck(self,tgt))){
       A_SOMEONE, tgt, null, self, TO_REST);
 
   link(self,room_tgt);
+   dilcopy("sendmsg@spells(teleport)", self);
   link(tgt,room_me);
+   dilcopy("sendmsg@spells(teleport)", tgt);
 
   exec("look", self);
   exec("look", tgt);
@@ -13204,14 +13587,18 @@ teletgt: integer;
 room_me: unitptr;
 room_tgt: unitptr;
 check: integer;
-pay:unitptr;
 
 code
 {
 
   if(tgt == null) quit;
 
-  if(tgt.level > self.level) quit;
+  if(tgt.level > self.level)
+  {
+     act("$3n is too powerful for you to summon.",
+          A_ALWAYS, self, null, tgt, TO_CHAR);
+     quit;
+  }
 
   room_me := unit_room@function(self);
   room_tgt := unit_room@function(tgt);
@@ -13234,18 +13621,6 @@ code
           A_ALWAYS, self, null, null, TO_CHAR);
      quit;
     }
-
-pay:=self.outside;
-while (pay.type!=UNIT_ST_ROOM){
-pay:=pay.next;
-}
-
-if (tgt.type==UNIT_ST_PC)
-if (not (paycheck(tgt,pay))){
-      act("$3n doesn't have access to your location have $3m type, 'help donation'.",
-           A_ALWAYS, self, null, tgt, TO_CHAR);
-      quit;
-     }
 
   if(hm < 0)
    {
@@ -13285,6 +13660,7 @@ if (not (paycheck(tgt,pay))){
          A_SOMEONE, tgt, null, null, TO_REST);
 
    link(tgt,room_me);
+   dilcopy("sendmsg@spells(teleport)", tgt);
 
    exec("look", tgt);
 
@@ -13313,7 +13689,6 @@ room_me: unitptr;
 room_tgt: unitptr;
 check: integer;
 num: integer;
-	pay:unitptr;
 code
 {
 
@@ -13346,18 +13721,6 @@ code
           A_ALWAYS, self, null, null, TO_CHAR);
      quit;
     }
-
-pay:=self.outside;
-while (pay.type!=UNIT_ST_ROOM){
-pay:=pay.next;
-}
-
-if (tgt.type==UNIT_ST_PC)
-if (not (paycheck(tgt,pay))){
-      act("$3n doesn't have access to your location have $3m type, 'help donation'.",
-           A_ALWAYS, self, null, tgt, TO_CHAR);
-      quit;
-     }
 
     if((tgt.position == POSITION_FIGHTING) and (rnd(0, 100) < 30))
     {
@@ -13395,6 +13758,7 @@ if (not (paycheck(tgt,pay))){
             A_SOMEONE, tgt, null, null, TO_REST);
 
       link(tgt,room_me);
+   dilcopy("sendmsg@spells(teleport)", tgt);
       exec("look",tgt);
       act("$1n appears in a flash of light!",
             A_HIDEINV, tgt, null, null, TO_REST);
@@ -13557,7 +13921,8 @@ code
 
   if(hm < 0) quit;
 
-  if(tgt == self) quit;
+  /* A potion is drunk by the one it works on */
+  if((tgt == self) and (not (medi.objecttype == ITEM_POTION))) quit;
   /* this could be done in the spells.def, but I like seeing people
      continuously trying to cast it upon themselves. @grin@ */
 
@@ -13677,7 +14042,7 @@ if(u.type == UNIT_ST_PC)
         addstring(pc_list,"<div class='pc_descr'>"+u.name+" "+u.title+
                         pos+"</div><br/>");
      }
-   else if((isset(self.flags,ID_DETECT_LIFE)) and (u.level <IMMORTAL_LEVEL))
+   else if((isset(self.charflags,CHAR_DETECT_LIFE)) and (u.level <IMMORTAL_LEVEL))
     addstring(pc_list,"You sense a hidden life form in the room.<br/>");
    /* This may cause a problem */
   }
@@ -13708,7 +14073,7 @@ else if(u.type == UNIT_ST_NPC)
        addstring(n_npc,"1");
       }
     }
-   else if((isset(self.flags,ID_DETECT_LIFE)) and
+   else if((isset(self.charflags,CHAR_DETECT_LIFE)) and
             (self.level<IMMORTAL_LEVEL))
     {
      addstring(npc_list,"You sense a hidden life form in the room.<br/>");
@@ -13771,7 +14136,7 @@ i:= 0;
 
 	while(i < tmp_i)
 	{
-		str:=str+pc_list.[i]+"<br/>";
+		str:=str+pc_list.[i];
 		i := i + 1;
 	}
 
@@ -13861,7 +14226,7 @@ code
   if(out.type == UNIT_ST_OBJ)
   {
 
-   sendtext("An image forms in your mind of "+out.title+"</div>"+
+   sendtext("An image forms in your mind of "+out.title+
             " and you see:<br/>", self);
    see := unit_inside(out);
    goto show_it;
@@ -13871,7 +14236,7 @@ code
   {
 
    sendtext("An image forms in your mind and you see "+
-             out.name+"'s </div>inventory:<br/>", self);
+             out.name+"'s inventory:<br/>", self);
    see := unit_inside(out);
    goto show_it;
    }
@@ -13880,7 +14245,7 @@ code
   {
 
    sendtext("An image forms in your mind and you see "+
-            out.title+"'s </div>inventory:<br/>", self);
+            out.title+"'s inventory:<br/>", self);
    see := unit_inside(out);
    goto show_it;
   }
@@ -13907,13 +14272,13 @@ code
 
 if(effect == "")
 {
- act("$1n fades away",
+ act("$1n fades away.",
       A_HIDEINV, tgt, null, null, TO_REST);
  act("You become invisible.",
       A_HIDEINV, tgt, null, null, TO_CHAR);
 }
 else
- effect(tgt,medi,hm);
+ effect(medi,tgt,hm);
 
  hm := skill_duration(hm);
 
@@ -13947,11 +14312,83 @@ code
               APF_NONE);
 
  if(effect != "")
-  effect(tgt,medi,hm);
+  effect(medi,tgt,hm);
 
   quit;
 }
 dilend
+
+/* Confusion, while it lasts: a move may go out a random open exit instead, and a
+   spell may fizzle before it starts. spl_confusion copies this onto the target; it
+   only runs when the target gives a command, and quits once the confusion is gone. */
+dilbegin aware confused();
+external
+   string dirstring@function(dr : integer);
+var
+   rm  : unitptr;
+   i   : integer;
+   n   : integer;
+   dir : integer;
+code
+{
+:start:
+   wait(SFB_CMD, (activator == self) and
+        (command("north") or command("east") or command("south") or
+         command("west") or command("up") or command("down") or
+         command("northeast") or command("northwest") or
+         command("southeast") or command("southwest") or command("cast")));
+
+   if (not(isaff(self, ID_CONFUSION)))
+      quit;
+
+   if (command("cast"))
+   {
+      if (rnd(1, 4) == 1)
+      {
+         block;
+         act("You lose your train of thought.",
+             A_ALWAYS, self, null, null, TO_CHAR);
+         act("$1n starts a spell, but seems to forget the words.",
+             A_HIDEINV, self, null, null, TO_ROOM);
+      }
+      goto start;
+   }
+
+   if (rnd(1, 3) != 1)
+      goto start;
+
+   rm := self.outside;
+   if (rm.type != UNIT_ST_ROOM)
+      goto start;
+
+   /* A random open exit, each as likely */
+   n := 0;
+   dir := -1;
+   i := DIR_NORTH;
+   while (i <= DIR_SOUTHWEST)
+   {
+      if ((rm.exit_to[i] != null) and
+          (not(isset(rm.exit_info[i], EX_CLOSED))) and
+          (not(isset(rm.exit_info[i], EX_HIDDEN))))
+      {
+         n := n + 1;
+         if (rnd(1, n) == 1)
+            dir := i;
+      }
+      i := i + 1;
+   }
+
+   if ((dir == -1) or command(dirstring@function(dir)))
+      goto start;
+
+   block;
+   act("In your confusion you stumble the wrong way.",
+       A_ALWAYS, self, null, null, TO_CHAR);
+   exec(dirstring@function(dir), self);
+   goto start;
+}
+dilend
+
 
 dilbegin spl_confusion(medi : unitptr, tgt : unitptr, arg : string,
                       hm : integer, effect : string);
@@ -13973,8 +14410,11 @@ code
              TIF_CONFUSION_ON, TIF_CONFUSION_TICK,
              TIF_CONFUSION_OFF, APF_NONE);
 
+ if (not(dilfind("confused@spells", tgt)))
+    dilcopy("confused@spells", tgt);
+
  if(effect != "")
-  effect(tgt,medi,hm);
+  effect(medi,tgt,hm);
 
  quit;
 }
@@ -13984,6 +14424,7 @@ dilbegin spl_rem_curse(medi : unitptr, tgt : unitptr, arg : string,
                       hm : integer, effect : string);
 var
 u: unitptr;
+i: integer;
 
 code
 {
@@ -13995,7 +14436,13 @@ code
    quit;
   }
 
-  if(isaff(tgt, ID_CURSE)) subaff(tgt,ID_CURSE);
+  /* The curse spell lays five penalties, one affect each. Bounded, as an
+     affect that can't be lifted stays. */
+  while(isaff(tgt, ID_CURSE) and (i < 10))
+  {
+   subaff(tgt,ID_CURSE);
+   i := i + 1;
+  }
 
   u := tgt.inside;
 
@@ -14053,7 +14500,7 @@ code
 
   if(IS_GOOD(self.alignment))
       {
-    act("You are to good to cast this spell, you fail.", A_ALWAYS, self, null, null, TO_CHAR);
+    act("You are too good to cast this spell, you fail.", A_ALWAYS, self, null, null, TO_CHAR);
     quit;
    }
 
@@ -14094,7 +14541,7 @@ code
          APF_NONE);
 
  if(effect != "")
-  effect(tgt,medi,hm);
+  effect(medi,tgt,hm);
 
   quit;
 }
@@ -14131,13 +14578,13 @@ code
        else
         skillc:=self.abilities[ABIL_DIV];
 
-       if(tgt.type==UNIT_ST_PC)
-        skilld:=tgt.spells[SPL_REPEL_UNDEAD_2];
+       if(u.type==UNIT_ST_PC)
+        skilld:=u.spells[SPL_REPEL_UNDEAD_2];
        else
-        skilld:=tgt.abilities[ABIL_DIV];
+        skilld:=u.abilities[ABIL_DIV];
 
        skilla:=self.abilities[ABIL_BRA];
-       skillb:=tgt.abilities[ABIL_BRA];
+       skillb:=u.abilities[ABIL_BRA];
 
         hm:=spellresist(skilla,skillb,skillc,skilld);
 
@@ -14157,7 +14604,7 @@ code
                  APF_NONE);
 
         if(effect != "")
-          effect(tgt,medi,hm);
+          effect(medi,u,hm);
        }
       else
        provoked_attack@function(u,self);
@@ -14188,17 +14635,17 @@ external
     integer skill_duration(hm : integer);
 code
 {
+    if ((isaff(tgt,ID_SANCTUARY)) or (hm < 0))
+        quit;
 
-   if((isaff(tgt,ID_SANCTUARY)) or (hm < 0)) quit;
+    hm := skill_duration(hm);
 
-   hm := skill_duration(hm);
+    addaff(tgt, ID_SANCTUARY, hm, WAIT_SEC * 30, 0, 0, 0,
+                TIF_SANCTUARY_ON, TIF_SANCTUARY_TICK,
+                TIF_SANCTUARY_OFF, APF_NONE);
 
-   addaff(tgt, ID_SANCTUARY, hm, WAIT_SEC * 30, 0, 0, 0,
-               TIF_SANCTUARY_ON, TIF_SANCTUARY_TICK,
-               TIF_SANCTUARY_OFF, APF_NONE);
-
- if(effect != "")
-  effect(tgt,medi,hm);
+    if (effect != "")
+        effect(medi,tgt,hm);
 
    quit;
 }
@@ -14222,7 +14669,7 @@ code
               TIF_SUSTAIN_TICK, TIF_SUSTAIN_OFF, APF_NONE);
 
  if(effect != "")
-  effect(tgt,medi,hm);
+  effect(medi,tgt,hm);
 
   quit;
 
@@ -14230,10 +14677,27 @@ code
 dilend
 /* unlock and lock spells update */
 
+// How hard the lock on a door is to open by magic: the magic resistance of the room it is in, or
+// of the room on the other side, whichever is higher (room_power, as resisted spells meet it).
+dilbegin integer door_resistance(room : unitptr, dir : integer);
+var
+   r : integer;
+   other : unitptr;
+code
+{
+   r := room.spells[SPL_NONE];
+   other := room.exit_to[dir];
+   if ((other != null) and (other.spells[SPL_NONE] > r))
+      r := other.spells[SPL_NONE];
+   return (r);
+}
+dilend
+
 dilbegin spl_unlock(medi : unitptr, tgt : unitptr, arg : string,
                       hm : integer, effect : string);
 external
-     dir_locks(dir : integer, st : string, todo : integer);
+     dir_locks(dir : integer, st : string, todo : integer, pwr : integer);
+     integer door_resistance(room : unitptr, dir : integer);
      integer rev_dir@function(i : integer);
      integer is_hidden@basemove(u1 : unitptr, i1 : integer, u2 : unitptr);
 
@@ -14258,11 +14722,11 @@ wrd := getword(arg);
 
 dir := -1;
 
-if(wrd in "north") dir := NORTH;
+if(wrd in "up") dir := UP;
+else if(wrd in "north") dir := NORTH;
 else if(wrd in "south") dir := SOUTH;
 else if(wrd in "east") dir := EAST;
 else if(wrd in "west") dir := WEST;
-else if(wrd in "up") dir := UP;
 else if(wrd in "down") dir := DOWN;
 else if(wrd in "northeast") dir := NORTHEAST;
 else if(wrd in "northwest") dir := NORTHWEST;
@@ -14271,7 +14735,7 @@ else if(wrd in "southwest") dir := SOUTHWEST;
 
 if(dir != -1)
 {
-  dir_locks(dir,arg,1);
+  dir_locks(dir,arg,1,hm);
   quit;
 }
 
@@ -14299,7 +14763,8 @@ if((not(isset(room.exit_info[i], EX_OPEN_CLOSE))) or
     (not(isset(room.exit_info[i], EX_CLOSED))) or
     (not(isset(room.exit_info[i], EX_LOCKED))))
    goto failed;
-
+   if (hm < door_resistance(room, i))
+      goto resists;
    unset(room.exit_info[i], EX_LOCKED);
    act("*click*", A_ALWAYS, room.inside, null, null, TO_ALL);
 
@@ -14324,7 +14789,8 @@ if((not(isset(obj.openflags, EX_OPEN_CLOSE))) or
     (not(isset(obj.openflags, EX_CLOSED))) or
     (not(isset(obj.openflags, EX_LOCKED))))
    goto failed;
-
+if (hm < obj.spells[SPL_NONE])   // the object's magic resistance (object_power)
+   goto resists;
 unset(obj.openflags, EX_LOCKED);
 act("*click*",
      A_SOMEONE, self, null, null, TO_ALL);
@@ -14334,6 +14800,10 @@ act("*click*",
 quit;
 
 
+:resists:
+act("The lock resists your magic.",
+     A_ALWAYS, self, null, null, TO_CHAR);
+quit;
 :failed:
 act("The spell failed.",
      A_ALWAYS, self, null, null, TO_CHAR);
@@ -14348,8 +14818,9 @@ dilend
    same things */
 
                  /*  DIRECTION     ARGUMENT    0=LOCK/1=UNLOCK */
-dilbegin dir_locks(dir : integer, st : string, todo : integer);
+dilbegin dir_locks(dir : integer, st : string, todo : integer, pwr : integer);
 external
+   integer door_resistance(room : unitptr, dir : integer);
    string dirstring@function(dr:integer);
    integer rev_dir@function(i : integer);
    integer is_hidden@basemove(u1 : unitptr, i1 : integer, u2 : unitptr);
@@ -14419,6 +14890,11 @@ if(todo == 0)
 }
 else /* UNLOCK */
   {
+   if (pwr < door_resistance(room, dir))
+   {
+      act("The lock resists your magic.", A_ALWAYS, self, null, null, TO_CHAR);
+      quit;
+   }
    unset(room.exit_info[dir], EX_LOCKED);
    act("*click*", A_ALWAYS, room.inside, null, null, TO_ALL);
 
@@ -14447,7 +14923,7 @@ dilend
 dilbegin spl_lock(medi : unitptr, tgt : unitptr, arg : string,
                       hm : integer, effect : string);
 external
-     dir_locks(dir : integer, st : string, todo : integer);
+     dir_locks(dir : integer, st : string, todo : integer, pwr : integer);
      integer rev_dir@function(i : integer);
      integer is_hidden@basemove(u1 : unitptr, i1 : integer, u2 : unitptr);
 
@@ -14472,11 +14948,11 @@ wrd := getword(arg);
 
 dir := -1;
 
-if(wrd in "north") dir := NORTH;
+if(wrd in "up") dir := UP;
+else if(wrd in "north") dir := NORTH;
 else if(wrd in "south") dir := SOUTH;
 else if(wrd in "east") dir := EAST;
 else if(wrd in "west") dir := WEST;
-else if(wrd in "up") dir := UP;
 else if(wrd in "down") dir := DOWN;
 else if(wrd in "northeast") dir := NORTHEAST;
 else if(wrd in "northwest") dir := NORTHWEST;
@@ -14485,7 +14961,7 @@ else if(wrd in "southwest") dir := SOUTHWEST;
 
 if(dir != -1)
 {
-  dir_locks(dir,arg,0);
+  dir_locks(dir,arg,0,hm);
   quit;
 }
 
@@ -14515,7 +14991,8 @@ if((not(isset(room.exit_info[i], EX_OPEN_CLOSE))) or
 
    rev := rev_dir@function(i);
 
-  if(not(isset(room.exit_to[i].exit_info[rev], EX_LOCKED)))
+  if((not(isset(room.exit_to[i].exit_info[rev], EX_LOCKED))) and
+     (isset(room.exit_to[i].exit_info[rev], EX_OPEN_CLOSE)))
    {
     set(room.exit_to[i].exit_info[rev], EX_LOCKED);
     act("*cluck*",
@@ -14590,6 +15067,29 @@ code
 }
 dilend
 
+/*
+New function for handling bonus calculations.
+Uses the old code as a starting point for bonuses of up to 10 points but removes the cap,
+allowing bonuses over 10 if the roll is high enough.
+Remember that rolls for attribute boosts are generally the sum of the characters skill and
+relevant attribute + an open100 roll -50.
+Example: Character with 50 magic and 50 skill and rolls a 50 would have a total of 100.
+1-10 are roughly 1 point per 10 points on your roll
+In this case, this function would return 10, the old standard roll.
+However, if the same character were to roll a 160 (due to how open roll works. If you roll a 100 it rolls again and adds the result so here I'm assuming they rolled a 100, then a 10) then the after the first 10 points, the second part of the calculation would kick in and the result would be an 12.
+*/
+dilbegin integer bonusCalc(hm : integer);
+
+code
+{
+      hm := hm/10+1;  // old starting calculation
+      if (hm>10)
+	hm := 10+((hm-10)/3); // allows for numbers greater than 10 at intervals of 30 per increase
+      
+     return(hm);
+}
+dilend
+
 %rooms
 
                                    spell_room
@@ -14611,7 +15111,7 @@ extra {}
 "Simply an enormous leaf, its purpose is to serve as a shield for
 embattled adventurers. While the nature of the shield may lead one to
 consider the quality to be lacking, appearances are often deceiving."
-SHIELD_DEF(SHIELD_LARGE, 0, 0)
+SHIELD_DEF(SHIELD_LARGE, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 dilcopy blowaway@function(600, "$1n shrinks back into a normal leaf.");
 weight 2
 end
@@ -14626,6 +15126,7 @@ CONTAINER_DEF(1000)
 manipulate {MANIPULATE_ENTER}
 extra {}
 "It is a remarkably life-like statue..."
+
 dilbegin stat_blow();
 var
  r   : integer;
@@ -14673,9 +15174,10 @@ dilcopy report_corpse@death();
 dilcopy bob_code@death();
 end
 
+
 bram_bush
 names {"brambles", "bush"}
-title "a large brambles bush"
+title "a large bramble bush"
 descr "A large bush of brambles has grown here."
 extra {}
 "It is quite large and intimidating. The thorns are proportionate to the
@@ -14689,7 +15191,7 @@ names {"dagger of ice","ice dagger","ice thorn","dagger","thorn","ice"}
 title "a dagger of ice"
 descr "An icicle shaped remarkably like a dagger lies here, melting."
 manipulate {MANIPULATE_TAKE, MANIPULATE_HOLD, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_DAGGER, 0, 0)
+WEAPON_DEF(WPN_DAGGER, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
 cost 1 IRON_PIECE
 extra {}
@@ -14711,28 +15213,37 @@ code
  melt := melt - 1;
   if(melt == 14)
   {
-   act("Your ice dagger begins to melt.",
-       A_ALWAYS, self.outside, null, null, TO_CHAR);
-   act("$1n's ice dagger begins to melt.",
-       A_SOMEONE, self.outside, null, null, TO_REST);
+   if (self.outside.type & (UNIT_ST_PC|UNIT_ST_NPC))
+   {
+      act("Your ice dagger begins to melt.",
+          A_ALWAYS, self.outside, null, null, TO_CHAR);
+      act("$1n's ice dagger begins to melt.",
+          A_SOMEONE, self.outside, null, null, TO_REST);
+   }
    self.value[1] := self.value[1] - 2;
    self.value[2] := self.value[2] - 2;
   }
   if(melt == 7)
   {
-   act("Your ice dagger drips steadily; it will not hold its form for long.",
-       A_ALWAYS, self.outside, null, null, TO_CHAR);
-   act("$1n's ice dagger drips steadily as it melts.",
-       A_SOMEONE, self.outside, null, null, TO_REST);
+   if (self.outside.type & (UNIT_ST_PC|UNIT_ST_NPC))
+   {
+      act("Your ice dagger drips steadily; it will not hold its form for long.",
+          A_ALWAYS, self.outside, null, null, TO_CHAR);
+      act("$1n's ice dagger drips steadily as it melts.",
+          A_SOMEONE, self.outside, null, null, TO_REST);
+   }
    self.value[1] := self.value[1] - 4;
    self.value[2] := self.value[2] - 4;
   }
   if(melt <= 0)
   {
-   act("Your ice dagger melts away completely.",
-       A_ALWAYS, self.outside, null, null, TO_CHAR);
-   act("$1n's ice dagger melts away completely.",
-       A_SOMEONE, self.outside, null, null, TO_REST);
+   if (self.outside.type & (UNIT_ST_PC|UNIT_ST_NPC))
+   {
+      act("Your ice dagger melts away completely.",
+          A_ALWAYS, self.outside, null, null, TO_CHAR);
+      act("$1n's ice dagger melts away completely.",
+          A_SOMEONE, self.outside, null, null, TO_REST);
+   }
    destroy(self);
    quit;
   }
@@ -14839,7 +15350,7 @@ code
   act("The magic candle dims to a faint glow.",
        A_SOMEONE, self.outside, null, null, TO_CHAR);
   pause;
-  act("The magic candle flickers into an oblivion.",
+  act("The magic candle flickers into oblivion.",
        A_SOMEONE, self.outside, null, null, TO_CHAR);
   destroy(self);
 }
@@ -14861,7 +15372,7 @@ descr "A dark orb is here, sucking light into itself."
 bright -6
 manipulate {MANIPULATE_HOLD, MANIPULATE_TAKE}
 dilcopy blowaway@function(300, "The orb of darkness suddenly
-winks out of existance, returning light to the area.");
+winks out of existence, returning light to the area.");
 end
 
                              magic_food
@@ -14882,7 +15393,7 @@ end
 lightn_elm
 names {"lightning elemental", "elemental"}
 title "a lightning elemental"
-descr "a large, humanoid lightning bolt stands here."
+descr "A large, humanoid lightning bolt stands here."
 extra {}
 "The creature is made of pure electricity, and sparkles and crackles
 menacingly."
@@ -14923,7 +15434,15 @@ NATURAL_DEF(WPN_CLAW, ARM_CHAIN)
 MSET_ABILITY(21,21,5,23,5,5,10,10)
 MSET_WEAPON(6,6,6,6,30,6)
 MSET_SPELL(2,2,2,10,2,10,2,2,2,3,3)
-
+dilbegin timer();
+code
+{
+   heartbeat := PULSE_SEC * 120;
+   pause;
+   destroy(self);
+   quit;
+}
+dilend
 end
 
 skeleton
@@ -14957,7 +15476,7 @@ names {"eagle"}
 title "an eagle"
 descr "A summoned eagle is here."
 extra {}
-"This is an eagle that has been summoned to perform tasks for it's
+"This is an eagle that has been summoned to perform tasks for its
 master. It is a stalwart bird, and won't take any mistreatment lightly."
 M_EAGLE_SMALL(50,SEX_MALE)
 exp 0
@@ -14970,7 +15489,7 @@ end /* sum_eagle */
 
 names {"earth elemental", "elemental"}
 title "an earth elemental"
-descr "a large, humanoid column of rock stands here."
+descr "A large, humanoid column of rock stands here."
 extra {}
 "The large beast is made of solid rock, with huge diamonds for eyes."
 M_ELEMENTAL_EARTH_SMALL(17,SEX_NEUTRAL)
@@ -14985,7 +15504,7 @@ end
 
 names {"air elemental", "elemental"}
 title "an air elemental"
-descr "a large, swirling mist in humanoid form floats here."
+descr "A large, swirling mist in humanoid form floats here."
 extra {}
 "This being is nearly translucent, and floats in the air quietly."
 
@@ -15000,7 +15519,7 @@ end
 
 names {"water elemental", "elemental"}
 title "a water elemental"
-descr "a large column of water stands here."
+descr "A large column of water stands here."
 extra {}
 "This column of water seems to be alive!"
 
@@ -15016,9 +15535,9 @@ end
 
 names {"fire elemental", "elemental"}
 title "a fire elemental"
-descr "a large column of flame stands here."
+descr "A large column of flame stands here."
 extra {}
-"Movement from the flames suggest intelligence is present."
+"Movement from the flames suggests intelligence is present."
 
 M_ELEMENTAL_FIRE_SMALL(45,SEX_NEUTRAL)
 exp 0
@@ -15033,10 +15552,10 @@ end
 
 names {"demon"}
 title "a demon"
-descr "a large demon stands here."
+descr "A large demon stands here."
 extra {}
 "This large beast looks very upset at being pulled from its plane of
-existance."
+existence."
 
 M_DEMON_LESSER_SMALL(60,SEX_MALE)
 exp 0
@@ -15051,7 +15570,7 @@ end
 
 names {"devil"}
 title "a devil"
-descr "a large devil stands here."
+descr "A large devil stands here."
 extra {}
 "This large creature stands with a malevolent grin on his face."
 
@@ -15090,3 +15609,5 @@ end
 
 
 %end
+
+

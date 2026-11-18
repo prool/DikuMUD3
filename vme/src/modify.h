@@ -4,10 +4,16 @@
  $Date: 2004/03/20 06:13:22 $
  $Revision: 2.2 $
  */
+#pragma once
 
-#ifndef _MUD_MODIFY_H
-#define _MUD_MODIFY_H
+#include "interpreter.h"
+#include "skills.h"
 
-void edit_extra (class descriptor_data *d);
+void edit_extra(descriptor_data *d);
+void do_set(unit_data *, char *, const command_info *);
+void do_setskill(unit_data *, char *, const command_info *);
 
-#endif
+extern skill_collection g_AbiColl;
+extern skill_collection g_WpnColl;
+extern skill_collection g_SkiColl;
+extern skill_collection g_SplColl;

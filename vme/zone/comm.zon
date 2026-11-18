@@ -40,7 +40,7 @@ code
             gld:="(Admin)";
          else if (u.level>=CREATOR_LEVEL)
             gld:="(Creator)";
-         else if (u.level>IMMORTAL_LEVEL)
+         else if (u.level>=IMMORTAL_LEVEL)
             gld:="(Immortal)";
          else
             gld:="";
@@ -205,7 +205,7 @@ quit;
 
 if(ch == self)
 {
-sendtext("So you don't think to highly of yourself?<br/>",self);
+sendtext("So you don't think too highly of yourself?<br/>",self);
 quit;
 }
 
@@ -217,7 +217,7 @@ quit;
 
 if(ch.name in ex.names)
 {
-sendtext("You are alreadying ignoring "+ch.name+".<br/>", self);
+sendtext("You are already ignoring "+ch.name+".<br/>", self);
 quit;
 }
 
@@ -286,6 +286,7 @@ external
 	string drunk_speech(str : string,i : integer);
 	add_history(ch : unitptr,s : string);
 	string get_history(ch : unitptr);
+	string html_attr@function(s : string);
 var
 vict : unitptr;
 nme : string;
@@ -301,7 +302,7 @@ code
 
 if((self.type == UNIT_ST_PC) and (isset(self.pcflags,PC_NOTELLING)))
 {
- sendtext("Your telepatic ability is lost!<br/>", self);
+ sendtext("Your telepathic ability is lost!<br/>", self);
  quit;
 }
 
@@ -325,7 +326,7 @@ if(isset(self.flags,UNIT_FL_BURIED))
  quit;
 }
 
-if(left(arg,5) == "group")
+if((arg == "group") or (left(arg,6) == "group "))
 {
 
  str := getword(arg); /* "group" */
@@ -368,7 +369,7 @@ if(left(arg,5) == "group")
  if((self.type == UNIT_ST_PC) and (not isset(self.pcflags,PC_ECHO)))
  	sendtext("Ok.<br/>", self);
  else
-  sendtext("<div class='tell_self'>"+me+"</div>", self);
+  sendtext("<div class='tell_self'>"+me+"</div><br/>", self);
 
  mast := self.master;
  if(mast == null) mast := self;
@@ -379,15 +380,15 @@ if(left(arg,5) == "group")
    if(((vict == mast) and (vict != self)) or ((vict.master == mast) and
        (isset(vict.charflags,CHAR_GROUP)) and (vict != self)))
    {
-    sendtext("<div class='tell_other'>"+str+"</div><br/>", vict);
+    sendtext("<div class='tell_other' from='"+html_attr@function(self.name)+"'>"+str+"</div><br/>", vict);
 
     if(vict.type == UNIT_ST_PC)
     {
     add_history(vict,str);
-    subextra(vict.extra,"$reply");
-    addextra(vict.extra,{"$reply"},self.name);
+    subextra(vict.quests,"$reply");
+    addextra(vict.quests,{"$reply"},self.name);
     }
-    send_done("tell",self,null,vict,0,arg,null);
+    send_done("tell",self,null,vict,0,arg,null, CMD_AUTO_NONE);
    }
 
   vict := vict.gnext;
@@ -427,8 +428,14 @@ if(arg == "")
  quit;
 }
 
-if((vict.position <= POSITION_SLEEPING) or
-   (isset(vict.pcflags,PC_NOTELL)))
+// An NPC has no pcflags: test them for players only
+if(vict.position <= POSITION_SLEEPING)
+{
+ act("$3e can't hear you.",
+ 	A_ALWAYS, self, null, vict, TO_CHAR);
+ quit;
+}
+if((vict.type == UNIT_ST_PC) and isset(vict.pcflags,PC_NOTELL))
 {
  act("$3e can't hear you.",
  	A_ALWAYS, self, null, vict, TO_CHAR);
@@ -437,7 +444,7 @@ if((vict.position <= POSITION_SLEEPING) or
 if ((vict.outside.zoneidx=="hobgob") and (vict.outside.nameidx=="nightmare")and
 (self.level < IMMORTAL_LEVEL))
 {
- act("$3e can't hear you .",
+ act("$3e can't hear you.",
  	A_ALWAYS, self, null, vict, TO_CHAR);
  quit;
 }
@@ -492,10 +499,10 @@ else
  if((self.type == UNIT_ST_PC) and (not isset(self.pcflags,PC_ECHO)))
    sendtext("Ok.<br/>", self);
  else
-   sendtext("<div class='tell_self'>You tell "+vnme+" "+punct+"'"+arg+"'</div><br/>",self);
+   sendtext("<div class='tell_self' to='"+html_attr@function(vnme)+"'>You tell "+vnme+" "+punct+"'"+arg+"'</div><br/>",self);
 
- str := "<div class='tell_other'>"+nme+" tells you "+punct+"'"+dr+"'</div><br/>";
- sendtext(str,vict);
+ str := "<div class='tell_other' from='"+html_attr@function(nme)+"'>"+nme+" tells you "+punct+"'"+dr+"'</div>";
+ sendtext(str+"<br/>",vict);
 
  if((self.type == UNIT_ST_PC) and (isset(self.pcflags,PC_NOTELL)))
    sendtext("You realize that you can't hear people telling back.<br/>", self);
@@ -509,7 +516,7 @@ else
   subextra (vict.quests,"$reply");
   addextra (vict.quests,{"$reply"},self.name);
  }
- send_done("tell",self,null,vict,0,arg,null);
+ send_done("tell",self,null,vict,0,arg,null, CMD_AUTO_NONE);
 
 }
 
@@ -537,11 +544,11 @@ badwords:=
  "fucker!","shit","s*it","sh*t","shi*","s**t","s***t", \
  "s******t","s*****t","cunt","c*nt","slut","fucker", \
  "a$$!","@$$!","asshole","ass","a**","d@mn", \
- "damn","whore","hoar","bitch","b*tch","bastard", \
- "b@stard","faggot","homo","dick","d*ck","dickhead", \
+ "whore","bitch","b*tch", \
+ "faggot","homo","dick","d*ck","dickhead", \
  "f*cker","fucking","f*cking","a$$","a$$","a@@", \
  "shit!","bullshit","bullsh!t","bullsh*t","que", \
- "qui","hoar","arse","caesure"};
+ "qui","arse","caesure"};
 
 while(i < length(lst))
 {
@@ -549,7 +556,7 @@ while(i < length(lst))
 if(lst.[i] in badwords)
 {
 loc:= lst.[i] in badwords;
-tm:= 100 * PULSE_SEC * SECS_PER_REAL_HOUR;
+tm:= 1 * PULSE_SEC * SECS_PER_REAL_HOUR;
 dilcopy("no_shouted@commands(" + itoa(tm) + ")", self);
 addextra(self.quests, {"$noshout"},"Shouted swear word "+
 asctime(realtime));
@@ -570,8 +577,10 @@ external
 	string exclaim_ask(s:string);
 	integer is_ignored(ch : unitptr,victim : unitptr);
 		add_history(ch : unitptr,s : string);
+	string html_attr@function(s : string);
 var
 sx:string;
+fr:string;
   person:extraptr;
   pc:unitptr;
 punct:string;
@@ -581,7 +590,7 @@ i : integer;
 
 if (arg=="")
   {
-  act ("<div class='respond'>Respond what?</div>",A_ALWAYS,self,null,null,TO_CHAR);
+  act ("<div class='tell_self'>Respond what?</div>",A_ALWAYS,self,null,null,TO_CHAR);
   quit;
   }
 
@@ -589,19 +598,23 @@ person:="$reply" in self.quests;
 
 if (person==null)
   {
-  act ("<div class='respond'>No one to respond to.</div>",
+  act ("<div class='tell_self'>No one to respond to.</div>",
   	A_ALWAYS,self,null,null,TO_CHAR);
   quit;
   }
 
-pc:=findunit (self,person.descr,FIND_UNIT_WORLD,null,UNIT_ST_PC);
+// By exact name in the player list: findunit only finds players you can see,
+// and you may respond to someone you can't (you respond to Someone)
+pc := ghead();
+while ((pc.type == UNIT_ST_PC) and (pc.name != person.descr))
+   pc := pc.gnext;
 
-if (pc==null)
+if (pc.type != UNIT_ST_PC)
 pc := findunit(self,person.descr,FIND_UNIT_HERE,null,UNIT_ST_NPC);
 
 if (pc==null)
 {
-act ("<div class='respond'>No one to respond to.</div>",A_ALWAYS,self,null,null,TO_CHAR);
+act ("<div class='tell_self'>No one to respond to.</div>",A_ALWAYS,self,null,null,TO_CHAR);
 quit;
  }
 
@@ -638,20 +651,21 @@ quit;
 punct:=exclaim_ask(arg);
 
    if (visible(self,pc))
-      sendtext("<div class='respond'>You respond to "+pc.name+" "+punct+"'"+arg+"'</div><br/>", self);
+      sendtext("<div class='tell_self' to='"+html_attr@function(pc.name)+"'>You respond to "+pc.name+" "+punct+"'"+arg+"'</div><br/>", self);
    else
    {
       if ((pc.sex==SEX_MALE) or (pc.sex==SEX_FEMALE))
          sx:="Someone";
       else
          sx:="Something";
-      sendtext("<div class='respond'>You respond to "+sx+" "+punct+"'"+arg+"'</div><br/>", self);
+      sendtext("<div class='tell_self' to='"+sx+"'>You respond to "+sx+" "+punct+"'"+arg+"'</div><br/>", self);
    }
 
    if (visible (pc,self))
    {
-      sendtext("<div class='respond'>"+self.name+" responds "+punct+"'"+arg+"'</div><br/>",pc);
-      add_history(pc,"<div class='respond'>"+self.name+" responds "+punct+"'"+arg+"'</div>");
+      fr := html_attr@function(self.name);
+      sendtext("<div class='tell_other' from='"+fr+"'>"+self.name+" responds "+punct+"'"+arg+"'</div><br/>",pc);
+      add_history(pc,"<div class='tell_other' from='"+fr+"'>"+self.name+" responds "+punct+"'"+arg+"'</div>");
 	}
    else
    {
@@ -659,8 +673,8 @@ punct:=exclaim_ask(arg);
          sx:="Someone";
       else
          sx:="Something";
-      sendtext("<div class='respond'>"+sx+" responds "+punct+"'"+arg+"'</div><br/>",pc);
-      add_history(pc,"<div class='respond'>"+sx+" responds "+punct+"'"+arg+"'</div>");
+      sendtext("<div class='tell_other' from='"+sx+"'>"+sx+" responds "+punct+"'"+arg+"'</div><br/>",pc);
+      add_history(pc,"<div class='tell_other' from='"+sx+"'>"+sx+" responds "+punct+"'"+arg+"'</div>");
    }
 
    subextra (pc.quests,"$reply");
@@ -851,7 +865,7 @@ else dr := str;
 
   if(tgt == null)
   {
-act("<div class='ask_other'>$1n asks '$2t'</div>",
+act("<div class='ask_other' from='$1n'>$1n asks '$2t'</div>",
 A_SOMEONE, self, dr, null, TO_REST);
 
 if((self.type == UNIT_ST_PC) and (not isset(self.pcflags, PC_ECHO)))
@@ -859,7 +873,7 @@ sendtext("Ok.<br/>", self);
 else
 act("<div class='ask_self'>You ask '$2t'</div>",
 A_ALWAYS, self, arg, null, TO_CHAR);
-send_done("ask",self,null,null,0,arg,null);
+send_done("ask",self,null,null,0,arg,null, CMD_AUTO_NONE);
 quit;
    }
 
@@ -878,7 +892,7 @@ quit;
 tst:= getword(arg);
 if(arg != "") arg := tst+" "+arg;
 else arg := tst; /* To avoid blank space in first arg */
-  act("<div class='ask_other'>$1n asks you '$2t'</div>",
+  act("<div class='ask_other' from='$1n'>$1n asks you '$2t'</div>",
   A_SOMEONE, self, dr, tgt, TO_VICT);
   if((self.type == UNIT_ST_PC) and (not isset(self.pcflags, PC_ECHO)))
   sendtext("Ok.<br/>", self);
@@ -886,11 +900,11 @@ else arg := tst; /* To avoid blank space in first arg */
   act("<div class='ask_self'>You ask $3n '$2t'</div>",
   A_ALWAYS, self, arg, tgt, TO_CHAR);
 
-  act("<div class='ask_other'>$1n asks $3n '$2t'</div>",
+  act("<div class='ask_other' from='$1n'>$1n asks $3n '$2t'</div>",
   A_SOMEONE, self, dr, tgt, TO_NOTVICT);
   }
   }
-  send_done("ask", self, null, tgt, 0, arg, null);
+  send_done("ask", self, null, tgt, 0, arg, null, CMD_AUTO_NONE);
  quit;
 }
 dilend
@@ -953,15 +967,16 @@ code
       }
       }*/
 
-   act ("<div class='social_other'>$1n $3t</div>", A_SOMEONE, self, null, arg, TO_ROOM);
+   // emote_* rather than social_*: a player's own words, so clients show it with says
+   act ("<div class='emote_other' from='$1n'>$1n $3t</div>", A_SOMEONE, self, null, arg, TO_ROOM);
 
    if((self.type == UNIT_ST_PC) and (isset(self.pcflags, PC_ECHO)))
-      act("<div class='social_self'>$1n $2t</div>", A_ALWAYS, self, arg, null, TO_CHAR);
+      act("<div class='emote_self'>$1n $2t</div>", A_ALWAYS, self, arg, null, TO_CHAR);
    else
       sendtext("Ok.<br/>", self);
    }
    
-   send_done("emote", self, null, null, 0, arg, null);
+   send_done("emote", self, null, null, 0, arg, null, CMD_AUTO_NONE);
    quit;
 }
 dilend
@@ -1034,14 +1049,14 @@ code
       }
     } MS2020 act also deals with e.g. invisibility */
 
-    act ("<div class='say_other'>$1n $2ts '$3t'</div>", A_SOMEONE, self, mode, arg, TO_ROOM);
+    act ("<div class='say_other' from='$1n'>$1n $2ts '$3t'</div>", A_SOMEONE, self, mode, arg, TO_ROOM);
 
     if((self.type == UNIT_ST_PC) and (not isset(self.pcflags,PC_ECHO)))
       sendtext("Ok.<br/>", self);
     else
       act("<div class='say_self'>You $2t '$3t'</div>", A_ALWAYS, self, mode, arg, TO_CHAR);
   }
-  send_done("say", self, null, null, 0, arg, null);
+  send_done("say", self, null, null, 0, arg, null, CMD_AUTO_NONE);
   quit;
 }
 dilend
@@ -1053,6 +1068,7 @@ string exclaim_ask(s:string);
 string sex_name(sx : integer);
 string cap_first(nm : string);
 integer swear_check(str : string);
+	string html_attr@function(s : string);
 var
 endcost: integer;
 ex_ask: string;
@@ -1062,6 +1078,7 @@ my_name: string;
 inv_name: string;
 tgt: unitptr;
 swear: integer;
+zonename: string;
 code
 {
 
@@ -1106,7 +1123,7 @@ swear:= swear_check(arg);
 if(swear == TRUE)
 {
 sendtext("You suddenly get a sore throat!<br/>", self);
-sendtext("You have been noshouted for 100 hours for "+
+sendtext("You have been noshouted for 1 hour for "+
 "using a swear word in a public shout.<br/>", self);
 log(self.name+" was noshouted for shouting a swear word..."+
 "Argument was "+arg);
@@ -1171,23 +1188,29 @@ sendtext("You realize that you can't hear people shouting back.<br/>", self);
 if(self.drunk)
 arg:= drunk_speech(arg,self.drunk);
 
+// An NPC is heard only in the zone it's in, unless its zone gives it a hidden
+// extra "$shout world" (for news such as a player finishing a quest).
+if((self.type == UNIT_ST_NPC) and (not("$shout world" in self.extra)))
+zonename:= self.zone;
+
 tgt:= ghead();
 
 while(tgt.type == UNIT_ST_PC)
 {
 if((tgt != self) and (tgt.editing != TRUE) and
-(not isset(tgt.pcflags, PC_NOSHOUT) and (tgt.position > POSITION_SLEEPING)))
+(not isset(tgt.pcflags, PC_NOSHOUT) and (tgt.position > POSITION_SLEEPING)) and
+((zonename == "") or (tgt.zone == zonename)))
 {
 if(visible(tgt, self))
-sendtext("<div class='shout_other'>"+my_name+" "+mode_other+" '"+arg+"'</div><br/>", tgt);
+sendtext("<div class='shout_other' from='"+html_attr@function(my_name)+"'>"+my_name+" "+mode_other+" '"+arg+"'</div><br/>", tgt);
 else
-sendtext("<div class='shout_other'>"+inv_name+" "+mode_other+" '"+arg+"'</div><br/>", tgt);
+sendtext("<div class='shout_other' from='"+inv_name+"'>"+inv_name+" "+mode_other+" '"+arg+"'</div><br/>", tgt);
 }
 
 tgt:= tgt.gnext;
 }
 
-send_done("shout", self, null, null, 0, arg, null);
+send_done("shout", self, null, null, 0, arg, null, CMD_AUTO_NONE);
 
 quit;
 }
@@ -1286,6 +1309,7 @@ external
    string drunk_speech(str : string,i : integer);
    string sex_name(sx : integer);
    string cap_first(nm : string);
+	string html_attr@function(s : string);
 var
    tgt: unitptr;
    tst: string;
@@ -1313,7 +1337,7 @@ code
 
    tgt:= findunit(self,arg,FIND_UNIT_SURRO,null);
 
-   if ((tgt == null) or (not visible(self,tgt)) or (not tgt.type & (UNIT_ST_PC|UNIT_ST_NPC)))
+   if ((tgt == null) or (not visible(self,tgt)) or (not (tgt.type & (UNIT_ST_PC|UNIT_ST_NPC))))
    {
       act("No-one by that name here..",
       A_ALWAYS, self, null, null, TO_CHAR);
@@ -1341,7 +1365,7 @@ code
             arg:= textformat(arg);
 
          if ((self.type == UNIT_ST_PC) and (isset(self.pcflags,PC_ECHO)))
-            act("<div class='whisper'>You whisper to $3n '$2t<div class='whisper'>'</div>", A_ALWAYS, self, arg, tgt, TO_CHAR);
+            act("<div class='whisper'>You whisper to $3n '$2t'</div>", A_ALWAYS, self, arg, tgt, TO_CHAR);
          else
             sendtext("Ok.<br/>", self);
 
@@ -1355,10 +1379,10 @@ code
          else
             my_name:=self.title;
 
-         sendtext("<div class='whisper'>"+my_name+" whispers to you, '"+arg+"'</div><br/>", tgt);
+         sendtext("<div class='whisper' from='"+html_attr@function(my_name)+"'>"+my_name+" whispers to you, '"+arg+"'</div><br/>", tgt);
          act("<div class='whisper'>$1n whispers something to $3n.</div>", A_ALWAYS, self, null, tgt, TO_NOTVICT);
 
-         send_done("whisper", self, null, tgt, 0, arg, null);
+         send_done("whisper", self, null, tgt, 0, arg, null, CMD_AUTO_NONE);
       }
    }
    quit;

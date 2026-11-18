@@ -5,7 +5,7 @@ changedby   drevar
 EmailAdd
 request     compile
 version     21
-END HEADER*/
+END HEADER */
 
 
 
@@ -24,6 +24,8 @@ title "Paladin Guild@Mainland"
 #define PALADIN_FALLEN "Paladin, Fallen From Grace"
 #define WIGHT_COMPLETE "Wight warrens quest"
 #define PALADIN_SWORD "$Flame Tongue Granted"
+#define QUEST_PALADIN_ENTRY "Paladin Guild Entry"
+
 
 #define HUMAN_PAL_ABIL \
 MSET_ABILITY (20,15,15,20,10,10,0,10)
@@ -54,119 +56,208 @@ creators {"cabal", "bakka", "whistler"}
 
 notes
 "This is a zone for high level holy fighters. Current restrictions on the
-class include: for entrance pc must be above level 39, have completed wight
-warren quest, have an alignment of above +700, and have completed the paladin
-quest; for continued membership, player must keep an alignment above level
-+700; to leave the guild there are no limitations, but it does implement a
-quest bit of Fallen From Grace, preventing re-entry into the guild.<br/>
-Contact Cabal (bclark@magicnet.net) - <div class='cpr'>Warning! Not active admin!</div><div class='cw'><br/>
-Sk(r)ay email </div><div class='cpr'>otap@dorit.ihi.ku.dk</div><div class='cw'> <br/>
-</div>"
+class include: for entrance pc must have an alignment of 350 or above, be a
+protected citizen of Midgaard and not an outlaw there, have completed the
+paladin quest (the head of the Frozen Shade, brought to Joan), and not be
+a Fallen Paladin; for continued membership, player must keep an alignment
+of 350 or above; to leave the guild there are no limitations, but it does
+implement a quest bit of Fallen From Grace, preventing re-entry into the
+guild.<br/>
+Cabal and Sk(r)ay are no longer active admins.<br/>"
 
 %dil
 
-dilbegin restrict_guild (damage:integer,gld:string);
+dilbegin antievil();
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
+   integer IsBanished@guilds(pc : unitptr, sGuild : string);
+
+var
+	flux : integer;
+	pc : unitptr;
+   room:unitptr;
 code
 {
-heartbeat:=PULSE_SEC*3;
-:start:
-wait (SFB_DONE,
-(
-(( command ("wear")) or
-(command ("wield")) or
-(command ("hold")))
-) and
-(self==medium) and
-(activator.guild!=gld));
+   heartbeat := PULSE_SEC*7;
+   on_activation((self.position <= POSITION_SLEEPING) or (self.position == POSITION_FIGHTING), skip);
 
-if (self.outside.level>=IMMORTAL_LEVEL) goto start;
+	:start:
 
-act ("Your $2n burns you and you drop it to the ground.",
-A_ALWAYS,self.outside,self,null,TO_CHAR);
-act ("$1n's $2n burns $1m and $1s drops it to the ground.",
-A_SOMEONE,self.outside,self,null,TO_REST);
-act ("Being in the right guild might help.",
-A_ALWAYS,self.outside,null,null,TO_CHAR);
-self.outside.hp:=self.outside.hp-damage;
-position_update (self.outside);
+   wait(SFB_CMD,(activator.type == UNIT_ST_PC));
 
-unequip (self);
-link (self,self.outside.outside);
-goto start;
+   pc := activator;
+   if (pc.level > 200) goto start;
+   secure(pc,gone);
+   if (command("flee"))
+      block;
+
+   if (IsInGuild@guilds(pc, GUILD_NECROMANCER) or IsInGuild@guilds(pc, GUILD_ASSASSIN))
+   {
+      self.hp := self.max_hp;
+      exec("frown "+pc.name,self);
+      exec("say Thy kind is not welcome in here, "+pc.name+"!",self);
+      pause;
+      exec("say Begone "+pc.name+", or I shall deal with you harshly!",self);
+      pause;
+      exec("emote fingers his weapon threateningly.",self);
+      exec("say Tempt me not, "+pc.name+", leave this holy place now!", self); pause;
+      exec("say That's it, "+pc.name+", thy time is up!",self);
+      pc.hp := 0;
+      pc.endurance := 0;
+      act("$1n casts a spell that drains your life energy.",
+          A_ALWAYS, self, null, pc, TO_VICT);
+      act("$1n casts a spell that drains $3n's life energy.",
+          A_SOMEONE, self, null, pc, TO_NOTVICT);
+      act("Two paladin guards appear and grab $1n and drag $1m out of the Guild, dumping "+
+      "$1m in the streets.",A_ALWAYS, pc, self, null, TO_REST);
+      room := findroom("cth_square1@midgaard");
+      link(pc,room);
+      act("Two paladin guards emerge from the Guild halls, dragging $1n "+
+      "between them and dump $1m unceremoniously on the street.", A_SOMEONE,pc,self,null,TO_REST);
+      goto gone;
+   }
+
+   if (pc.alignment < -900)
+   {
+      exec("frown "+pc.name,self);
+      exec("say Thy evil heart is not welcome here, "+pc.name+"!",self);
+      pause;
+      exec("say Begone "+pc.name+", do not taint this holy place with thy "+
+      "presence!",self);
+      pause;
+      exec("emote fingers his weapon threateningly.",self);
+      exec("say I live to fight evil, tempt me not, "+pc.name+".",self);
+      pause;
+      exec("growl "+pc.name,self);
+      exec("say Evil One, begone now!",self);
+      pause;
+      exec("say That's it, "+pc.name+", hell awaits thee now!",self);
+      exec("emote draws his sword.",self);
+      exec("kill "+pc.name,self);
+      goto gone;
+   }
+
+   if (IsBanished@guilds(pc, GUILD_PALADIN))
+   {
+      exec("frown",self);
+      exec("say I remember thee, "+pc.name+".",self);
+      pause;
+      exec("say Thou fouled the pure spirit of our Order by your falling from "+
+      "grace!",self);
+      exec("say How dare thou show thy face here!",self);
+      pause;
+      exec("spit "+pc.name,self);
+      pause;
+      exec("slap "+pc.name,self);
+      pause;
+      exec("growl "+pc.name,self);
+      pause;pause;pause;pause;pause;
+   }
+
+:gone:
+   unsecure(pc);
+   goto start;
+}
+dilend
+
+
+
+dilbegin restrict_guild(damage:integer, gld:string);
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
+code
+{
+   :start:
+   wait (SFB_DONE,((( command ("wear")) or (command ("wield")) or (command ("hold")))) and
+                  (self==medium) and (not IsInGuild@guilds(activator, gld)));
+
+   if (self.outside.level>=IMMORTAL_LEVEL) goto start;
+
+   act ("Your $2N burns you and you drop it to the ground.",
+      A_ALWAYS,self.outside,self,null,TO_CHAR);
+   act ("$1n's $2N burns $1m and $1e drops it to the ground.",
+      A_SOMEONE,self.outside,self,null,TO_REST);
+   act ("Being in the right guild might help.",
+      A_ALWAYS,self.outside,null,null,TO_CHAR);
+   self.outside.hp:=self.outside.hp-damage;
+   position_update (self.outside);
+
+   unequip (self);
+   link (self,self.outside.outside);
+   goto start;
 }
 dilend
 
 
 dilbegin nokill();
 var
-	pc : unitptr;
-	room : unitptr;
+   pc : unitptr;
+   room : unitptr;
 code
 {
-        heartbeat := 3 * PULSE_SEC;
+:start:
+   wait(SFB_COM,  self.position == POSITION_FIGHTING );
 
-        :start:
-        wait(SFB_COM,  self.position == POSITION_FIGHTING );
-        pc := self.fighting;
-        if(pc.type == UNIT_ST_NPC) goto start;
-        if (pc.level >200) goto start;
-        secure(pc,gone);
-        if (command("flee"))
-                block;
+   pc := self.fighting;
+   if(pc.type == UNIT_ST_NPC) goto start;
+   if (pc.level >200) goto start;
+   secure(pc,gone);
+   if (command("flee"))
+      block;
+   self.hp:= self.max_hp;
+   act("The sounds of battle attract the attention of the guild guards.",
+      A_SOMEONE, pc, self, null, TO_ALL);
+   act("Several of them charge into the room, beating you senseless!",
+      A_SOMEONE, pc, self, null, TO_CHAR);
+   act("Several of them charge into the room, beating $1n senseless!",
+      A_SOMEONE, pc, self, null, TO_REST);
+   pc.hp := 0;
 
-self.hp:= self.max_hp;
-act("The sounds of battle attract the attention of the guild guards.",
-A_SOMEONE, pc, self, null, TO_ALL);
-act("Several of them charge into the room, beating you senseless!",
-A_SOMEONE, pc, self, null, TO_CHAR);
-act("Several of them charge into the room, beating $1n senseless!",
-A_SOMEONE, pc, self, null, TO_REST);
-pc.hp := 0;
-act("You can feel yourself being dragged away as you slip into the "+
-"unconsciousness.",A_SOMEONE, pc, self, null, TO_CHAR);
-position_update(pc);
-act("Two of the guards grab $1n and drag him out of the Guild, dumping "+
-"$1m in the streets.",A_SOMEONE, pc, self, null, TO_REST);
-room := findroom("cth_square7@midgaard");
-link(pc,room);
-act("Two guild guards appear, dragging an unconscious figure between "+
-"them and dump $1m unceremoniously on the street."
-,A_SOMEONE,pc,self,null,TO_REST);
-	:gone:
-unsecure(pc);
-goto start;
+   act("You can feel yourself being dragged away as you slip into "+
+      "unconsciousness.",A_SOMEONE, pc, self, null, TO_CHAR);
+   position_update(pc);
+   act("Two of the guards grab $1n and drag $1m out of the Guild, dumping "+
+      "$1m in the streets.",A_SOMEONE, pc, self, null, TO_REST);
+   room := findroom("cth_square7@midgaard");
+   link(pc,room);
+   act("Two guild guards appear, dragging an unconscious figure between "+
+      "them and dump $1m unceremoniously on the street."
+      ,A_SOMEONE,pc,self,null,TO_REST);
+:gone:
+   unsecure(pc);
+   goto start;
 }
 dilend
 
 
-dilbegin blocktrain();
+dilbegin fnpri(FN_PRI_BLOCK) BlockEvilTrain();
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
 var
-  pc:     unitptr;
-  expd : extraptr;
+  pc   : unitptr;
 code
 {
 :start:
-heartbeat := PULSE_SEC*5;
-wait (SFB_CMD, TRUE);
+   wait (SFB_CMD, command ("practice") and (activator.type == UNIT_ST_PC));
 
-if ((activator.type == UNIT_ST_PC) and command ("practice"))
-  {
-        expd := "$path" in pc.quests;
-        if (expd == null) goto start;
-        if ((GUILD_PALADIN in expd.names) and (activator.alignment < -350))
-      { block;
-        exec ("say You are a disgrace to our order!!", self);
-        exec ("say In the future you will be banned for this action!", self);
-		exec ("spit "+ activator.name, self);
-      }
-if ((GUILD_PALADIN in expd.names)  and (activator.alignment < 350))
-      { block;
-        exec ("say You have strayed from the path of our order. I will "+
-              "not train you until you have purified your soul.", self);
-        goto start;
-      }
-  }
-goto start;
+   if (activator.alignment < -350)
+   {
+      block;
+      exec ("say You are a disgrace to our order!!", self);
+      exec ("say In the future you will be banned for this action!", self);
+      exec ("spit "+ activator.name, self);
+      goto start;
+   }
+
+   if (activator.alignment < 350)
+   {
+      block;
+      exec ("say You have strayed from the path of our order. I will "+
+            "not train you until you have purified your soul.", self);
+      goto start;
+   }
+
+   goto start;
 }
 dilend
 
@@ -176,7 +267,7 @@ dilend
 
                         mon_yard
 names {"monastery yard", "paladin yard", "yard"}
-title "The monastery Yard"
+title "The Monastery Yard"
 descr
 "     You have stepped into the walled-in yard of the Holy Knights of
 Midgaard, the Paladins.  The sturdy stone walls surrounding this well-tended
@@ -184,14 +275,14 @@ yard are broken by high archways leading in each direction. To the east,
 through the raised portcullises, you can see the Cathedral square. Placed in
 the center of the courtyard is a large statue of a man struck down in battle."
 extra {"archways", "archway", "walls"}
-"Archways lie in the middle of each of wall of the courtyard, providing exits
+"Archways lie in the middle of each wall of the courtyard, providing exits
 to the north, south, east and west."
 extra {"great statue","statue", "man"}
 "The statue depicts an older man, regal in stance, smiling as he dies from
 deep wounds clawed through his armor. There is a plaque at the base of the
 statue."
-extra {"plague at the base","plaque", "base"}
-"The plaque reads: 'Our holy lord, Founder of Midgaard, the Matyr King
+extra {"plaque at the base","plaque", "base"}
+"The plaque reads: 'Our holy lord, Founder of Midgaard, the Martyr King
 Cromwell.'"
 movement SECT_INSIDE
 flags {UNIT_FL_NO_TELEPORT}
@@ -240,14 +331,14 @@ was brooding. Her eldest son, Ancalador, began to raise a huge<br/>
 army... through his mind control, he managed to dominate the<br/>
 goblins, and hobgoblins and trolls, and even some of the dark<br/>
 and mysterious Drow elves. With his brothers and sisters (fierce<br/>
-dragons all, but fortunately, none with the magical prowress of<br/>
+dragons all, but fortunately, none with the magical prowess of<br/>
 Ancalador), this huge army descended from the mountain, raining<br/>
-fire and ice upon the homes of the halfings and gnomes.<br/><br/><br/>
+fire and ice upon the homes of the halflings and gnomes.<br/><br/><br/>
 <br/>
-Many of the halfings and gnomes chose to hide in burrows deep in<br/>
+Many of the halflings and gnomes chose to hide in burrows deep in<br/>
 the ground while the dragons destroyed all that lived above.<br/>
 Others, caught in the outside and forced into acts of bravery,<br/>
-fled toward Urland. There lived in Urland one of the noblest and<br/>
+fled toward Urland. There lived in Urland one of the noblest and most<br/>
 respected of the Church Knights under Cromwell.  After advancing<br/>
 considerably in his years (almost as old as good Cromwell himself),<br/>
 Sir Gehron had retired to the small village of Urland to ensure<br/>
@@ -259,10 +350,10 @@ and took up the position as general of the army.<br/><br/><br/>
 <br/>
 King Cromwell, although nearly a hundred years in age, was<br/>
 still the favored of the gods, and what he might have lacked<br/>
-then in strength and stature, he more then made up for in<br/>
+then in strength and stature, he more than made up for in<br/>
 judgement and divine luck. He immediately mobilized his troops<br/>
 and sent Knights to warn the dwarven king. With a large<br/>
-contingent of his Holy Knights and many great heros of the<br/>
+contingent of his Holy Knights and many great heroes of the<br/>
 Kingdom, Cromwell set out to meet the invading army in Urland.<br/><br/><br/>
 <br/>
 By the time this combined force of humans and dwarves arrived<br/>
@@ -303,7 +394,7 @@ Gehron, tears streaming from his eyes, agreed, and said goodbye<br/>
 to the one king that he loved so much.<br/><br/><br/>
 <br/>
 It is said in the Books of the Ages, that the Gods themselves<br/>
-descended from the heavens and rode along side the king in his<br/>
+descended from the heavens and rode alongside the king in his<br/>
 final charge, for they loved that one more than anyone can imagine.<br/>
 It is said that valiant Cromwell, in one last act of defiance,<br/>
 raised his sword and charged.  Unearthly light appeared all about<br/>
@@ -336,13 +427,13 @@ At the sight of the death of King Cromwell, beloved by all, the<br/>
 world itself shook and wept. Thorigorn ripped his beard from<br/>
 his face in grief, and the great armies of men and dwarves<br/>
 were heartbroken. The gods, in their great sorrow, carried the<br/>
-body of the Cromwell out to sea, where a mighty island arose<br/>
+body of Cromwell out to sea, where a mighty island arose<br/>
 from the Torsbay to serve as his tomb.<br/><br/><br/>
 <br/>
 And yet that tale, the tale of King Cromwell, the Martyr King,<br/>
 sacrificing himself to allow his troops to fall back and regroup,<br/>
-would become the rallying cry of the Great Heros of the War. But<br/>
-story of the Great Heros, and of the defeat of Ancalador, is one<br/>
+would become the rallying cry of the Great Heroes of the War. But the<br/>
+story of the Great Heroes, and of the defeat of Ancalador, is one<br/>
 for another telling.</pre>"
 
 movement SECT_INSIDE
@@ -466,8 +557,8 @@ names {"gehron's shrine", "shrine", "gehron"}
 title "The Shrine to Gehron"
 descr
 "     The marble walls of this holy shrine stretch up above you into a dome
-of stained glass. There is a peace an solitude that surrounds this place like
-none you have ever felt before. A wide archway leads to east to the great
+of stained glass. There is a peace and solitude that surrounds this place like
+none you have ever felt before. A wide archway leads east to the great
 mustering hall, and a set of marble stairs descend down into the darkness.
 Set in the middle of the shrine is a massive sarcophagus carved from a single
 block of snow white marble. There is an inscription on the tomb."
@@ -475,7 +566,7 @@ extra {"stained glass dome","glass"}
 "The magnificent stained glass that forms the dome of this shrine depicts
 great victories by holy knights against dragons and goblins, each panel
 representing a battle in the Great War. Many of the Paladins, their wounds
-gushing red glass, seem to be smiling as the die. At the peak of the dome, in
+gushing red glass, seem to be smiling as they die. At the peak of the dome, in
 a central panel, the one-eyed countenance of Odin ponders thoughtfully."
 extra {"marble stairs","stairs"}
 "The stairs descend down under the shrine, perhaps to some kind of sub-
@@ -499,7 +590,7 @@ title "The Holy Meditation Chamber"
 descr
 "     At the bottom of these marble stairs lies an amazing chamber... you
 suspect part of the original Holy Order monastery before the sacking of
-Midgaard in the Great War. The stone of the walls are of a different color
+Midgaard in the Great War. The stone of the walls is of a different color
 than the structure above. You shudder as you think that the broken stained
 glass windows stretching from the floor to ceiling once looked out on a
 different Midgaard, one that would be destroyed - now they look out on
@@ -508,15 +599,19 @@ off somber shadows in every direction. You have a feeling of sorrow, but
 also of sacredness.<br/>
 A small scroll is fastened to the wall here, with a message to all visitors."
 extra {"small scroll","scroll"}
-"<pre>The small scrolls reads in a clear and tidy script:<br/>
+"<pre>The small scroll reads in a clear and tidy script:<br/>
 <br/>
 			- Greetings, Visitor -<br/>
 <br/>
 	Paladins, type 'title' to receive a title suiting your<br/>
 	deeds and glory.<br/>
 <br/>
+   'join'           - join this guild (if you qualify!).
+   'title'          - changes your title to a new and better one.
+   'worship'        - ... 
+<br/>
 	Speak to me, Reignier, if your faith is weak and your path<br/>
-	pain full. I can provide you with the holy weapon of the<br/>
+	painful. I can provide you with the holy weapon of the<br/>
 	Paladins, as well as the symbol to recognize you as one.<br/>
 <br/>
 	  Greet me with a bow or a worship when you are near.<br/>
@@ -549,7 +644,6 @@ end
 
 
 %mobiles
-%mobiles
 
 p_guard
 names {"holy paladin","paladin","guard"}
@@ -564,96 +658,13 @@ romflags {CHAR_PROTECTED}
 M_HUMAN_CLERIC_SWORD(100, SEX_MALE,"","heal")
 alignment 1000
 exp 0
-special SFUN_GUILD_BASIS GUILD_PALADIN
+
+dilcopy MurderBanish@guilds(GUILD_PALADIN);
+dilcopy AlertMembers@guilds(GUILD_PALADIN, "Our Holy order is under attack, quickly come to assistance.");
 dilcopy rescue@function("reignier/edmund/alex/joan/corbin/paladin");
 dilcopy teamwork@function("reignier/edmund/alex/joan/corbin/paladin");
-dilcopy wander_zones@function ("paladin_guild",120, 1);
-
-dilbegin antievil();
-var
-	flux : integer;
-	pc : unitptr;
-    room:unitptr;
-code
-{
-heartbeat := PULSE_SEC*7;
-	:start:
-on_activation(self.position == POSITION_FIGHTING,skip);
-wait(SFB_CMD,(activator.type == UNIT_ST_PC));
-pc := activator;
-if (pc.level > 200) goto start;
-secure(pc,gone);
-if (command("flee"))
-block;
-if (("N" in pc.guild)or
-("A" in pc.guild))
-{
-self.hp := self.max_hp;
-exec("frown "+pc.name,self);
-exec("say Thy kind is not welcome in here, "+pc.name+"!",self);
-pause;
-exec("say Begone "+pc.name+", or I shall deal with you harshly!",self);
-pause;
-exec("emote fingers his weapon threateningly.",self);
-exec("say Tempt me not, "+pc.name+", leave this holy place now!"
-,self); pause;
-exec("say That's it, "+pc.name+", thy time is up!",self);
-pc.hp := 0;
-pc.endurance := 0;
-exec("emote cast a spell that drains your lives energy.",self);
-act("Two paladin guards appear and grab $1n and drag $1m out of the Guild, dumping "+
-"$1m in the streets.",A_ALWAYS, pc, self, null, TO_REST);
-room := findroom("cth_square1@midgaard");
-link(pc,room);
-act("Two paladin guards emerge from the Guild halls, dragging $1n"+
-"between them and dump $1m unceremoniously on the street."
-,A_SOMEONE,pc,self,null,TO_REST);
-unsecure(pc);
-goto gone;
-}
-if (pc.alignment < -900)
-{
-exec("frown "+pc.name,self);
-exec("say Thy evil heart is not welcome here, "+pc.name+"!",self);
-pause;
-exec("say Begone "+pc.name+", do not taint this holy place with thy "+
-"presence!",self);
-pause;
-exec("emote fingers his weapon threateningly.",self);
-exec("say I live to fight evil, tempt me not, "+pc.name+".",self);
-pause;
-exec("growl "+pc.name,self);
-exec("say Evil One, begone now!",self);
-pause;
-exec("say That's it, "+pc.name+", hell awaits thee now!",self);
-exec("emote draws his sword.",self);
-exec("kill "+pc.name,self);
-unsecure(pc);
-goto gone;
-}
-if (PALADIN_FALLEN in pc.quests)
-{
-exec("frown",self);
-exec("say I remember thee, "+pc.name+".",self);
-pause;
-exec("say Thou fouled the pure spirit of our Order by your falling from "+
-"grace!",self);
-exec("say How dare thou show thy face here!",self);
-pause;
-exec("spit "+pc.name,self);
-pause;
-exec("slap "+pc.name,self);
-pause;
-exec("growl "+pc.name,self);
-pause;pause;pause;pause;pause;
-}
-	:gone:
-unsecure(pc);
-goto start;
-}
-dilend
-
-
+dilcopy antievil@paladin_guild();
+dilcopy wander_zones@function("paladin_guild", 120, 1);
 end
 
 
@@ -678,91 +689,79 @@ romflags {CHAR_PROTECTED}
 M_HUMAN_CLERIC_SWORD(130, SEX_MALE, "", "heal")
 alignment 1000
 exp -300
+
+
+/* ------ DIL FOR JOINING THE PALADIN GUILD ----- */
+
+/* Requirements: Player must have an alignment of 350 or above, and
+                 have completed the Wight warren quest, and
+                 not be a Fallen Paladin and not be Banished. */
+
+dilcopy combat_mag@function("","heal",25,2);
 dilcopy nokill@paladin_guild();
+dilcopy MurderBanish@guilds(GUILD_PALADIN);
+dilcopy AlertMembers@guilds(GUILD_PALADIN, "Our Holy order is under attack, quickly come to assistance.");
 
+dilbegin  fnpri(FN_PRI_BLOCK-1) block_evil_join();
+external
+   integer check_protected@justice(char : unitptr, juris : string);
+   integer check_outlaw@justice(char : unitptr, juris : string);
 
-
-/* ------ DIL FOR ENTRANCE TO PALADIN GUILD ----- */
-
-/* Requirements: Player must have an alignment of 500 or above, have
-completed the Wight warren quest and not be a Fallen Paladin.
-More restrictions to come....   */
-
-/*
-dilbegin master_block();
 code
 {
-   heartbeat := PULSE_SEC*5;
-
    :start:
-   wait (SFB_CMD, TRUE);
+   wait (SFB_CMD, (command("join") and (activator.type == UNIT_ST_PC)));
 
-   if ((self.position <= POSITION_SLEEPING) or (self.position == POSITION_FIGHTING))
-      goto start;
-
-   if ((activator.type ==  UNIT_ST_PC) and command ("join"))
+   if (activator.alignment < 350)
    {
-      if (activator.level < 0)
+      block;
+      if (activator.alignment < -350)
       {
-         block;
-         exec ("say You must fight more battles to prove your worth. Do " +
-               "not bother me again until you are level 0, at least...", self);
-         pause;
+         exec("say You, Evil One, must not be allowed to survive.", self);
+         // exec("kill " + activator.name, self);
          goto start;
       }
+      exec("say You are not pure enough to join our order.", self);
+      goto start;
+   }
 
-      if (PALADIN_FALLEN in activator.quests)
-      { 
-         block;
-         exec ("say You are foolish, Fallen One, to even show your face " +
-               "to me again, let alone lavish false and misleading praise " +
-               "upon me. You like a serpent, and must be taught a lesson.", self);
-         exec("spit " + activator.name, self);
-         pause;
-         goto start;
-      }
+   if (not check_protected@justice(activator, "midgaard"))
+   {
+      block;
+      exec("say You must be a protected citizen of Midgaard to join our order.", self);
+      goto start;
+   }
 
-      if (activator.alignment < -349)
-      {
-         if (activator.alignment < -350)
-         {
-            block;
-            exec("say You, Evil One, must not be allowed to survive.", self);
-            exec("spit " + activator.name, self);
-            goto start;
-         }
-         block;
-         exec("say You are not pure enough to join our order.", self);
-         pause;
-         goto start;
-      }
+   if (check_outlaw@justice(activator, "midgaard"))
+   {
+      block;
+      exec("say You cannot be an outlaw of Midgaard to join our order.", self);
+      goto start;
+   }
 
-      expd := "$path" in activator.quests;
-      if (expd == null) goto start;
-
-      if ((GUILD_PALADIN in expd.names) )
-      {
-         block;
-         exec("say Me thinks your head has been rattled too many times in your "+
-              "helmet, "+activator.name+". You are already a member of the "+
-              "Holy Order!", self);
-         pause;
-         goto start;
-      }
-
-      exec ("say Welcome to the Holy Order of Paladins, "+activator.name+
-            ". May you walk paths of honor and be diligent in your protection "+
-            "of Midgaard and it's people.", self);
+   if (check_outlaw@justice(activator, "udgaard"))
+   {
+      block;
+      exec("say You cannot be an outlaw of Udgaard to join our order.", self);
+      goto start;
    }
 
    goto start;
 }
 dilend
-*/
+
+dilcopy MasterJoin@guilds(GUILD_PALADIN, GUILD_PALADIN_EXCL, QUEST_PALADIN_ENTRY, 
+ {"say You have been banned from our guild, you can't rejoin.","spit $1N"},
+ {"eye $1N", "say Perhaps you have been hitting your head too much lately, $1N?", "say You're already a member of our guild."},
+ {"glare $1N", "say Here at the Paladin's Guild we only accept the devoted and pure of heart. We cannot have members from magical schools or the dark underworld."},
+ {"say To join $1N, you must prove yourself worthy by completing the Paladin's Guild quest.","say Go speak with Joan."},
+ {"handshake $1N", "say Welcome to the Paladin's Guild, $1N."});
 
 dilbegin paladin_quest1();
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
+   BanishGuild@guilds(pc : unitptr, sGuild : string);
 var
-expd : extraptr;
 	pc : unitptr;
 	item : unitptr;
 	check : extraptr;
@@ -772,221 +771,205 @@ code
 
 	:start:
 
-wait (SFB_DONE, ((command("worship"))or(command("bow"))) and
-(self ==target));
+   wait (SFB_DONE, ((command("worship"))or(command("bow"))) and (self ==target));
 	pc := activator;
 	secure(pc, lost);
-        expd := "$path" in pc.quests;
-        if (expd == null) goto start;
-        if ((GUILD_PALADIN in expd.names) and (pc.alignment > 349))
+
+   if (IsInGuild@guilds(pc, GUILD_PALADIN) and (pc.alignment > 349))
 	{
-exec("say Ahhh.. I do have a few faithful followers, I was wondering if "+
-"any still existed.", self);
-pause;
-if (PALADIN_SWORD in pc.quests)
-{
-exec("say What brings you hither, "+pc.name+" and how does your weapon "+
-"serve you?",self);pause;
-exec("say Is the light of the blade making you proud and fierce?",self);
-pause;
-exec("say Or have the perils of the road claimed the weapon from your "+
-"hands?",self);pause;
-exec("say If you wish me to grant you another weapon, you must first "+
-"prove yourself, "+pc.name+".",self);pause;
+   exec("say Ahhh.. I do have a few faithful followers, I was wondering if "+
+   "any still existed.", self);
+   pause;
+   if (PALADIN_SWORD in pc.quests)
+   {
+   exec("say What brings you hither, "+pc.name+", and how does your weapon "+
+   "serve you?",self);pause;
+   exec("say Is the light of the blade making you proud and fierce?",self);
+   pause;
+   exec("say Or have the perils of the road claimed the weapon from your "+
+   "hands?",self);pause;
+   exec("say If you wish me to grant you another weapon, you must first "+
+   "prove yourself, "+pc.name+".",self);pause;
 
-if (pc.vlevel < 15)
-{
-exec("say Bring me the evil weapon of the darkelven priestess and I shall "+
-"grant you another Flame Tongue!",self);
-goto cu;
-}
-if (pc.vlevel < 25)
-{
-exec("say Bring me the Smotslager, the staff of the taunter, and I shall "+
-"grant you another Flame Tongue!",self);
-goto cu;
-}
-if (pc.vlevel < 35)
-{
-exec("say Bring me the hammer of black metal from the caves of darkness, "+
-"and I shall grant you another Flame Tongue!",self);
-goto cu;
-}
-if (pc.vlevel < 51)
-{
-exec("say Bring me the sword that eludes the light, from the hand of an "+
-"immortal champion and I shall grant you another Flame Tongue!",self);
-goto cu;
-}
-else
-{
-exec("say ...although you, oh Immortal Champion, can create your own in "+
-"the blink of an eye!",self);pause;
-exec("bow "+pc.name,self);pause;
-goto cu;
-}
-goto cu;
-}
-else
-exec("say I have received a great gift from our fathers above, a replica "+
-"of the sword used by King Cromwell in the last minutes of his life.",
-self); pause;
-exec("say Without his sacrifice only the gods know where we would be
-today.", self);
-pause;
-exec("say The sword is a bastard sword, you can wield it in one,"+
-" or in both hands, as you please.", self);
-pause;
-exec("say You must specify that you are 'wielding tongue two' to "+
-"wield it two handedly.", self);
-pause;
-exec("say Now take this Flame Tongue, and use it wisely. "+
-"It will serve you well.", self);
-	item := load("fl1_tongue@paladin_guild");
-        item.height := pc.height;
-	link(item, self);
-exec("give tongue "+pc.name, self);
-exec ("say Oh I almost forgot", self);
-pause;
-exec ("say The gods have given me a small amulet for you to wear.",self);
-pause;
-exec ("say This token should aid you in your quests against evil.", self);
-exec ("smile "+pc.name,self);
-	item := load("pal_cross@paladin_guild");
-        item.height := pc.height;
-	link(item, self);
-exec("give amulet "+pc.name, self);
-addextra(pc.quests, {PALADIN_SWORD}, "");
-pause;
-	:cu:
-exec("say I hope to see you again soon, our guild's strength is
-returning.", self);
-pause;
-exec("say Our faithfulness and prayers has touched the gods above.", self);
-pause;
-exec("say Only they know the gifts that lie ahead in our paths.", self);
-pause;
-exec("say Go now, for I must return to my studies.", self);
-unsecure(pc);
-goto start;
-	}
-        expd := "$path" in pc.quests;
-        if (expd == null) goto start;
-        if ((GUILD_PALADIN in expd.names) and (pc.alignment < 349))
-      {
-      	block;
-        exec ("say You have strayed from the path of our order. I will "+
-              "not allow your worthless soul worship me. Go until you have
-purified yourself.", self);
-		unsecure(pc);
-        goto start;
-      }
-        expd := "$path" in pc.quests;
-        if (expd == null) goto start;
-        if ((GUILD_PALADIN in expd.names) and (pc.alignment < -349))
-      { block;
-        exec ("say You are a disgrace to our order!!", self);
-        addextra (pc.quests, {PALADIN_FALLEN}, "");
-        pc.guild := "";
-        unsecure (pc);
-        exec ("spit "+activator.name, self);
-        goto start;
-      }
-    else
-      {
-    	block;
-		unsecure(pc);
-    	exec ("say Beggar, be off!", self);
+   if (pc.vlevel < 15)
+   {
+   exec("say Bring me the evil weapon of the darkelven priestess and I shall "+
+   "grant you another Flame Tongue!",self);
+   goto cu;
+   }
+   if (pc.vlevel < 25)
+   {
+   exec("say Bring me the Smotslager, the staff of the taunter, and I shall "+
+   "grant you another Flame Tongue!",self);
+   goto cu;
+   }
+   if (pc.vlevel < 35)
+   {
+   exec("say Bring me the hammer of black metal from the caves of darkness, "+
+   "and I shall grant you another Flame Tongue!",self);
+   goto cu;
+   }
+   if (pc.vlevel < 51)
+   {
+   exec("say Bring me the sword that eludes the light, from the hand of an "+
+   "immortal champion and I shall grant you another Flame Tongue!",self);
+   goto cu;
+   }
+   else
+   {
+   exec("say ...although you, oh Immortal Champion, can create your own in "+
+   "the blink of an eye!",self);pause;
+   exec("bow "+pc.name,self);pause;
+   goto cu;
+   }
+   goto cu;
+   }
+   else
+   exec("say I have received a great gift from our fathers above, a replica "+
+   "of the sword used by King Cromwell in the last minutes of his life.",
+   self); pause;
+   exec("say Without his sacrifice only the gods know where we would be "+
+   "today.", self);
+   pause;
+   exec("say The sword is a bastard sword, you can wield it in one,"+
+   " or in both hands, as you please.", self);
+   pause;
+   exec("say You must specify that you are 'wielding tongue two' to "+
+   "wield it two handedly.", self);
+   pause;
+   exec("say Now take this Flame Tongue, and use it wisely. "+
+   "It will serve you well.", self);
+      item := load("fl1_tongue@paladin_guild");
+         item.height := pc.height;
+      link(item, self);
+   exec("give tongue "+pc.name, self);
+   exec ("say Oh I almost forgot", self);
+   pause;
+   exec ("say The gods have given me a small amulet for you to wear.",self);
+   pause;
+   exec ("say This token should aid you in your quests against evil.", self);
+   exec ("smile "+pc.name,self);
+      item := load("pal_cross@paladin_guild");
+         item.height := pc.height;
+      link(item, self);
+   exec("give amulet "+pc.name, self);
+   addextra(pc.quests, {PALADIN_SWORD}, "");
+   pause;
+      :cu:
+   exec("say I hope to see you again soon, our guild's strength is "+
+   "returning.", self);
+   pause;
+   exec("say Our faithfulness and prayers have touched the gods above.", self);
+   pause;
+   exec("say Only they know the gifts that lie ahead in our paths.", self);
+   pause;
+   exec("say Go now, for I must return to my studies.", self);
+   unsecure(pc);
+   goto start;
       }
 
-unsecure(pc);
-goto start;
+         if (IsInGuild@guilds(pc, GUILD_PALADIN) and (pc.alignment < 349))
+         {
+            block;
+         exec ("say You have strayed from the path of our order. I will "+
+               "not allow your worthless soul to worship me. Go until you have "+
+   "purified yourself.", self);
+         unsecure(pc);
+         goto start;
+         }
 
-:lost:
+         if (IsInGuild@guilds(pc, GUILD_PALADIN) and (pc.alignment < -900))
+         {
+            block;
+            exec ("say You are a disgrace to our order, you have been banished!", self);
+            BanishGuild@guilds(pc, GUILD_PALADIN);
+            unsecure (pc);
+            exec ("spit "+activator.name, self);
+            goto start;
+         }
+      else
+         {
+         block;
+         unsecure(pc);
+         exec ("say Beggar, be off!", self);
+         }
 
-unsecure(pc);
-exec("say Unfaithful little @#$!@@, I should have him banished.", self);
-goto start;
+   unsecure(pc);
+   goto start;
 
+   :lost:
+
+   unsecure(pc);
+   exec("say Unfaithful little @#$!@@, I should have him banished.", self);
+   goto start;
 }
 dilend
+
 
 dilbegin paladin_quest2();
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
+
 var
-expd : extraptr;
-        pc : unitptr;
-        item : unitptr;
-        gift : unitptr;
+   pc : unitptr;
+   item : unitptr;
+   gift : unitptr;
 code
 {
-        heartbeat := PULSE_SEC * 4;
+   heartbeat := PULSE_SEC * 4;
 
-        :start:
+   :start:
 
-wait (SFB_DONE, (command("give")and(self ==target)));
-        pc := activator;
-        secure(pc, lost);
+   wait (SFB_DONE, (command("give")and(self ==target)));
+
+   pc := activator;
+   secure(pc, lost);
 	gift := medium;
-        expd := "$path" in pc.quests;
-        if (expd == null) goto lost;
-        if ((GUILD_PALADIN in expd.names) and (pc.alignment > 349)
-	and (PALADIN_SWORD in pc.quests))
-if (((pc.level < 15)and
-(gift.nameidx $= "dflail")and(gift.zoneidx $= "darkelf"))
-or ((pc.level < 25)and
-(gift.nameidx $= "iggystaff")and(gift.zoneidx $= "elfdom"))
-or ((pc.level < 35)and
-(gift.nameidx $= "black_hammer")and(gift.zoneidx $= "citadel"))
-or ((pc.level < 51)and
-(gift.nameidx $= "sword_dark")and(gift.zoneidx $= "keep")))
-        {
-exec("say Ahhh... Excellent. Your courage failed you not.", self);pause;
-exec("say Now take this Flame Tongue, and use it wisely. "+
-"It will serve you well.", self);
-        item := load("fl1_tongue@paladin_guild");
-        item.height := pc.height;
-        link(item, self);
-exec("give tongue "+pc.name, self);
-pause;
-exec ("say This token should aid you in your quests against evil.", self);
-exec ("smile "+pc.name,self);
-        item := load("pal_cross@paladin_guild");
-        item.height := pc.height;
-        link(item, self);
-exec("give amulet "+pc.name, self);pause;
-exec("say I hope to see you again soon, our guild's strength is returning."
-,self);
-pause;
-exec("say Our faithfulness and prayers has touched the gods above.", self);
-pause;
-exec("say Only they know the gifts that lie ahead in our paths.", self);
-pause;
-exec("say Go now, for I must return to my studies.", self);
-	}
-	:lost:
-destroy(gift);
-unsecure(pc);
-goto start;
-        }
+   if (IsInGuild@guilds(pc, GUILD_PALADIN) and (pc.alignment > 349) and (PALADIN_SWORD in pc.quests))
+   if (((pc.level < 15)and
+   (gift.nameidx $= "dflail")and(gift.zoneidx $= "darkelf"))
+   or ((pc.level < 25)and
+   (gift.nameidx $= "iggystaff")and(gift.zoneidx $= "elfdom"))
+   or ((pc.level < 35)and
+   (gift.nameidx $= "black_hammer")and(gift.zoneidx $= "citadel"))
+   or ((pc.level < 51)and
+   (gift.nameidx $= "sword_dark")and(gift.zoneidx $= "keep")))
+         {
+   destroy(gift);   // here: gift isn't secured, so after the pauses it is null
+   exec("say Ahhh... Excellent. Your courage failed you not.", self);pause;
+   exec("say Now take this Flame Tongue, and use it wisely. "+
+   "It will serve you well.", self);
+         item := load("fl1_tongue@paladin_guild");
+         item.height := pc.height;
+         link(item, self);
+   exec("give tongue "+pc.name, self);
+   pause;
+   exec ("say This token should aid you in your quests against evil.", self);
+   exec ("smile "+pc.name,self);
+         item := load("pal_cross@paladin_guild");
+         item.height := pc.height;
+         link(item, self);
+   exec("give amulet "+pc.name, self);pause;
+   exec("say I hope to see you again soon, our guild's strength is returning."
+   ,self);
+   pause;
+   exec("say Our faithfulness and prayers have touched the gods above.", self);
+   pause;
+   exec("say Only they know the gifts that lie ahead in our paths.", self);
+   pause;
+   exec("say Go now, for I must return to my studies.", self);
+      }
+      :lost:
+   destroy(gift);
+   unsecure(pc);
+   goto start;
+}
 dilend
 
-dilcopy combat_mag@function("","heal",25,2);
-special SFUN_GUILD_BASIS GUILD_PALADIN
-
-/*
-special SFUN_GUILD_MASTER
-"Guild                    = ~Midgaard Paladin~
-Guild Enter Quest         = ~~
-Guild Enter Cost          = 5 GOLD_PIECE
-Guild Leave Quest         = ~~
-Guild Leave Cost          = 5 PLATINUM_PIECE
-Guild Exclude Quest       = ~Midgaard Paladin Quitter~ ~Paladin, Fallen From Grace~"
-*/
-
-dilcopy guild_titles@guild_paths(GUILD_PALADIN, { "Converted", "Converted",
+dilcopy SetTitles@guilds(GUILD_PALADIN, { "Converted", "Converted",
 "Dedicated", "Dedicated", "Pure", "Pure", "Redeemed", "Redeemed",
-"Hero of the Narrow Path", "Heroine of the Narrow Path", "Annointed Knight",
-"Annointed Knight", "Blessed Knight", "Blessed Knight", "Holy Knight",
+"Hero of the Narrow Path", "Heroine of the Narrow Path", "Anointed Knight",
+"Anointed Knight", "Blessed Knight", "Blessed Knight", "Holy Knight",
 "Holy Knight", "Hero of Midgaard", "Heroine of Midgaard",
 "Protector of the Realm", "Protector of the Realm", "Defender of the Faith",
 "Defender of the Faith", "Champion of Truth", "Champion of Truth",
@@ -1005,7 +988,7 @@ title "Sir Edmund"
 descr
 "Sir Edmund, the keeper of the Holy Armory, stands guard outside the gates."
 extra {}
-"You have heard that only the bravest and stronget warrior of the Holy Order
+"You have heard that only the bravest and strongest warrior of the Holy Order
 is selected to guard the Armory. Looking at Edmund, you have no doubt that
 rumor to be true. You wonder if you could pick up some pointers on technique
 from this great hero."
@@ -1013,17 +996,14 @@ flags {UNIT_FL_NO_TELEPORT}
 romflags {CHAR_PROTECTED}
 M_HUMAN_CLERIC_SWORD(199, SEX_MALE, "", "heal")
 alignment 1000
-dilcopy nokill@paladin_guild();
-dilcopy blocktrain@paladin_guild();
 
 dilcopy combat_mag@function("harm","",25,2);
-special SFUN_GUILD_BASIS GUILD_PALADIN
-/*
-special SFUN_MEMBERS_ONLY GUILD_PALADIN+"#$1n exclaims, 'You must be a holy
-knight to train with me!'"
-*/
 
-dilcopy teacher_prac@guild_paths( GUILD_PALADIN );
+dilcopy nokill@paladin_guild();
+dilcopy MurderBanish@guilds(GUILD_PALADIN);
+dilcopy AlertMembers@guilds(GUILD_PALADIN, "Our Holy order is under attack, quickly come to assistance.");
+dilcopy TrainMemberChk@guilds(GUILD_PALADIN, "say You're not a member of our guild. Go speak with Reignier.");
+dilcopy BlockEvilTrain@paladin_guild();
 
 #define _WEAPON
 #include "guilddef.h"
@@ -1045,18 +1025,16 @@ blinding, and you know with a certainty that there is much Sir Alex could
 teach you about Faith."
 flags {UNIT_FL_NO_TELEPORT}
 romflags {CHAR_PROTECTED}
-M_HUMAN_CLERIC_SWORD(199, SEX_FEMALE, "", "heal")
+M_HUMAN_CLERIC_SWORD(199, SEX_MALE, "", "heal")
 alignment 1000
+
+dilcopy combat_mag@function("","heal",25,2);
+
 dilcopy nokill@paladin_guild();
-dilcopy blocktrain@paladin_guild();
-
-special SFUN_GUILD_BASIS GUILD_PALADIN
-/*
-special SFUN_MEMBERS_ONLY GUILD_PALADIN+"#$1n says, 'I only teach warriors
-of the holy path. Begone!'"
-*/
-dilcopy teacher_prac@guild_paths( GUILD_PALADIN );
-
+dilcopy MurderBanish@guilds(GUILD_PALADIN);
+dilcopy AlertMembers@guilds(GUILD_PALADIN, "Our Holy order is under attack, quickly come to assistance.");
+dilcopy TrainMemberChk@guilds(GUILD_PALADIN, "say You're not a member of our guild. Go speak with Reignier.");
+dilcopy BlockEvilTrain@paladin_guild();
 
 #define _SPELL
 #include "guilddef.h"
@@ -1079,20 +1057,31 @@ flags {UNIT_FL_NO_TELEPORT}
 M_HUMAN_CLERIC_SWORD(199, SEX_FEMALE, "", "heal")
 romflags {CHAR_PROTECTED}
 alignment 1000
-dilcopy nokill@paladin_guild();
-dilcopy blocktrain@paladin_guild();
 
 dilcopy combat_mag@function("","heal",25,2);
-special SFUN_GUILD_BASIS GUILD_PALADIN
-/*
-special SFUN_MEMBERS_ONLY GUILD_PALADIN+"#$1n exclaims, 'You are not a
-warrior of the faith!'"
-*/
-dilcopy teacher_prac@guild_paths( GUILD_PALADIN );
+
+dilcopy nokill@paladin_guild();
+dilcopy MurderBanish@guilds(GUILD_PALADIN);
+dilcopy AlertMembers@guilds(GUILD_PALADIN, "Our Holy order is under attack, quickly come to assistance.");
+dilcopy TrainMemberChk@guilds(GUILD_PALADIN, "say You're not a member of our guild. Go speak with Reignier.");
+dilcopy BlockEvilTrain@paladin_guild();
 
 #define _ABILITY
 #include "guilddef.h"
 #undef _ABILITY
+
+dilcopy qstSimpleQuest@quests(QUEST_PALADIN_ENTRY,
+         {"say Hey $1N, want to prove your worth to our guild?",
+          "say All you need to do is to bring me the head of the Frozen Shade from the Fourth Plane of Hades."},
+         {"say Excellent! Best of luck, $1N."},
+         "Joan in the Paladin's Guild has asked you to bring her the head of the Frozen Shade from the Fourth Plane of Hades.",
+         {"emote looks at the head of the Frozen Shade.",
+          "say Impressive! Well done, $1N. You should go speak with the guild master now."},
+          800, 1 * COPPER_MULT, {""}, "");
+
+dilcopy qstItemsWanted@quests(QUEST_PALADIN_ENTRY, {"head@death"}, {"decapCheck@quests 0 frozen_shade@hades4"},
+         {"say Excellent, thank you $1N."},
+          "say I can't accept that, maybe you could bring me the head of the Frozen Shade from the Fourth Plane of Hades?");
 
 
 end
@@ -1113,29 +1102,26 @@ flags {UNIT_FL_NO_TELEPORT}
 romflags {CHAR_PROTECTED}
 M_HUMAN_CLERIC_SWORD(199, SEX_MALE, "", "heal")
 alignment 1000
-dilcopy nokill@paladin_guild();
-dilcopy blocktrain@paladin_guild();
 
 dilcopy combat_mag@function("harm","",25,2);
-special SFUN_GUILD_BASIS GUILD_PALADIN
-/*
-special SFUN_MEMBERS_ONLY GUILD_PALADIN+"#$1n says, 'Begone $3n!'"
-*/
 
-dilcopy teacher_prac@guild_paths( GUILD_PALADIN );
+dilcopy nokill@paladin_guild();
+dilcopy MurderBanish@guilds(GUILD_PALADIN);
+dilcopy AlertMembers@guilds(GUILD_PALADIN, "Our Holy order is under attack, quickly come to assistance.");
+dilcopy TrainMemberChk@guilds(GUILD_PALADIN, "say You're not a member of our guild. Go speak with Reignier.");
+dilcopy BlockEvilTrain@paladin_guild();
 
 #define _SKILL
 #include "guilddef.h"
 #undef _SKILL
-
 
 end
 
 
 
 %objects
-/*----------------- PALADIN OBJECTS/ARMOR/WEAPONS ------------- */
 
+/*----------------- PALADIN OBJECTS/ARMOR/WEAPONS ------------- */
 
                 chain_flail
 names {"chain flail", "flail"}
@@ -1143,11 +1129,11 @@ title  "a heavy chain flail"
 descr
 "A heavy chain flail lies abandoned on the ground."
 extra {}
-"This is one of those really big flails used by footman in the armies of
+"This is one of those really big flails used by footmen in the armies of
 Midgaard. It looks like it could cave in a skull."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 type ITEM_WEAPON
-WEAPON_DEF(WPN_FLAIL,0,0)
+WEAPON_DEF(WPN_FLAIL, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 15
 cost 6 SILVER_PIECE
 rent 20 IRON_PIECE
@@ -1167,7 +1153,7 @@ sword provides a nice counter-balance, and you think you could swing it with
 only one hand."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 type ITEM_WEAPON
-WEAPON_DEF(WPN_LONG_SWORD, 0, 0)
+WEAPON_DEF(WPN_LONG_SWORD, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 10
 cost 7 SILVER_PIECE
 rent 20 IRON_PIECE
@@ -1181,9 +1167,9 @@ descr "A heavy plate hauberk of fine steel lies here."
 extra {}
 "The well-polished steel shines brightly, showing signs of loving care.
 The plate is elegantly crafted, offering maximum protection with minimum
-encumberance."
+encumbrance."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_BODY}
-ARMOUR_CHAIN(0,0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 30
 cost 5 GOLD_PIECE
 rent 20 IRON_PIECE
@@ -1197,10 +1183,10 @@ descr "A pair of plated chausses shines brightly here."
 extra {}
 "The well-polished steel shines brightly, showing signs of loving care.
 The chausses are elegantly crafted, offering maximum protection with minimum
-encumberance. A short chainmail shirt provides added protection to the
+encumbrance. A short chainmail shirt provides added protection to the
 groin area."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_LEGS}
-ARMOUR_CHAIN(0,0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 18
 cost 3 GOLD_PIECE
 rent 20 IRON_PIECE
@@ -1214,9 +1200,9 @@ descr "A pair of plated vambracers shines brightly here."
 extra {}
 "The well-polished steel shines brightly, showing signs of loving care.
 The vambracers are carefully crafted, offering maximum protection with
-minimum encumberance."
+minimum encumbrance."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_ARMS}
-ARMOUR_CHAIN(0,0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 15
 cost 3 GOLD_PIECE
 rent 20 IRON_PIECE
@@ -1232,7 +1218,7 @@ extra {}
 The gauntlets are crafted with great skill, providing maximum dexterity
 for your now well-armoured fingers."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_HANDS}
-ARMOUR_CHAIN(0,0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 2 GOLD_PIECE
 rent 20 IRON_PIECE
@@ -1245,10 +1231,10 @@ title "plated sorelets"
 descr "A pair of plated sorelets stands here."
 extra {}
 "The well-polished steel shines brightly, showing signs of loving care.
-Altough heavy and rather uncomfortable, those sorelets will provide the
-best protection to your feet in combats. Don't leave home without them."
+Although heavy and rather uncomfortable, those sorelets will provide the
+best protection to your feet in combat. Don't leave home without them."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_FEET}
-ARMOUR_CHAIN(0,0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 10
 cost 2 GOLD_PIECE
 rent 20 IRON_PIECE
@@ -1266,7 +1252,7 @@ protecting your face from any harm that may come its way, but reducing
 your field of visibility substantially. A large blue plume decorates the
 helmet."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_HEAD}
-ARMOUR_CHAIN(0,0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 4 GOLD_PIECE
 rent 20 IRON_PIECE
@@ -1279,9 +1265,9 @@ title "a white cape"
 descr "A white cape lies here in a heap."
 extra {}
 "The cape is thick and soft, the bright colour inspiring hope and
-happiness. You admire the incredable craftmanship of this cloth."
+happiness. You admire the incredible craftsmanship of this cloth."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_ABOUT}
-ARMOUR_CLOTHES(0,0)
+ARMOUR_CLOTHES(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 3
 cost 5 SILVER_PIECE
 rent 20 IRON_PIECE
@@ -1297,7 +1283,7 @@ names {"Flame Tongue","tongue","sword","bastard","blade","flame"}
 title "the Flame Tongue"
 descr "A beautifully crafted bastard sword lies on the ground."
 extra {}
-"This long sword is of exquisite craftmanship. The handle is shaped in
+"This long sword is of exquisite craftsmanship. The handle is shaped in
 the image of a fiery dragon, its wings forming the handguard and the
 blade created in the image of flames spewing forth from its jaws. The
 wavy blade of the weapon is beautifully crafted and shines with a slight,
@@ -1305,31 +1291,31 @@ red glow. You notice that the handle is long enough for both single and
 two-handed use. The word <div class='cpr'>'Faith!'</div><div class='cw'> is carved into the blade.</div>"
 extra {"handle of the Flame Tongue","handle","dragon","handguard"}
 "The handle is crafted from what seems like ivory. The slender body of
-the dragon streches forth, spewing the blade like a flame, its wings
+the dragon stretches forth, spewing the blade like a flame, its wings
 protecting your hand. You can grip the handle with both hands, by typing
 'wield sword two'.<br/>"
 extra {"$identify"}
 "You concentrate on the Flame Tongue and reveal that this weapon is
 strictly reserved for Paladins. You can wield it two-handedly as a
-great sword by typing 'wield Tongue two'. By incanating the word
-</div><div class='cpr'>'Faith!'</div><div class='cw'> you can call upon the hidden powers of the sword.<br/></div>"
+great sword by typing 'wield Tongue two'. By incanting the word
+<div class='cpr'>'Faith!'</div><div class='cw'> you can call upon the hidden powers of the sword.<br/></div>"
 extra {"$improved identify"}
 "The sword can offer you a blessing if you are pious enough.<br/>
-The blade is of good craftmanship and bears a magic bonus.<br/>"
+The blade is of good craftsmanship and bears a magic bonus.<br/>"
 extra {"$wear_s"}
-"Your $2n starts to glow as you wrap your hands around its hilt."
+"Your $2N starts to glow as you wrap your hands around its hilt."
 extra {"$wear_o"}
-"$1n's $2n starts to glow as $1e wraps $1s hands around its hilt."
+"$1n's $2N starts to glow as $1e wraps $1s hands around its hilt."
 extra {"$rem_s"}
-"You sheat your $2n... The glow from the blade subsides."
+"You sheathe your $2N... The glow from the blade subsides."
 extra {"$rem_o"}
-"As $1n sheats $1s $2n, the glow from its blade subsides."
+"As $1n sheathes $1s $2N, the glow from its blade subsides."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WIELD}
-WEAPON_DEF(WPN_LONG_SWORD,7,7)
-STR_TRANSFER(+2)
-DIV_TRANSFER(+2)
-CHA_TRANSFER(-1)
-WEAPON_TRANSFER(WPN_LONG_SWORD,+5)
+WEAPON_DEF(WPN_LONG_SWORD, BONUS_EXCELLENT, BONUS_EXCELLENT)  // Xyzzy: 7,7
+STR_TRANSFER(BONUS_GOOD)  // Xyzzy: +2
+DIV_TRANSFER(BONUS_GOOD)  // Xyzzy: +2
+CHA_TRANSFER(BONUS_AVERAGE_MINUS)  // Xyzzy: -1
+WEAPON_TRANSFER(WPN_LONG_SWORD, BONUS_EXCELLENT_PLUS)  // Xyzzy: +5
 romflags {OBJ_NO_DUAL}
 MATERIAL_METAL("This item is made of reddish metal.")
 dilcopy guild_restrict@function ({GUILD_PALADIN},0,25,"");
@@ -1356,18 +1342,18 @@ enemy := self.outside.fighting;
 random := rnd(1,100);
 if ((enemy.hp < 10)and(enemy.alignment < 0))
 {
-act("Your $2n engulfs $3n in living flame!"
+act("Your $2N engulfs $3n in living flame!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
 act("$3n screams in agony as $3s body is devoured in the fury of the fire!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
-act("$1n's $2n engulfs $3n in living flame!"
+act("$1n's $2N engulfs $3n in living flame!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
 act("$3n screams in agony as $3s body is devoured in the fury of the fire!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
-act("$1n's $2n flames violently, fire engulfs your body!"
-,A_ALWAYS,self.outside,self,null,TO_VICT);
+act("$1n's $2N flames violently, fire engulfs your body!"
+,A_ALWAYS,self.outside,self,enemy,TO_VICT);
 act("The holy fire devours you in unbearable pain!"
-,A_ALWAYS,self.outside,self,null,TO_VICT);
+,A_ALWAYS,self.outside,self,enemy,TO_VICT);
 enemy.hp := -7;
 position_update(enemy);
 goto start;
@@ -1379,70 +1365,70 @@ act("Your slash leaves a fiery trail through the air!"
 act("$1n's slash leaves a fiery trail through the air!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
 act("$1n's slash leaves a fiery trail through the air!"
-,A_ALWAYS,self.outside,self,null,TO_VICT); goto start;
+,A_ALWAYS,self.outside,self,enemy,TO_VICT); goto start;
 }
 if (random < 20)
 {
-act("Your $2n flickers and burst into flames, burning $3n!"
+act("Your $2N flickers and bursts into flames, burning $3n!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
 act("$3n howls in pain!", A_ALWAYS,self.outside,self,enemy,TO_CHAR);
-act("$1n's $2n flickers and bursts into flames, burning $3n!"
+act("$1n's $2N flickers and bursts into flames, burning $3n!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
 act("$3n howls in pain!", A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
 act("$1n's $2N flickers and bursts into flames, burning you!"
-,A_ALWAYS,self.outside,self,null,TO_VICT); goto start;
+,A_ALWAYS,self.outside,self,enemy,TO_VICT); goto start;
 }
 else if (random < 30)
 {
-act("Fire flickers along the edge of your $2n!"
+act("Fire flickers along the edge of your $2N!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
-act("Fire flickers along the edge of $1n's $2n!"
+act("Fire flickers along the edge of $1n's $2N!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
-act("Fire flickers along the edge of $1n's $2n!"
-,A_ALWAYS,self.outside,self,null,TO_VICT); goto start;
+act("Fire flickers along the edge of $1n's $2N!"
+,A_ALWAYS,self.outside,self,enemy,TO_VICT); goto start;
 }
 else if (random < 40)
 {
-act("Blade of your $2n flashes in a blinding flame!"
+act("The blade of your $2N flashes in a blinding flame!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
 act("$3n screams and averts $3s eyes!",
 A_ALWAYS,self.outside,self,enemy,TO_CHAR);
-act("Blade of $1n's $2n flashes in a blinding flame!"
+act("The blade of $1n's $2N flashes in a blinding flame!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
 act("$3n screams and averts $3s eyes!",
 A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
-act("A blinding flash of fire from $1n's $2n causes you to avert your
-eyes in pain!" ,A_ALWAYS,self.outside,self,null,TO_VICT); goto start;
+act("A blinding flash of fire from $1n's $2N causes you to avert your "+
+"eyes in pain!" ,A_ALWAYS,self.outside,self,enemy,TO_VICT); goto start;
 }
 if (random < 50)
 {
-act("The hilt of your $2n pulses, the dragon's eyes glow with a red light!"
+act("The hilt of your $2N pulses, the dragon's eyes glow with a red light!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
 act("$3n suddenly clutches $3s chest and screams in agony!",
 A_ALWAYS,self.outside,self,enemy,TO_CHAR);
-act("The eyes of the carved dragon on $1n's $2n glow with a red light!"
+act("The eyes of the carved dragon on $1n's $2N glow with a red light!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
 act("$3n suddenly clutches $3s chest and screams in agony!",
 A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
-act("The eyes of the carved dragon on $1n's $2n glow with a red light!"
-,A_ALWAYS,self.outside,self,null,TO_VICT);
+act("The eyes of the carved dragon on $1n's $2N glow with a red light!"
+,A_ALWAYS,self.outside,self,enemy,TO_VICT);
 act("A searing PAIN drives through your chest!"
-,A_ALWAYS,self.outside,self,null,TO_VICT); goto start;
+,A_ALWAYS,self.outside,self,enemy,TO_VICT); goto start;
 }
 if (random < 60)
 {
-act("Fire erupts from your $2n, flames reach for $3n!"
+act("Fire erupts from your $2N, flames reach for $3n!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
 act("$3n screams in agony!"
 , A_ALWAYS,self.outside,self,enemy,TO_CHAR);
-act("Fire erupts from $1n's $2n, the flames reach for $3n!"
+act("Fire erupts from $1n's $2N, the flames reach for $3n!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
 act("$3n screams in agony!"
 , A_ALWAYS,self.outside,self,enemy,TO_NOTVICT);
-act("Fire erupts from $1n's $2n, the flames reach out for you!"
-,A_ALWAYS,self.outside,self,null,TO_VICT);
+act("Fire erupts from $1n's $2N, the flames reach out for you!"
+,A_ALWAYS,self.outside,self,enemy,TO_VICT);
 act("That REALLY hurt!"
-,A_ALWAYS,self.outside,self,null,TO_VICT);
+,A_ALWAYS,self.outside,self,enemy,TO_VICT);
 goto start;
 }
 goto start;
@@ -1456,9 +1442,9 @@ code
 heartbeat:=PULSE_SEC*SECS_PER_MUD_DAY/6;
 wait (SFB_TICK,(self.equip==WEAR_WIELD));
 heartbeat:=PULSE_SEC*5;
-act ("Soft glow sparkles along the blade of your Flame Tongue...",
+act ("A soft glow sparkles along the blade of your Flame Tongue...",
 A_ALWAYS,self.outside,self,null,TO_CHAR);
-act ("Soft glow sparkles along the blade of $1n's Flame Tongue...",
+act ("A soft glow sparkles along the blade of $1n's Flame Tongue...",
 A_ALWAYS,self.outside,self,null,TO_REST);
 sendto ("add charge",self);
 goto start;
@@ -1468,7 +1454,6 @@ dilend
 dilbegin recall aware flamespell();
 var
         i : integer;
-        enemy :unitptr;
         n : integer;
         charge:integer;
         pwr : integer;
@@ -1481,7 +1466,7 @@ charge:=interrupt (SFB_MSG,((self==activator) and
         (argument=="add charge")), charge);
 :start:
   wait (SFB_CMD,(command ("say")) and
-  ("Faith!" in argument)and(self.equip==WEAR_WIELD));
+  ("Faith!" in argument)and(self.equip==WEAR_WIELD)and(activator == self.outside));
         block;
 act ("You raise your fist to the heavens and shout 'Faith!'",
 A_SOMEONE,self.outside,null,null,TO_CHAR);
@@ -1492,10 +1477,10 @@ A_SOMEONE,self.outside,null,null,TO_REST);
         i := rnd (1,40);
 if (i < self.outside.abilities[ABIL_DIV])
 {
-   act("Your $2n glows brightly in response to your prayer!",
-   A_ALWAYS,self.outside,self,enemy,TO_CHAR);
-   act("$1N's $2n glows brightly in response to $1n's prayer!",
-   A_ALWAYS,self.outside,self,enemy,TO_REST);
+   act("Your $2N glows brightly in response to your prayer!",
+   A_ALWAYS,self.outside,self,null,TO_CHAR);
+   act("$1N's $2N glows brightly in response to $1s prayer!",
+   A_ALWAYS,self.outside,self,null,TO_REST);
 n:=cast_spell(SPL_BLESS,self.outside,self,self.outside,"");
 pause;
 }
@@ -1528,30 +1513,29 @@ end
 
 	pal_cross
 names {"symbol","amulet"}
-title "Amulet of the Righteous"
+title "the Amulet of the Righteous"
 descr "A small, silver amulet lies here in the dust."
 extra {}
 "A small silver amulet, depicting the runes for 'Righteousness' and
 'Good'. The amulet is the sign of membership of Midgaard Paladins and is
-said to protect the wearers from the perils durning their crusades for good."
+said to protect the wearers from the perils during their crusades for good."
 extra {"runes on the Amulet","runes","rune","sign"}
 "The runes can be read as 'Righteousness' and 'Good'.<br/>"
 extra {"$identify"}
 "The Amulet of the Righteous can only be used by Paladins and protects
 them from evil during their travels. Beware, as the symbol has no mercy
-for those weak in their dedication. The Amulet will increase your
-Constitution to better withstand the perils of the road.<br/>"
+for those weak in their dedication.<br/>"
 extra {"$improved identify"}
-"The bonus to Con is 1. Brain of 6 and Divine of 6 is required to use the
-Amulet.<br/>"
+"It gives no bonus to your abilities. Only members of the Paladin guild
+can use the Amulet.<br/>"
 extra {"$wear_s"}
-"Reverently, you slip your $2n around your neck."
+"Reverently, you slip your $2N around your neck."
 extra {"$wear_o"}
-"$1n reverently slips $1s $2n around $1s neck."
+"$1n reverently slips $1s $2N around $1s neck."
 extra {"$rem_s"}
-"You carefully remove the $2n."
+"You carefully remove $2n."
 extra {"$rem_o"}
-"$1n carefully removes the $2n."
+"$1n carefully removes $2n."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_NECK}
 MATERIAL_METAL("This item is made of silvery metal.")
 PROTECTION_FROM_EVIL

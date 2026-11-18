@@ -11,16 +11,13 @@
 #include "essential.h"
 #include "queue.h"
 
+#include <mutex>
+
 #ifdef _WINDOWS
-#include <winsock.h>
+    #include <winsock.h>
 #else
-#include <sys/select.h>
+    #include <sys/select.h>
 #endif
-
-extern int bPipeSignal;
-
-int PipeRead(int fd, char *buf, size_t count);
-int PipeWrite(int fd, char *buf, size_t count);
 
 #define SELECT_READ 0x01
 #define SELECT_WRITE 0x02
@@ -38,75 +35,80 @@ class cCaptainHook;
 class cHookNative
 {
 public:
-   cHookNative(void);
-   virtual ~cHookNative();
+    cHookNative();
+    virtual ~cHookNative();
 
-   void Hook(int fd);
-   int IsHooked(void);
-   virtual void Unhook(void);
+    void Hook(int fd);
+    int IsHooked();
+    virtual void Unhook();
 
-   int get_fd(void);
+    int get_fd();
 
-   int write(const void *buf, int count);
-   int read(void *buf, int count);
+    int write(const void *buf, int count);
+    int read(void *buf, int count);
 
-   int fd;  // This should be private, but to not introduce bugs I'm just leaving it here for now
-//private:
+    int fd; ///< This should be private, but to not introduce bugs I'm just leaving it here for now
+    // private:
 };
-
 
 class cHook : public cHookNative
 {
-  friend class cCaptainHook;
+    friend class cCaptainHook;
 
 public:
-  cHook(void);
-  virtual ~cHook(void);
+    cHook();
+    virtual ~cHook();
 
-  int tfd(void);
-  //virtual int IsHooked(void);
-  virtual void Unhook(void);
+    int tfd();
+    // virtual int IsHooked(void);
+    virtual void Unhook();
 
-  virtual void Write(ubit8 *pData, ubit32 nLen, int bCopy = TRUE);
-  int ReadToQueue(void);
+    virtual void Write(ubit8 *pData, ubit32 nLen, int bCopy = TRUE);
+    int ReadToQueue();
 
-  cQueue qRX;
+    cQueue qRX;
 
 protected:
-  void PushWrite(void);
-  virtual void Input(int nFlags) = 0;
+    void PushWrite();
+    virtual void Input(int nFlags) = 0;
 
-  cQueue qTX;
+    cQueue qTX;
 
 private:
-  //int fd;
-  int id;
+    // int fd;
+    int id;
 };
 
 class cCaptainHook
 {
-  friend class cHook;
+    friend class cHook;
 
 public:
-  cCaptainHook(void);
-  ~cCaptainHook(void);
+    cCaptainHook();
+    ~cCaptainHook();
 
-  void Close(void);
-  void Hook(int nHandle, cHook *hook);
-  int Wait(struct timeval *timeout);
-  void Unhook(cHook *hook);
+    void Close();
+    /// Hooked, the fd is the hook's. One select() can't watch (< 0 or >= FD_SETSIZE)
+    /// is closed instead, nothing hooked, and the result is false.
+    [[nodiscard]] bool Hook(int nHandle, cHook *hook);
+    int Wait(timeval *timeout);
+    void Unhook(cHook *hook);
+
+    /// A lock the caller of Wait() holds, released while select() waits: another thread
+    /// can then work on the hooks. Wait() takes it back before serving any of them.
+    void SetSelectLock(std::mutex *lock) { pSelectLock = lock; }
 
 private:
+    std::mutex *pSelectLock = nullptr;
+    fd_set read_set, write_set;
 
-  fd_set read_set, write_set;
+    cHook *pfHook[FD_SETSIZE]; ///< by fd
 
-  cHook *pfHook[256];
-
-  int nIdx[256];
-  int nMax;
-  int nTop;
+    int nIdx[FD_SETSIZE]; ///< the hooked fds, nTop of them
+    int nMax;
+    int nTop;
 };
 
-extern cCaptainHook CaptainHook;
+extern cCaptainHook g_CaptainHook;
 
 #endif

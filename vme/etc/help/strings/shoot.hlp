@@ -1,11 +1,39 @@
-<br/>
-<br/>
-<br/>
-These weapons require ammunition (except the sling, where stones are easy to<br/>
-find and so do not need to be gathered). The Bow requires arrows, except in<br/>
-the case of magical bows. The Crossbow requires bolts (again except in the<br/>
-case of magical crossbows). The method of shooting is simple : hold the sling,<br/>
-bow, or crossbow, and shoot away. Quivers are a good method of containing<br/>
-arrows.<br/>
-<br/>
-<br/>
+<div class="mw-parser-output"><h1>Shoot</h1>
+<p>Skill
+</p><p>Usage:
+</p>
+<pre>shoot &lt;target&gt;
+</pre>
+<p>Example:
+</p>
+<pre>shoot rabbit
+</pre>
+<p>Fires a bow, a crossbow or a sling at someone in the room. Hold the 
+weapon (see <a cmd='#'>Help Hold</a>); it takes both hands, so wield nothing else. 
+Each needs its own ammunition: arrows for a bow, bolts for a crossbow, 
+stones for a sling. You take them from a quiver (or a pouch, for stones) 
+that you wear, or else from your inventory. A magical bow needs none: it 
+draws on your mana instead. You can't shoot while fighting.
+</p><p>Whether you hit depends on your skill with the weapon (bow, crossbow or 
+sling) and your dexterity, against your target's dexterity and wits. A 
+hit does the weapon's damage, more if the arrow or bow is made for slaying 
+that kind of creature; the arrow is left in the target, or falls to the 
+ground. To shoot a player, both of you must have signed the Book of 
+Blood.
+</p><p>You need the weapon skill (bow, crossbow or sling) to shoot at all:
+</p>
+<ul><li>bow: from guild level 10, the rangers, the assassins and thieves (up to 80%), the fighters (up to 70%) and the barbarians (up to 60%). Practising it needs dexterity 30.</li>
+<li>crossbow: from guild level 20, the assassins and fighters (up to 90%), the rangers and knights (up to 80%) and the barbarians (up to 70%). Practising it needs dexterity 30.</li>
+<li>sling: from guild level 1, the assassins, rangers and thieves, the fighters (up to 70%) and the barbarians (up to 50%); the druids from guild level 10 (up to 70%). Outside the guilds, Tue Ironside, in the back room of the inn in Udgaard, teaches it to anyone, up to 35%. Practising it needs dexterity 20.</li></ul>
+<p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Hold</a>
+&gt; <a cmd='#'>Help Ranger Weapons</a>
+&gt; <a cmd='#'>Help Weapons</a>
+</pre>
+
+
+
+
+</div>

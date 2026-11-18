@@ -10,141 +10,137 @@
    the linked list should be a doubly linked list for speed.
 */
 
-
-#include <assert.h>
-
 #include "queue.h"
-#include "utility.h"
-#include <string.h>
-cQueueElem::cQueueElem (char *pStr, int bCopy)
-{
-    assert (pStr);
 
-    ubit32 n = strlen (pStr) + 1;
+#include "json_helper.h"
+#include "utility.h"
+
+#include <cassert>
+#include <cstring>
+
+cQueueElem::cQueueElem(char *pStr, int bCopy)
+{
+    assert(pStr);
+
+    ubit32 n = strlen(pStr) + 1;
 
     if (bCopy)
     {
-        CREATE (pData, ubit8, n);
-        memcpy (pData, pStr, n);
+        CREATE(pData, ubit8, n);
+        memcpy(pData, pStr, n);
     }
     else
-        pData = (ubit8 *) pStr;
+    {
+        pData = (ubit8 *)pStr;
+    }
 
     nSize = n;
 }
 
-cQueueElem::cQueueElem (ubit8 * d, ubit32 n, int bCopy)
+cQueueElem::cQueueElem(ubit8 *d, ubit32 n, int bCopy)
 {
     if (bCopy)
     {
         if (n > 0)
         {
-            CREATE (pData, ubit8, n);
-            memcpy (pData, d, n);
+            CREATE(pData, ubit8, n);
+            memcpy(pData, d, n);
         }
         else
-            pData = NULL;
+        {
+            pData = nullptr;
+        }
     }
     else
+    {
         pData = d;
+    }
 
     nSize = n;
 }
 
-cQueue::cQueue ()
+cQueue::cQueue()
 {
-    pHead = NULL;
-    pTail = NULL;
+    pHead = nullptr;
+    pTail = nullptr;
     nEntries = 0;
     nBytes = 0;
 }
 
-
-cQueue::~cQueue ()
+cQueue::~cQueue()
 {
-    Flush ();
+    Flush();
 }
 
-
-ubit32 cQueue::Size (void)
+ubit32 cQueue::Size()
 {
     return nEntries;
 }
 
-
-ubit32 cQueue::Bytes (void)
+ubit32 cQueue::Bytes()
 {
     return nBytes;
 }
 
-
-
-int
-cQueue::IsEmpty (void)
+int cQueue::IsEmpty()
 {
     return nEntries == 0;
 }
 
-
-void
-cQueue::Copy (ubit8 * data, ubit32 nLen)
+void cQueue::Copy(ubit8 *data, ubit32 nLen)
 {
-    assert (nLen <= nBytes);
+    assert(nLen <= nBytes);
 
-    int now;
-    cQueueElem *qe = (cQueueElem *) PeekHead ();
+    int now = 0;
+    cQueueElem *qe = (cQueueElem *)PeekHead();
 
     do
     {
-        assert (qe);
-        now = MIN (nLen, qe->Bytes ());
-        memcpy (data, qe->Data (), now);
+        assert(qe);
+        now = MIN(nLen, qe->Bytes());
+        memcpy(data, qe->Data(), now);
         nLen -= now;
         data += now;
-        qe = qe->PeekNext ();
-    }
-    while (nLen > 0);
+        qe = qe->PeekNext();
+    } while (nLen > 0);
 }
 
-
-void
-cQueue::Cut (ubit32 nLen)
+void cQueue::Cut(ubit32 nLen)
 {
     if (nLen < 1)
+    {
         return;
+    }
 
-    assert (nLen <= nBytes);
+    assert(nLen <= nBytes);
 
-    cQueueElem *qe;
+    cQueueElem *qe = nullptr;
 
     do
     {
-        qe = GetHead ();
+        qe = GetHead();
 
-        assert (qe);
+        assert(qe);
 
-        if (nLen < qe->Bytes ())
-            Prepend (new cQueueElem (qe->Data () + nLen, qe->Bytes () - nLen));
+        if (nLen < qe->Bytes())
+        {
+            Prepend(new cQueueElem(qe->Data() + nLen, qe->Bytes() - nLen));
+        }
 
-        nLen -= MIN (qe->Bytes (), nLen);
+        nLen -= MIN(qe->Bytes(), nLen);
         delete qe;
-    }
-    while (nLen > 0);
+    } while (nLen > 0);
 }
 
-
-void
-cQueue::CutCopy (ubit8 * data, ubit32 nLen)
+void cQueue::CutCopy(ubit8 *data, ubit32 nLen)
 {
-    Copy (data, nLen);
-    Cut (nLen);
+    Copy(data, nLen);
+    Cut(nLen);
 }
 
-
-void
-cQueue::Append (class cQueueElem * pe)
+void cQueue::Append(cQueueElem *pe)
 {
-    if (IsEmpty ())
+    if (IsEmpty())
     {
         pHead = pTail = pe;
     }
@@ -154,25 +150,22 @@ cQueue::Append (class cQueueElem * pe)
         pTail = pe;
     }
 
-    pe->pNext = NULL;
+    pe->pNext = nullptr;
 
     nEntries++;
-    nBytes += pe->Bytes ();
+    nBytes += pe->Bytes();
 }
-
-
 
 /*  Quinn's Immortal Remark...
  *
  *  Listen...
  *  The sound of a thousand comp.sci. professors rotating in their graves.
  */
-void
-cQueue::Prepend (class cQueueElem * pe)
+void cQueue::Prepend(cQueueElem *pe)
 {
-    if (IsEmpty ())
+    if (IsEmpty())
     {
-        pe->pNext = NULL;
+        pe->pNext = nullptr;
         pTail = pe;
     }
     else
@@ -183,48 +176,61 @@ cQueue::Prepend (class cQueueElem * pe)
     pHead = pe;
 
     nEntries++;
-    nBytes += pe->Bytes ();
+    nBytes += pe->Bytes();
 }
 
-const cQueueElem *
-cQueue::PeekHead (void)
+const cQueueElem *cQueue::PeekHead()
 {
     return pHead;
 }
 
-const class cQueueElem *
-    cQueue::PeekTail (void)
+const cQueueElem *cQueue::PeekTail()
 {
     return pTail;
 }
 
-class cQueueElem *
-    cQueue::GetHead (void)
+cQueueElem *cQueue::GetHead()
 {
-    class cQueueElem *pTmp;
+    cQueueElem *pTmp = nullptr;
 
-    if (IsEmpty ())
-        return NULL;
+    if (IsEmpty())
+    {
+        return nullptr;
+    }
 
     pTmp = pHead;
 
     if (nEntries == 1)
-        pHead = pTail = NULL;
+    {
+        pHead = pTail = nullptr;
+    }
     else
+    {
         pHead = pHead->pNext;
+    }
 
     nEntries--;
-    nBytes -= pTmp->Bytes ();
+    nBytes -= pTmp->Bytes();
 
     return pTmp;
 }
 
-
-void
-cQueue::Flush (void)
+void cQueue::Flush()
 {
-    class cQueueElem *pTmp;
+    cQueueElem *pTmp = nullptr;
 
-    while ((pTmp = GetHead ()))
+    while ((pTmp = GetHead()))
+    {
         delete pTmp;
+    }
+}
+
+void cQueue::toJSON(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer) const
+{
+    writer.StartObject();
+    {
+        json::write_kvp("Entries", nEntries, writer);
+        json::write_kvp("Bytes", nBytes, writer);
+    }
+    writer.EndObject();
 }

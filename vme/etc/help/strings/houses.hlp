@@ -1,57 +1,63 @@
-<br/>
-<br/>
-<br/>
-You can bribe the administrators of Valhalla into making you your very<br/>
-own property. It can be located virtually anywhere and can be of almost<br/>
-any size. Following is a list of estates and the size of the<br/>
-required bribes:<br/>
-<br/>
-   Dwellings (one room)                                      $20<br/>
-     Huts, Teepee, Tree house, Shanty,<br/>
-     Cave, Bungalow, Abode, Shack, Igloo<br/>
-<br/>
-   Fortified Dwellings (two rooms)                           $30<br/>
-     Cottage, House, Cabin, Shrine<br/>
-     Includes doors & keys.<br/>
-<br/>
-   Large Fortified Dwellings (six rooms)                     $75<br/>
-     Lodging, Inn, Farm, Stronghold, Temple<br/>
-     Or the above enlarged.<br/>
-<br/>
-   Keeps (ten rooms)                                        $120<br/>
-     Chateau, Mansion, Castle, Plantation, Estate,<br/>
-<br/>
-   Large Keeps (twenty rooms)                               $225<br/>
-     Tower, Fortress, Citadel, Church,<br/>
-<br/>
-   Enormous Keeps (thirty rooms)                            $325<br/>
-     Cathedral, Palace<br/>
-<br/>
-You must supply your own descriptions and extra descriptions<br/>
-of the locations you wish to have built. Prices may vary according<br/>
-to the prestige of the location chosen. Items, furniture, butlers,<br/>
-wardens and gimmicks can all be bought for extra bribes.<br/>
-<br/>
-<br/>
-    Shopkeepers/Mobs                                        $15 + up<br/>
-Standard non-magical item on the shop keeper **             $5  + up<br/>
-out going portal ***                                        $35<br/>
-sacred room                                                 $20<br/>
-guards                                                      $20 + up<br/>
-board                                                       $15 + up<br/>
-<br/>
-**the items are sold by shopkeepers at going mud costs.**<br/>
-*** destination to be approved by admin<br/>
-<br/>
-If you have any questions about buying your own house on Valhalla just<br/>
-send email to:  admin@valhalla.com<br/>
-<br/>
-See Also:<br/>
- &gt; help architecture<br/>
- &gt; help butler<br/>
- &gt; help homes<br/>
- &gt; help interior decoration<br/>
- &gt; help titles<br/>
- &gt; help pillar<br/>
- &gt; help bribe<br/>
- &gt; help power items<br/>
+<div class="mw-parser-output"><h1>Houses</h1>
+<p>A house of your own in Valhalla: a place to keep your things through any 
+storm, to rest, and to show the world.
+</p><p><b>Buying a house.</b> Haldor the architect, in the Hall of the Citizens 
+in Midgaard's Town Hall, sells them: type <a cmd='#'>list</a> there for the prices. 
+You must be level 10 or higher, and you can own one house.
+</p>
+<ul><li>In Udgaard, on Hearth Lane west of the market: a cottage (one room) or</li></ul>
+<pre> a house (two rooms). <a cmd='#'>buy cottage</a>, <a cmd='#'>buy house</a>.
+</pre>
+<ul><li>In Midgaard: a house (two rooms) or a townhouse (three rooms), on</li></ul>
+<pre> Penny Lane, Beech Row off Park Road, or Chestnut Close off Royal 
+ Avenue. The finer the street, the dearer the house. Name the street 
+ when you buy: <a cmd='#'>buy townhouse on chestnut close</a>.
+</pre>
+<ul><li>Timber and iron make Udgaard's houses much cheaper: logs you fell</li></ul>
+<pre> (<a cmd='#'>Help Fell</a>) and hand to John the Lumberjack, and iron ore you mine 
+ (<a cmd='#'>Help Mine</a>) for Sam the blacksmith. 10 logs take 90% off a cottage; 
+ 20 logs and 5 loads of ore 90% off a house in Udgaard; 5 loads of ore 
+ 90% off a lock. Each piece takes 
+ its share, so every one counts, and what a purchase uses is spent. 
+ John and Sam tell you your new prices, and <a cmd='#'>list</a> at the architect 
+ shows them too.
+</pre>
+<p><b>Your door.</b> A new house is open to anyone: having one is something 
+in itself. Buy a lock from the architect (<a cmd='#'>buy lock</a>) to keep others 
+out. Inside, the owner can then:
+</p>
+<ul><li><a cmd='#'>lock door</a> and <a cmd='#'>unlock door</a>: while it is locked, only you, those</li></ul>
+<pre> you gave a key and the gods come in. Anyone else inside is shown out.
+</pre>
+<ul><li><a cmd='#'>invite &lt;name&gt;</a> gives a friend a key, <a cmd='#'>uninvite &lt;name&gt;</a> takes it back.</li></ul>
+<p><a cmd='#'>house</a> shows whose house you are in, its condition, and whether the 
+door is locked; the owner also sees who has a key.
+</p><p><b>Furniture.</b> Calvin the carpenter on Colosseum Square in Midgaard 
+makes beds and chests and has them carried into your house: <a cmd='#'>list</a> in 
+his shop.
+</p>
+<ul><li>A bed you lie in: <a cmd='#'>enter bed</a>, <a cmd='#'>sleep</a>, <a cmd='#'>leave</a>.</li>
+<li>Chests for 10, 15 or 25 things (what is in a bag counts too). For</li></ul>
+<pre> half a chest's price he fits it with a lock (<a cmd='#'>buy lock for small 
+ chest</a>): then only you can open it, door locked or not. Closing it 
+ locks it, and it locks itself when you leave it open and go.
+</pre>
+<p>What is in the chests is kept through any reboot. Things left lying on 
+the floor are not.
+</p><p><b>Selling.</b> <a cmd='#'>sell house</a> at the architect gives your house back to him, 
+for half of what it and its lock cost you; say it twice to seal it. 
+Calvin's furniture stays with the house, and whatever is in it comes 
+back to you. Then you can buy another.
+</p><p>Special houses, made to your own plan, can still be asked of the gods.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Fell</a>
+&gt; <a cmd='#'>Help Mine</a>
+&gt; <a cmd='#'>Help Cart</a>
+</pre>
+
+
+
+
+</div>

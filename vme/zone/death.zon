@@ -21,8 +21,26 @@ creators {"whistler"}
 #define CORPSE_FILE  "$CORPSE_FILE"
 #define CORPSE_TIME  "$CORPSE_TIME"
 #define CORPSE_HOMETOWN "$CORPSE_HOMETOWN"
+// Players up to this level have their corpse anchored to their soul without the Soul Anchor
+// quest (gremlin.zon), so a corpse the ants carry off comes home by itself
+#define CORPSE_ANCHOR_LEVEL 15
 
 %dil
+
+// Returns true if the race in question has a head
+//
+dilbegin integer hasRaceHead(crace : integer);
+code
+{
+    if ( ((crace > RACE_CNIDARIA_MIN) and (crace <= RACE_CNIDARIA_MAX)) or ((crace > RACE_PLANT_MIN) and (crace <= RACE_PLANT_MAX)) )
+    {
+        return (FALSE);
+    }
+
+    return (TRUE);
+}
+dilend
+
 
 
 dilbegin death_bell(s:string);
@@ -46,25 +64,26 @@ dilend
 dilbegin rot_head();
 code
 {
-   heartbeat := PULSE_SEC *15;
+    heartbeat := PULSE_SEC *15;
 
-   :loop:
-   pause;
+:loop:
+    pause;
 
-if (self.extra.["$head_time"]==null)
- {
-      if (not isset(self.flags, UNIT_FL_BURIED))
+    if (self.extra.["$head_time"]==null)
+    {
+        if (not isset(self.flags, UNIT_FL_BURIED))
         act("$1n is consumed by some smelly maggots.", A_SOMEONE, self, null, null, TO_ROOM);
-      destroy(self);
-  quit;
-  }
-if ((realtime-atoi(self.extra.["$head_time"].descr))>1800  )
- {
-      if (not isset(self.flags, UNIT_FL_BURIED))
+        destroy(self);
+        quit;
+    }
+    
+    if ((realtime - atoi(self.extra.["$head_time"].descr)) > 1800)
+    {
+        if (not isset(self.flags, UNIT_FL_BURIED))
         act("$1n is consumed by some smelly maggots.", A_SOMEONE, self, null, null, TO_ROOM);
-      destroy(self);
-  quit;
-  }
+        destroy(self);
+        quit;
+    }
 
    goto loop;
 }
@@ -72,229 +91,281 @@ dilend
 
 
 dilbegin piunwizinv();
-
 var
- u:unitptr;
- i:integer;
+    u:unitptr;
+    i:integer;
 code
 {
-heartbeat:=3;
-i:=dildestroy("noaction@death",self);
-u:=self.inside;
-while (u!=null)
-{
-   if (u.zoneidx=="treasure")
-   {
-      u.minv := 0;
+    heartbeat:=3;
+    i:=dildestroy("noaction@death",self);
+    u:=self.inside;
+    while (u!=null)
+    {
+        if (u.zoneidx=="treasure")
+        {
+            u.minv := 0;
 
-      act("Suddenly $3n appears before you.",
-          A_SOMEONE, self, null, u, TO_CHAR);
+            act("Suddenly $3n appears before you.",
+                A_SOMEONE, self, null, u, TO_CHAR);
 
-      act("Suddenly $3n appears before $1n.",
-          A_HIDEINV, self, null, u, TO_ROOM);
+            act("Suddenly $3n appears before $1n.",
+                A_HIDEINV, self, null, u, TO_ROOM);
 
-   }
+        }
 
-u:=u.next;
-}
-quit;
+        u:=u.next;
+    }
+    quit;
 }
 dilend
 
 
 dilbegin statue(arg:string);
 var
-   rltime:integer;
+    rltime:integer;
 code
 {
-   heartbeat:=3;
-   rltime:=realtime;
-   addextra (self.extra, {CORPSE_FILE},"statue_"+arg+"."+itoa(rltime));
-   addextra (self.extra, {CORPSE_TIME},itoa(rltime));
-   store (self,"statue_"+arg+"."+itoa(rltime),TRUE);
+    // heartbeat:=3;
+    rltime:=realtime;
+    addextra(self.extra, {CORPSE_FILE},"statue_"+arg+"."+itoa(rltime));
+    addextra(self.extra, {CORPSE_TIME},itoa(rltime));
+    store(self,"statue_"+arg+"."+itoa(rltime),TRUE);
+    quit;
+}
+dilend
 
-   quit;
-   }
-   dilend
 
-   dilbegin death_clear();
-   var
-   i:integer;
-   code
-   {
-   heartbeat:=3;
-   i:=delunit(self.extra.["$CORPSE_FILE"].descr);
-   destroy(self);
+dilbegin death_clear();
+var
+    i:integer;
+code
+{
+    // heartbeat:=3;
+    i := delunit(self.extra.["$CORPSE_FILE"].descr);
+    destroy(self);
 }
 dilend
 
 
 
-dilbegin integer min(a:integer,b:integer);
+
+
+// Decapitate the corpse (OBJ).
+// Returns unitptr to the newly created head
+//
+dilbegin unitptr decapCorpse(corpse : unitptr);
+external
+    integer hasRaceHead(crace : integer);
+var
+    item      : unitptr;
+    reward_exp : extraptr;
+    nextdude   : extraptr;
+    temp_lst  : stringlist;
+    mobdescr  : string;
+    mobname   : string;
+    temp_str  : string;
+    test_expt : extraptr;
+    headless:string;
+    living_sym : string;
+    chk : integer;
+
 code
 {
-heartbeat:=3;
-if (a<b)
-	return (a);
-else
-	return (b);
-	}
-	dilend
+    item := null;
 
-dilbegin integer max(a:integer,b:integer);
-code
-{
-heartbeat:=3;
-if (a>b)
-	return (a);
-else
-	return (b);
-	}
-	dilend
+    if (corpse.type != UNIT_ST_OBJ)
+    {
+        log("Corpse to decap not an object");
+        return (item);
+    }
 
+    if ((corpse.symname != "corpse@death"))
+    {
+        log("Corpse to decap not a corpse");
+        return (item);
+    }
+
+    if ("headless" in corpse.outside_descr)
+    {
+        log("Corpse already headless");
+        return (item);
+    }
+    
+    if ("$headless" in corpse.extra)
+    {
+        log("Corpse already headless");
+        return (item);
+    }
+    
+    if (not hasRaceHead(corpse.value[4]))
+    {
+        log("Corpse race has no head");
+        return (item);
+    }
+
+    living_sym := corpse.extra.["$living_sym"].descr;
+    addextra(corpse.extra,{"$headless"},"has been decaped");
+    item := load("head@death");
+    addextra(item.extra,{"$head_time"}, itoa(realtime));
+    addextra(item.extra,{"$living_sym"}, living_sym);
+    dilcopy("rot_head@death", item);
+
+    // If corpse has a reward on it copy it to the head.
+    //
+    reward_exp := "$reward" in corpse.extra;
+    while (reward_exp)
+    {
+        nextdude := "$reward" in reward_exp.next;
+        addextra(item.extra, reward_exp.names,reward_exp.descr);
+        subextra(corpse.extra, "$reward");
+        reward_exp := nextdude;
+    }
+
+    item.minv := 200;
+    link(item, corpse.outside);
+
+    chk := (corpse.value[4]);
+    if ((chk > RACE_ARTHROPODA_MIN) and (chk <= RACE_ARTHROPODA_MAX)) 
+    {
+        set_weight_base(item, corpse.baseweight/70);
+    }
+    else
+        set_weight_base(item, corpse.baseweight/30);
+
+    if (item.baseweight > 100)
+    {
+        set_weight_base(item, 100);
+    }
+
+    if (item.baseweight < 1)
+    {
+        set_weight_base(item, 1);
+    }
+
+    set_weight_base(item, item.baseweight);
+    item.minv := 0;
+    mobdescr :=corpse.outside_descr;
+    temp_str := getword(mobdescr);
+    mobname  := mobdescr;
+    temp_str := getword(mobname);
+    temp_str := getword(mobname);
+    if (temp_str != "of")
+	temp_str := getword(mobname);
+
+    item.outside_descr := "The decapitated head of " + mobname ;
+    item.title := "the decapitated head of " + left(mobname, length(mobname)-15);
+    addstring(item.names, "head_of_" + left(mobname, length(mobname)-15));
+    addextra(item.extra, {""}, "The head has been severed from the body");
+    headless:=left(corpse.title,length(corpse.title)-6);
+    corpse.title:=headless+"headless corpse";
+    corpse.outside_descr:="The headless "+ mobdescr;
+    addextra(corpse.extra, {""}, "The head has been severed from the body");
+    item.value[2] := corpse.value[2];
+    item.value[3] := corpse.value[3];
+
+    return (item);
+}
+dilend /* decapCorpse */
 
 
 /*
-The following two dils are commands that had to be modified to work for death.
+The following two DILs are commands that had to be modified to work for death.
 */
 // 2021 - heads now carry an extra "$living_sym" that contains the symname of it's
 // host in life. This is useful for quests, and stuff.
-// do_decapitate
+//
+
+// do_decapitate - the decapitate command
+//
 dilbegin decap(arg : string); /* Decapitating corpses */
 external
-   unitptr find_here@commands (s:string);
+    integer hasRaceHead(crace : integer);
+    unitptr decapCorpse(corpse : unitptr);
 
 var
-   item      : unitptr;
-   corpse    : unitptr;
-   reward_exp : extraptr;
-   nextdude   : extraptr;
-   temp_lst  : stringlist;
-   temp_str2:string;
-   temp_str  : string;
-   test_expt : extraptr;
-   headless:string;
-   chk : integer;
-   living_sym : string;
+    item      : unitptr;
+    corpse    : unitptr;
+    reward_exp : extraptr;
+    nextdude   : extraptr;
+    temp_lst  : stringlist;
+    temp_str2:string;
+    temp_str  : string;
+    test_expt : extraptr;
+    headless:string;
+    chk : integer;
+    living_sym : string;
 
 code
 {
-   heartbeat:=3;
-   if (arg == "")
-   {
-      act("What corpse do you wish to decapitate?", A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
+    if (arg == "")
+    {
+        act("What corpse do you wish to decapitate?", A_ALWAYS, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   corpse := find_here@commands(arg);
+    corpse := findunit(self, arg, FIND_UNIT_HERE, null);
 
-   if ((not(corpse)) or (corpse.type != UNIT_ST_OBJ))
-   {
-      act("No such corpse around.", A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
+    if ((not(corpse)) or (corpse.type != UNIT_ST_OBJ))
+    {
+        act("No such corpse around.", A_ALWAYS, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   if ("headless" in corpse.outside_descr)
-   {
-      act("Huh? That can't be done.", A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
+    if ("headless" in corpse.outside_descr or "$headless" in corpse.extra)
+    {
+        act("Huh? That can't be done.", A_ALWAYS, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   if ((corpse.nameidx != "corpse") or (corpse.zoneidx != "death"))
-   {
-      act("Huh? That can't be done.", A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
+    if ((corpse.symname != "corpse@death"))
+    {
+        act("Huh? That can't be done.", A_ALWAYS, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   chk := (corpse.value[4]);
-   if ( ((chk > RACE_CNIDARIA_MIN) and (chk <= RACE_CNIDARIA_MAX)) or
-        ((chk > RACE_PLANT_MIN) and (chk <= RACE_PLANT_MAX)) )
-   {
-      act("There is no head on that corpse silly!" ,
-         A_SOMEONE, self, null,null, TO_CHAR);
-      quit;
-   }
+    if (not  hasRaceHead(corpse.value[4]))
+    {
+        act("There is no head on that corpse, silly!" , A_SOMEONE, self, null,null, TO_CHAR);
+        quit;
+    }
 
-	living_sym := corpse.extra.["$living_sym"].descr;
-	
-   act("You brutally decapitate a corpse.", A_ALWAYS, self, null, null, TO_CHAR);
-   act("$1n brutally decapitates a corpse.", A_SOMEONE, self, null, null, TO_REST);
-   item := load("head@death");
-   addextra (item.extra,{"$head_time"},itoa(realtime));
-   addextra (item.extra,{"$living_sym"},living_sym);
-   dilcopy ("rot_head@death",item);
-   // If corpse has a reward on it copy it to the head.
- 
-   reward_exp := "$reward" in corpse.extra;
-   while (reward_exp)
-   {
-      nextdude := "$reward" in reward_exp.next;
-      addextra(item.extra, reward_exp.names,reward_exp.descr);
-      subextra(corpse.extra, "$reward");
-      reward_exp := nextdude;
-   }
- 
-   item.minv := 200;
-   link(item, self.outside);
+    item := decapCorpse(corpse);
 
-   chk := (corpse.value[4]);
-   if ((chk > RACE_ARTHROPODA_MIN) and (chk <= RACE_ARTHROPODA_MAX)) 
-   {
-      set_weight_base(item, corpse.baseweight/70);
-   }
-   else
-      set_weight_base(item, corpse.baseweight/30);
+    if (item)
+    {
+        act("You brutally decapitate a corpse.", A_ALWAYS, self, null, null, TO_CHAR);
+        act("$1n brutally decapitates a corpse.", A_SOMEONE, self, null, null, TO_REST);
+    }
+    else
+    {
+        log("decap command didn't work");
+        act("You can't decapitate the corpse.", A_ALWAYS, self, null, null, TO_CHAR);
+    }
 
-   if (item.baseweight > 100)
-   {
-      set_weight_base(item, 100);
-   }
-
-   if (item.baseweight < 1)
-   {
-      set_weight_base(item, 1);
-   }
-
-   set_weight_base(item, item.baseweight);
-   item.minv := 0;
-   temp_str2 :=corpse.outside_descr;
-   temp_str := getword(temp_str2);
-   temp_str := getword(temp_str2);
-   temp_str := getword(temp_str2);
-   temp_str:=temp_str2;
-   item.outside_descr := "The decapitated head of " + temp_str ;
-   addextra(item.extra, {""}, "The head has been severed from the body");
-   headless:=left(corpse.title,length(corpse.title)-6);
-   corpse.title:=headless+"headless corpse";
-
-   corpse.outside_descr:="The headless corpse of "+temp_str;
-   addextra(corpse.extra, {""}, "The head has been severed from the body");
-   item.value[2] := corpse.value[2];
-   item.value[3] := corpse.value[3];
-   quit;
+    quit;
 }
 dilend /* decapitate */
 
 
-dilbegin gcrps (arg:string);
+dilbegin gcrps(arg:string);
 code
 {
-   heartbeat:=3;
-   if (self.level < 200)
-   {
-      act("Arglebargle, glop-glyf!?!", A_ALWAYS, self, null, null, TO_CHAR);
-      quit;
-   }
+    heartbeat:=3;
+    if (self.level < 200)
+    {
+        act("Arglebargle, glop-glyf!?!", A_ALWAYS, self, null, null, TO_CHAR);
+        quit;
+    }
 
-   act("The following corpses were found:", A_ALWAYS,self,null,null,TO_CHAR);
-   sendtoalldil("reportgod","report_corpse@death");
-   quit;
+    act("The following corpses were found:", A_ALWAYS,self,null,null,TO_CHAR);
+    sendtoalldil("reportgod","report_corpse@death");
+    quit;
 }
 dilend
 
 
 
-dilbegin bob_code ();
+dilbegin bob_code();
 var
   arg:string;
   pc:unitptr;
@@ -364,7 +435,7 @@ if (splno==81)
 {
 power:=-1;
   block;
-  act ("Making a Zombie from a fellow players corpse is forbiden.",
+  act ("Making a zombie from a fellow player's corpse is forbidden.",
   A_ALWAYS,activator,null,null,TO_CHAR);
   goto start;
   }
@@ -376,102 +447,168 @@ dilend
 // realtime is C time(0), i.e. counting seconds
 //
 // I'm wondering why we're using realtime rather than just pauses... ?
+//    Probably because the corpse can be stored and loaded...
 //
-dilbegin recall rot_corpse();
+// Recall wont work because corpse isn't saved on each tick.
+//
+// heartbeat max is SBIT16, so 32768 ish, +/- which is about 2 hours
+//
+dilbegin rot_corpse();
 var
-   n : integer; /*amount of hours since created*/
-   i : integer;
-   s : string;
+   hb : integer;
+   bHometown : integer;
    corpse_room : unitptr;
+   item : unitptr;
+   nxt  : unitptr;
+   cnt : integer;
 code
 {
    heartbeat:=PULSE_SEC;
    pause; // IMPORTANT. OTHERWISE THE VALUES WONT GET SET because the code will run on load()
    pause;
 
+   bHometown := 0;
+
+   hb := PULSE_SEC * SECS_PER_REAL_MIN * 1; // 4*5 minutes
+
    if (self.value[2] == 1) // corpse is a player corpse
    {
-     if (self.extra.[CORPSE_HOMETOWN] != null)
-     {
-       i := 3600; // roughly 1hr plus 15m below before potential player corpse recall
-     }
-     else
-     {
-       i := 143200; // ~40 hours
-     }
-      if (self.inside == null) 
-         s := " empty ";
+      bHometown := (self.extra.[CORPSE_HOMETOWN] != null);
+
+      if (bHometown)
+      {
+         hb := PULSE_SEC * SECS_PER_REAL_MIN * 3; // roughly 4*20m before potential player corpse recall
+         // log(self.name + " player corpse hometown, 4 * 20 minutes");
+      }
       else
-         s := " has inventory ";
-      log("Player: " + self.name + s + " time " + self.extra.[CORPSE_TIME].descr);
+      {
+         hb := PULSE_SEC * SECS_PER_REAL_HOUR * 2; // 2 hours is close to MAX is SBIT16
+         // log(self.name + "player corpse no hometown,  4 * 8 hours");
+      }
    }
-   else
-      i := 900; // 15 minutes
 
-   n := atoi(self.extra.[CORPSE_TIME].descr);
+:start:
+   heartbeat := hb;  // first a pause, then 3 states / pause, then dissolve (or restart) 
 
-   heartbeat := PULSE_SEC * 300;
-
-   :start:
-   pause;
-   if (self.inside == null) 
-      goto quickmag;
-
-   if ((realtime-n) > i)
+   //if (self.value[2] == 1)
+   //   log(self.name + " first tick heartbeat = " + itoa(heartbeat));
+   cnt := 0;
+   while (cnt < 6)
    {
-      :quickmag:
-      if (self.value[2] == 1)
+      pause;
+      if (self.inside == null)
+         heartbeat := PULSE_SEC*SECS_PER_REAL_MIN*1;
+      cnt := cnt + 1;
+   }
+   if ((not isset(self.flags, UNIT_FL_BURIED)) and (not bHometown))
+   {
+      act(self.extra.["$rotact"].names.[1], A_HIDEINV, self, null, null, TO_ALL);
+      if ("$headless" in self.extra)
+      	self.outside_descr := "The headless " + mid(self.extra.["$rot"].names.[1],5,length(self.extra.["$rot"].names.[1]));
+      else
+      	self.outside_descr := self.extra.["$rot"].names.[1];
+   }
+
+   //if (self.value[2] == 1)
+   //   log(self.name + " second tick heartbeat = " + itoa(heartbeat));
+   cnt := 0;
+   while (cnt < 6)
+   {
+      pause;
+      if (self.inside == null)
+         heartbeat := PULSE_SEC*SECS_PER_REAL_MIN*1;
+      cnt := cnt + 1;
+   }
+   if ((not isset(self.flags, UNIT_FL_BURIED)) and (not bHometown))
+   {
+      act(self.extra.["$rotact"].names.[2], A_HIDEINV,self,null,null,TO_ALL);
+      if ("$headless" in self.extra)
+      	self.outside_descr := "The headless " + mid(self.extra.["$rot"].names.[2],5,length(self.extra.["$rot"].names.[2]));
+      else
+      	self.outside_descr := self.extra.["$rot"].names.[2];
+   }
+
+   //if (self.value[2] == 1)
+   //   log(self.name + " third tick heartbeat = " + itoa(heartbeat));
+   cnt := 0;
+   while (cnt < 6)
+   {
+      pause;
+      if (self.inside == null)
+         heartbeat := PULSE_SEC*SECS_PER_REAL_MIN*1;
+      cnt := cnt + 1;
+   }
+   if ((not isset(self.flags, UNIT_FL_BURIED)) and (not bHometown))
+   {
+      act(self.extra.["$rotact"].names.[3], A_HIDEINV,self,null,null,TO_ALL);
+      if ("$headless" in self.extra)
+      	self.outside_descr := "The headless " + mid(self.extra.["$rot"].names.[3],5,length(self.extra.["$rot"].names.[3]));
+      else
+      	self.outside_descr := self.extra.["$rot"].names.[3];
+   }
+
+   //if (self.value[2] == 1)
+   //   log(self.name + " fourth tick heartbeat = " + itoa(heartbeat));
+   cnt := 0;
+   while (cnt < 6)
+   {
+      pause;
+      if (self.inside == null)
+         heartbeat := PULSE_SEC*SECS_PER_REAL_MIN*1;
+      cnt := cnt + 1;
+   }
+
+   if ((self.value[2] == 1) and bHometown and (self.inside != null))
+   {
+      corpse_room := findroom(self.extra.[CORPSE_HOMETOWN].descr);
+
+      if (corpse_room)
       {
-         if (self.inside == null) 
-            s := " empty ";
-         else
-            s := " has inventory ";
-         log("Player: " + self.name + s + " begins to rot extra: " + self.extra.[CORPSE_TIME].descr + " realtime="+itoa(realtime));
-      }
-
-      if (not (isset(self.flags, UNIT_FL_BURIED)))
-         act("$1n begins to rot.", A_SOMEONE,self,null,null,TO_ALL);
-      pause;
-
-      if (not (isset(self.flags, UNIT_FL_BURIED)))
-         act("$1n really smells bad now.", A_SOMEONE,self,null,null,TO_ALL);
-      pause;
-
-      if (not (isset(self.flags, UNIT_FL_BURIED)))
-         act("You notice some maggots crawling around on $1n.", A_SOMEONE,self,null,null,TO_ALL);
-      pause;
-
-      if ((self.value[2] == 1) and (self.extra.[CORPSE_HOMETOWN] != null) and (self.inside != null))
-      {
-        act("$1n and everything in it dissolve into magical dust, floating away into the air.", A_HIDEINV, self, null, null, TO_ALL);
-        corpse_room := findroom(self.extra.[CORPSE_HOMETOWN].descr);
-        if (corpse_room == null)
-        {
-          corpse_room := findroom("temple@udgaard");
-        }
-        link (self, corpse_room);
-        act("The ashes of a body float down from the sky and form into $1n.", A_HIDEINV, self, null, null, TO_ALL);
-        log("Rescued " + self.name + " instead of destroying it.");
-        i := dildestroy("rot_corpse@death", self);
-        return;
+         item := findroom("crypt@"+corpse_room.zoneidx);  // If there is a crypt in the hometown, leave it there
+         if (item)
+            corpse_room := item;
       }
       else
+         corpse_room := findroom("temple@udgaard");
+
+      act("$1n and everything in it dissolve into magical dust, floating away into the air.", A_HIDEINV, self, null, null, TO_ALL);
+      link(self, corpse_room);
+      act("The ashes of a body float down from the sky and form into $1n.", A_HIDEINV, self, null, null, TO_ALL);
+      //log(self.name + " rescued " + self.name + " instead of destroying it.");
+      bHometown := 0; // Important, this round we begin to 'rot'
+      hb := PULSE_SEC * SECS_PER_REAL_HOUR * 2; 
+      goto start; // Do it all again, but this time in the corpse_room
+   }
+
+:dissolve:
+   if (not (isset(self.flags, UNIT_FL_BURIED)))
+      act(self.extra.["$rotact"].names.[4], A_HIDEINV, self, null,null,TO_ALL);
+
+   if (self.extra.[CORPSE_FILE] != null)
+   {
+      hb := delunit(self.extra.[CORPSE_FILE].descr);
+      //log("DELETED stored player corpse " + self.extra.[CORPSE_FILE].descr + " " + itoa(hb));
+   }
+
+   if (self.value[2] == 1) // player
+   {
+      // Last chance to resuce equipment
+      item := self.inside;
+      while (item)
       {
-         if (not (isset(self.flags, UNIT_FL_BURIED)))
-            act("A quivering horde of maggots consume $1n.", A_HIDEINV, self, null,null,TO_ALL);
-
-         if (self.extra.[CORPSE_FILE] != null)
-            i := delunit(self.extra.[CORPSE_FILE].descr);
-
-         destroy (self);
+         nxt := item.next;
+         link(item, self.outside);
+         item := nxt;
       }
    }
-   goto start;
+   destroy(self);
 
+   quit;
 }
 dilend
 
-dilbegin remove_corpse ();
+
+dilbegin remove_corpse();
 var
 	x:extraptr;
 	i:integer;
@@ -505,21 +642,18 @@ goto start;
 dilend
 
 
-dilbegin string findcrproom(u:unitptr);
+dilbegin unitptr findcrproom(u:unitptr);
 var
 	rm:unitptr;
 	rmstr:string;
-	i:integer;
 code
 {
-heartbeat:=3;
-rm:=u;
-while(rm.type!=UNIT_ST_ROOM)
-	rm:=rm.outside;
+   rm:=u;
+   while(rm.type != UNIT_ST_ROOM)
+   	rm := rm.outside;
 
+   return (rm);
 
-
-	return (rm.nameidx+"@"+rm.zoneidx);
 /*
 if ((rm.movement!=SECT_WATER_SWIM) and (rm.movement!=SECT_WATER_SAIL))
 i:=0;
@@ -538,8 +672,8 @@ if (i>MAX_EXIT)
 else
 	return (rmstr);
 	*/
-	}
-	dilend
+}
+dilend
 
 
 
@@ -548,6 +682,7 @@ dilbegin aware reload_corpse();
 var
 	corpselist:stringlist;
 	u:unitptr;
+	rm:unitptr;
 	ln:integer;
 	i:integer;
 	x:extraptr;
@@ -561,12 +696,16 @@ i:=0;
 while (i<ln)
 	{
 	u:=restore(corpselist.[i],null);
-	x:=CORPSE_EXTRA in u.extra;
 	if (u!=null)
+	{
+		rm:=null;
+		x:=CORPSE_EXTRA in u.extra;
 		if (x!=null)
-			link (u,findroom(x.descr));
-		else
-			link (u,findroom("temple@udgaard"));
+			rm:=findroom(x.descr);
+		if (rm==null) // a room that's gone, such as a game master's (gmroom)
+			rm:=findroom("crypt@udgaard");
+		link (u,rm);
+	}
 	i:=i+1;
 	}
 
@@ -646,10 +785,10 @@ code
 
     if (self.quests.["New Player Helper"] != null)
     {
-        act("After a short ride she sets your spirit down inside Ginger's thrown room. "+
+        act("After a short ride she sets your spirit down inside the Newbie Guide Respite room. "+ // fixed room name from a mispelling and renamed the room - see basis.zon
         "You slowly regain a more material form.",
             A_ALWAYS, self, null, null, TO_CHAR);
-        act("$1n enters the castle of Valhalla.",
+        act("$1n is carried off by a Valkyrie.",
             A_ALWAYS, self, null, null, TO_ROOM);
         link(self, findroom("throne_room2@basis"));
     }
@@ -658,7 +797,7 @@ code
         act("After a short ride she sets your spirit down inside Valhalla. You "+
             "slowly regain a more material form.",
             A_ALWAYS, self, null, null, TO_CHAR);
-        act("$1n enters the castle of Valhalla.",
+        act("$1n is carried off by a Valkyrie.",
             A_ALWAYS, self, null, null, TO_ROOM);
         link(self, findroom("heaven_entry@basis"));
     }
@@ -667,13 +806,13 @@ code
         act("After a short ride she throws you down into the pits of hell.  You "+
           "slowly regain a more material form instantly feeling the heat.",
           A_ALWAYS, self, null, null, TO_CHAR);
-        act("$1n enters the pits of hell.",
+        act("$1n is carried off by a Valkyrie.",
           A_ALWAYS, self, null, null, TO_ROOM);
         link(self, findroom("hell_entry@basis"));
     }
     else
     {
-        act("After a short ride she lets your spirit drift into the astral planes."+
+        act("After a short ride she lets your spirit drift into the astral planes. "+
         "You slowly regain your senses.",
             A_ALWAYS, self, null, null, TO_CHAR);
         act("$1n floats into the astral planes.",
@@ -727,7 +866,7 @@ code
    if (activator.level < IMMORTAL_LEVEL)
    {
       act("You are dead, don't move!",
-          A_ALWAYS, self.outside, null, null, TO_CHAR);
+          A_ALWAYS, self, null, null, TO_CHAR);
       block;
    }
 
@@ -743,149 +882,151 @@ dilend
  *   value[3] is the char's level
  *   value[4] is the char's race
  *   "$living_sym" in corpse.extra == self.symname of pc/npc.
+ *
+ * Code is running on the CHAR that is about to be made to a corpse (self).
+ * sCorpseLoad is the symname of the corpse 'template' to load
+ * Corpse is by default placed in the room the char dies in.
+ *
+ * returns null if no corpse was made (e.g. familiar unwinds magic), or
+ *         pointer to new corpse.
 */
-dilbegin make_corpse();
-external
-   string findcrproom(u:unitptr);
 
+dilbegin unitptr make_corpse(sCorpseLoad : string);
+external
+   unitptr findcrproom(u:unitptr);
+   die@justice(crp : unitptr);
 var
    rltime:integer;
-   corpseroom:string;
+   corpseroom:unitptr;
    crp:unitptr;
    item:unitptr;
    temp:unitptr;
-   reward_exp : extraptr;
-   r_id : string;
-   jd: unitptr;
-   r_key : string;
-   jd_ptr : extraptr;
+   exd : extraptr;
 
 code
 {
    heartbeat := PULSE_SEC;
    
-   crp := load("corpse@death");
-
-   substring(crp.names, crp.names.[0]);
-   
-   addextra (crp.extra,{"$living_sym"},self.symname);
-   
-   if(self.symname == "familiar2@g_q")
+   if (self.symname == "familiar2@g_q")
    {
-		act("The familiar's magic unwinds and it fades from this plane of existance.",
+     /* The while statement is to prevent people from destroying eq with a familiar*/
+
+	while(self.inside != null)
+		link(self.inside, self.outside);
+	
+		act("The familiar's magic unwinds and it fades from this plane of existence.",
 			A_ALWAYS,self,null,null,TO_ALL);
-		return;
+      crp := null;
+      return (crp);
    }
 
-   if (self.type==UNIT_ST_NPC)
-      addstring (crp.names,"corpse of "+self.title);
-   else
-      addstring (crp.names,"corpse of "+self.name);
+   crp := load(sCorpseLoad); // e.g. "corpse@death", "statue?"
 
-   addstring (crp.names,"corpse");
+   // Fix corpse's description
+   //
 
-   if (self.type==UNIT_ST_PC)
-      crp.title:=self.name+"'s corpse";
-   else
-      crp.title:=self.title+"'s corpse";
-  
+   // corpse.name.[0] = "corpse of $1n"
+   // corpse.title = "$1n's corpse"
+   // corpse.descr = "$1n's corpse is lying here."
+   crp.names.[0] := sact(crp.names.[0], A_RAW, self, crp, null, TO_CHAR);
+   crp.title := sact(crp.title, A_RAW, self, crp, null, TO_CHAR);
+   // sact capitalises the first letter; keep the NPC title's own ("the cute rabbit's corpse")
+   if (self.type != UNIT_ST_PC)
+      crp.title := left(self.title, 1) + mid(crp.title, 2, length(crp.title));
+   crp.outside_descr := sact(crp.outside_descr, A_RAW, self, crp, null, TO_CHAR);
+   exd := "$rot" in crp.extra;
+   if (exd)
+   {
+      exd.names.[1] := sact(exd.names.[1], A_RAW, self, crp, null, TO_CHAR);
+      exd.names.[2] := sact(exd.names.[2], A_RAW, self, crp, null, TO_CHAR);
+      exd.names.[3] := sact(exd.names.[3], A_RAW, self, crp, null, TO_CHAR);      
+   }
+
+   // Copy important values to corpse
+   //
    set_weight_base(crp, self.baseweight);
    set_weight(crp, self.baseweight);
-
    crp.height:=self.height;
   
    if (self.type==UNIT_ST_NPC)
    {
-      crp.outside_descr:="The corpse of "+self.title+" is laying here.";
       crp.value[2]:=0;
       crp.value[3]:=self.level;
    }
    else
    {
-      crp.outside_descr:="The corpse of "+self.name+" is laying here.";
       crp.value[2]:=1;
       crp.value[3]:=self.vlevel;
    }
    crp.value[4] := self.race;
    
+   addextra(crp.extra, {"$living_sym"}, self.symname);
    if (isset(self.pcflags, PC_PK_RELAXED))
-      addextra(crp.extra,{"$BOB"},"");
-   
+      addextra(crp.extra, {"$BOB"}, "");
+
+   // Transfer victim's items to corpse
+   //
+   //   
    item := self.inside;
    while (item != null)
    {
+      temp := item.next;
       unequip(item);
-      if ((item.zoneidx!="treasure") and (item.minv<51))
+
+      // Items on players that are from the treasure zone or minv < 51 stay inside the player
+      if ((self.type != UNIT_ST_PC) or ((item.zoneidx != "treasure") and (item.minv < 51)))
       {
-         temp:=item.next;
          link(item, crp);
-         item:=temp;
       }
       else
       {
-         item.minv:=200;
-         item:=item.next;
+         item.minv := 200;  // Stays inside the PC
       }
+      item := temp;
    } 
 
-   //load Justice Database 
-   jd := findsymbolic("database@justice");
-  
-   //transfer reward infor to corpse if found.
-   reward_exp := "$reward" in self.extra;
 
-   while (reward_exp)
-   {
-      addextra(crp.extra, reward_exp.names, reward_exp.descr);
-      reward_exp := "$reward" in reward_exp.next;
-   }
+   // Process justice when dead
+   //
+   die@justice(crp);
 
-   rltime:=realtime;
+
+   // Set up corpse decay and saving of items
+   //
+   rltime := realtime;
+   corpseroom := findcrproom(self);
+   addextra(crp.extra, {CORPSE_TIME}, itoa(rltime));
 
    if (self.type==UNIT_ST_PC)
    {
-      corpseroom := findcrproom(self);
-
-     if ("Soul Anchor Request Complete" in self.quests)
-     {
+      if (("Soul Anchor Request Complete" in self.quests) or (self.level <= CORPSE_ANCHOR_LEVEL))
+      {
          addextra(crp.extra, {CORPSE_HOMETOWN}, self.hometown);
-     }
-      addextra(crp.extra, {CORPSE_EXTRA}, corpseroom);
+      }
+      addextra(crp.extra, {CORPSE_EXTRA}, corpseroom.symname);
 
       addextra(crp.extra, {CORPSE_FILE}, "corpse_"+self.name+"."+itoa(rltime));
-      addextra(crp.extra, {CORPSE_TIME}, itoa(rltime));
-      store (crp,"corpse_"+self.name+"."+itoa(rltime),TRUE);
-      dilcopy("partial_get@death",crp);
-      
-      //remove all entreis from the justice database
-      subextra(jd.extra, self.name);
+      store(crp, "corpse_"+self.name+"."+itoa(rltime), TRUE);
+      dilcopy("partial_get@death", crp);
    }
-   else
-      addextra (crp.extra,{CORPSE_TIME}, itoa(rltime));
 
-   dilcopy("remove_corpse@death",crp);
+   dilcopy("remove_corpse@death", crp);
 
-   link(crp, self.outside);
+   link(crp, corpseroom);
 
-   /* item := self.outside;
-    while ((item!=null) and (item.type!=UNIT_ST_ROOM))
-   {
-      item.weight := item.weight+crp.weight;
-      item := item.outside;
-   }*/
-   return;
+   return (crp);
 }
 dilend
 
-
+// Save the corpse if someone gets its items.
+//
 dilbegin aware partial_get();
 code
 {
-:start:
-wait (SFB_DONE,(((command("get")) or
-(command ("take"))) and  (self.inside==target)));
-store (self,self.extra.[CORPSE_FILE].descr,TRUE);
-goto start;
+   :start:
+   wait(SFB_DONE, ((command("get") or command("take")) and (self.inside == target)));
+   store(self, self.extra.[CORPSE_FILE].descr, TRUE);
+   goto start;
 }
 dilend
 
@@ -893,16 +1034,19 @@ dilend
 dilbegin remove_aff();
 var
    i:integer;
+   j:integer;
 code
 {
    heartbeat:=3;
    i:=0;
    while (i<100)
    {
-      if (isaff(self,i))
+      // Bounded: an affect that refuses to go (subaff leaves it) would loop forever
+      j:=0;
+      while (isaff(self,i) and (j<10))
       {
          subaff(self,i);
-         continue;
+         j:=j+1;
       }
       i:=i+1;
    }
@@ -932,13 +1076,16 @@ dilend
 
 
 
-dilbegin raw_kill ();
+dilbegin raw_kill();
 external
-   make_corpse ();
+   unitptr make_corpse(sCorpseLoad : string);
    remove_aff();
    death_cry();
    rem_db_entry@justice(criminal : unitptr, extra_type : string, juris: string);
    integer  valid_extra@justice(criminal : unitptr, extra_type : string, juris : string);
+var
+   exd : extraptr;
+   u : unitptr;
 code
 {
    heartbeat:=3;
@@ -957,7 +1104,16 @@ code
 
    sendtext("You are dead. R.I.P.<br/>",self);
    death_cry();
-   make_corpse();
+
+   exd := self.extra.["$petrify"]; 
+   if (exd)
+   {
+      u := make_corpse("corpse_statue@death");
+      u.spells[SPL_PETRIFY] := atoi(exd.descr);
+      subextra(self.extra, "$petrify");
+   }
+   else
+      make_corpse("corpse@death");
 
    //Remove extras just Justice DB
      rem_db_entry@justice(self,"$reward","all");
@@ -983,8 +1139,8 @@ dilend
 
 dilbegin integer lose_exp(u:unitptr);
 external
-	integer max(a:integer,b:integer);
-	integer min(a:integer,b:integer);
+	integer max@function(a:integer,b:integer);
+	integer min@function(a:integer,b:integer);
 
 var
 	loss:integer;
@@ -1004,26 +1160,26 @@ code
    /* This first line takes care of any xp earned above required level. */
    l0 := getinteger(DIL_GINT_REQXP, null, u.vlevel);
    l1 := getinteger(DIL_GINT_REQXP, null, u.vlevel+1);
-   log("l1 = " + itoa(l1) + "   l0 = " + itoa(l0) + "   l1-l0 = " + itoa(l1-l0));
+   // log("l1 = " + itoa(l1) + "   l0 = " + itoa(l0) + "   l1-l0 = " + itoa(l1-l0));
 
    // Lose half the XP earned above your current level (you should level up)
-   loss := max(0, (u.exp-l0)/2);
-   log("loss 1 = " + itoa(loss));
+   loss := max@function(0, (u.exp-l0)/2);
+   // log("loss 1 = " + itoa(loss));
 
    /* This line makes sure, that you lose at most half a level...       */
-   loss := min(loss, (l1-l0)/2);
-   log("loss 2 = " + itoa(loss));
+   loss := min@function(loss, (l1-l0)/2);
+   // log("loss 2 = " + itoa(loss));
 
    /* This line takes care of the case where you have less or almost    */
    /* equal XP to your required. You thus lose at least 1/5th your      */
    /* level.                                                            */
-   loss := max(loss, (l1-l0)/5);
-   log("loss 3 = " + itoa(loss));
+   loss := max@function(loss, (l1-l0)/5);
+   // log("loss 3 = " + itoa(loss));
 
    if (loss < 0)
       loss:=0;
 
-   log("loss result = " + itoa(loss));
+   // log("loss result = " + itoa(loss));
 
    return(loss);
 }
@@ -1074,8 +1230,13 @@ code
 
    gain := 0;
    if ((self.type==UNIT_ST_PC) and (self.level<200))
+   {
       gain := lose_exp(self);
-   gain_exp(self, -gain); // Bug? xxx I saw level 2 char raise a level because he died .... ?
+      if (gain < 0)
+         log("Error ? Gain experience on death < 0" + itoa(gain));
+         // Bug? xxx I saw level 2 char raise a level because he died .... ?
+   }
+   gain_exp(self, -gain); 
    raw_kill();
    quit;
 }
@@ -1096,7 +1257,7 @@ code
    while (dir <= MAX_EXIT)
 	{
       if (self.outside.exit_to[dir])
-         act("<div class='death'>Your blood freezes as you hear someones death cry from a distance.",
+         act("<div class='death'>Your blood freezes as you hear someone's death cry from a distance.</div>",
             A_ALWAYS,self.outside.exit_to[dir].inside,null,null,TO_ALL);
       dir:=dir+1;
 	}
@@ -1126,10 +1287,10 @@ code
    symb := "";
    wait(SFB_MSG,TRUE);
 
-   log("report corpse");
    if ((argument!="report") and (argument!="reportgod"))
       goto start;
 
+   // log("report corpse");
    if ((argument =="report") and (self.value[3]>20))
       goto start;
 
@@ -1178,16 +1339,76 @@ weight 1
 extra {"$reward", "2500", "1024", "$udgaard"}
 "This is a fake head to test rewards."
 end
+
+
                                      corpse
-names {"corpse"}
-title "corpse"
-descr "a corpse is laying here smelling up the place."
+names {"corpse of $1n", "corpse"}
+title "$1n's corpse"
+descr "The corpse of $1n is lying here."
 type ITEM_CONTAINER
-manipulate {MANIPULATE_TAKE, MANIPULATE_ENTER}
-/* Rest of values are inserted at runtime */
-weight 0
+manipulate {MANIPULATE_TAKE}
+extra {"$rot", 
+       "The smelly corpse of $1n is lying here.",
+       "The rotting corpse of $1n is lying here.",
+       "The decaying corpse of $1n is lying here." } ""
+extra {"$rotact",
+       "$1n starts smelling.",
+       "$1n begins to rot.",
+       "You notice maggots crawling around on $1n.",
+       "A quivering horde of maggots consumes $1n."} ""
 dilcopy rot_corpse();
 dilcopy report_corpse();
+dilcopy bob_code();
+end
+
+                                     corpse_statue
+names {"statue of $1n", "statue"}
+title "$1n's statue"
+descr "The statue of $1n is standing here."
+type ITEM_OTHER
+manipulate {MANIPULATE_TAKE}
+extra {}
+   "It is a remarkably life-like statue as if someone and everything they carried was turned to stone."
+extra {"$rot", 
+       "The cracked statue of $1n is standing here.",
+       "The decaying statue of $1n is standing here.",
+       "The broken statue of $1n is standing here." } ""
+extra {"$rotact",
+       "Little pieces of stone fall from $1n.",
+       "$1n begins to crack.",
+       "$1n begins to break and deteriorate.",
+       "$1n shatters into a million pieces."} ""
+dilcopy rot_corpse();
+dilcopy report_corpse();
+dilcopy bob_code();
+dilbegin disspell();
+var
+   sl : stringlist;
+   pwr : integer;
+code
+{
+:start:
+   wait(SFB_MSG, left(argument, 10) == "spl_dispel");
+   sl := split(argument, " ");
+   pwr := atoi(sl.[1]);
+
+   if (pwr < 0)
+   {
+      act("The surface of $1n momentarily changes color.", A_HIDEINV, self, null, null, TO_ALL);
+   }
+   else
+   {
+      if (self.inside)
+         act("$1n changes color and its equipment is unmerged from the stone.", A_HIDEINV, self, null, null, TO_ALL);
+      else
+         act("$1n changes color.", A_HIDEINV, self, null, null, TO_ALL);
+      self.objecttype := ITEM_CONTAINER;
+      quit;
+   }
+
+   goto start;
+}
+dilend
 end
 
 %end

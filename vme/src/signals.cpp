@@ -5,21 +5,16 @@
  $Revision: 2.3 $
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <signal.h>
+#include "comm.h"
+#include "config.h"
+#include "db.h"
+#include "main_functions.h"
+#include "slog.h"
+
 #include <sys/time.h>
 
-#include "structs.h"
-#include "utils.h"
-#include "utility.h"
-#include "pthread.h"
-#include "db.h"
-#include "config.h"
-#include "textutil.h"
-#include "comm.h"
-
-extern int mud_shutdown;
+#include <csignal>
+#include <cstdio>
 
 void other_signal(int signal_no)
 {
@@ -28,22 +23,21 @@ void other_signal(int signal_no)
 
 void checkpointing(int signal_no)
 {
-    extern int tics;
     static int last_tick = 0;
 
-    extern int player_convert;
-
-    if (player_convert)
+    if (g_player_convert)
+    {
         return;
+    }
 
-    if (last_tick != 0 && tics == last_tick)
+    if (last_tick != 0 && g_tics == last_tick)
     {
         slog(LOG_ALL, 0, "CHECKPOINT shutdown: tics not updated");
         assert(FALSE);
     }
 
-    assert(tics != 0);
-    last_tick = tics;
+    assert(g_tics != 0);
+    last_tick = g_tics;
 
 #ifdef POSIX
     /* Default is usually a one_shot */
@@ -53,19 +47,18 @@ void checkpointing(int signal_no)
 
 void shutdown_request(int signal_no)
 {
-
     slog(LOG_ALL, 0, "Received USR2 - shutdown request");
-    mud_shutdown = 1;
+    g_mud_shutdown = 1;
 }
 
 void message_request(int signal_no)
 {
-    FILE *msg_file_fd;
+    FILE *msg_file_fd = nullptr;
     char line[512];
 
     slog(LOG_ALL, 0, "Received USR1 - message request");
 
-    msg_file_fd = fopen(str_cc(g_cServerConfig.m_etcdir, MESSAGE_FILE), "r");
+    msg_file_fd = fopen(g_cServerConfig.getFileInEtcDir(MESSAGE_FILE).c_str(), "r");
     if (!msg_file_fd)
     {
         fprintf(stderr, "Error in opening the log:  '%s'", MESSAGE_FILE);
@@ -81,14 +74,15 @@ void message_request(int signal_no)
     fclose(msg_file_fd);
 }
 
-
 /* kick out players etc */
 void hupsig(int signal)
 {
-    slog(LOG_ALL, 0, "Received signal #%d (SIGHUP, SIGINT, or SIGTERM). "
-                     "Shutting down",
+    slog(LOG_ALL,
+         0,
+         "Received signal #%d (SIGHUP, SIGINT, or SIGTERM). "
+         "Shutting down",
          signal);
-    mud_shutdown = 1;
+    g_mud_shutdown = 1;
     //  exit (0);			/* something more elegant should perhaps be substituted */
 }
 
@@ -101,10 +95,10 @@ void logsig(int signal)
 
 void dump_debug_history(void);
 
-void (*sigiot_func)(int) = NULL;
-void (*sigsegv_func)(int) = NULL;
-void (*sigbus_func)(int) = NULL;
-void (*sigabrt_func)(int) = NULL;
+void (*sigiot_func)(int) = nullptr;
+void (*sigsegv_func)(int) = nullptr;
+void (*sigbus_func)(int) = nullptr;
+void (*sigabrt_func)(int) = nullptr;
 
 void sig_debugdump(int tsignal)
 {
@@ -127,19 +121,19 @@ void sig_debugdump(int tsignal)
 }
 
 #endif /* DEBUG_HISTORY */
-void signal_reset(void)
+void signal_reset()
 {
     sigset_t sigt;
 
     sigfillset(&sigt);
 
-    pthread_sigmask(SIG_BLOCK, &sigt, NULL);
+    pthread_sigmask(SIG_BLOCK, &sigt, nullptr);
 }
 
-void signal_setup(void)
+void signal_setup()
 {
-    struct itimerval itime;
-    struct timeval interval;
+    itimerval itime;
+    timeval interval;
 
     /* just to be on the safe side: */
 
@@ -165,6 +159,6 @@ void signal_setup(void)
     interval.tv_usec = 0;
     itime.it_interval = interval;
     itime.it_value = interval;
-    setitimer(ITIMER_VIRTUAL, &itime, 0);
+    setitimer(ITIMER_VIRTUAL, &itime, nullptr);
     signal(SIGVTALRM, checkpointing);
 }

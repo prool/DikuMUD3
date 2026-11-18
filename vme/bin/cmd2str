@@ -154,6 +154,7 @@ CMD_SWITCH switch
 CMD_USERS users
 CMD_WIZHELP wizhelp
 CMD_NOTELL notell
+CMD_NOCOMM nocomm
 CMD_FILE file
 CMD_CRASH crash
 CMD_ADVANCE advance
@@ -203,7 +204,8 @@ CMD_CACCEPT caccept
 CMD_CREMOVE cremove
 CMD_CDEFECT cdefect
 CMD_CAPPOINT cappoint
-CMD_CDEMOTE cdemote
+CMD_CPROMOTE cpromote
+CMD_CDEPOSE cdepose
 CMD_CINFO cinfo
 CMD_CDEPOSIT cdeposit
 CMD_CBALANCE cbalance

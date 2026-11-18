@@ -14,7 +14,9 @@ reset RESET_NOT
 creators {"whistler"}
 
 notes
-"This is competition code  what did you think?"
+"This is competition code  what did you think?
+Modified by Barron to have automatic xp tracking 2025
+Tracks XP of all online players"
 
 help
 "This zone is not intended for players."
@@ -38,7 +40,7 @@ code
 	rm:=findsymbolic("dead_obj@competition");
 	if (rm.extra.["dead_comp"]==null)
 	{
-		sendtext("NO Player has been added to the board yet.<br>",activator);
+		sendtext("No player has been added to the board yet.<br>",activator);
 		goto start;
 	}
 
@@ -65,7 +67,7 @@ code
 	{
 		l0:="<tr><td>*</td>";
 		l1:="<td>"+activator.name+"</td>";
-		if ("$TOTAL_DEATHS" in rm.extra)
+		if ("$TOTAL_DEATHS" in activator.extra)
 			l2:="<td>"+itoa(activator.extra.["$TOTAL_DEATHS"].vals.[0])+"</td></tr>";
 		else 
 			l2:="<td>0</td></tr>";
@@ -92,14 +94,14 @@ code
 	rm:=findsymbolic("xp_obj@competition");
 	if (rm.extra.["xp_comp"]==null)
 	{
-		sendtext("NO Player has been added to the board yet.<br>",activator);
+		sendtext("No player has been added to the board yet.<br>",activator);
 		goto start;
 	}
 
 	upd_xp_char(activator);
 	ln:=length(rm.extra.["xp_comp"].names);
 	i:=1;
-	buf:="<h1>Heroes of Valhalla</h1>";
+	buf:="<h1>Legends of Valhalla</h1>";
 	buf:=buf+"<table><tr>";
 	l0:="<th>Rank</th>";
 	l1:="<th>Player</th>";
@@ -124,6 +126,31 @@ code
 	}
 	buf:=buf+"</table>";
 	pagestring (textformat(buf),activator);
+	goto start;
+}
+dilend
+
+dilbegin auto_xp_death (); // Automatically gets xp and deaths data from characters every ten minutes for tracking
+external 
+	upd_xp_char(u:unitptr);
+	upd_dead_ch(u:unitptr);
+	string rlc_format (sl:stringlist,s:string);
+var
+	rm:unitptr;
+	u:unitptr;
+	i,ln:integer;
+code
+{
+	:start:
+	heartbeat:=PULSE_SEC*600;
+	pause;
+	u := ghead();
+	while (u.type==UNIT_ST_PC)
+	{
+		upd_xp_char(u);
+		upd_dead_ch(u);
+		u:=u.gnext;
+	}
 	goto start;
 }
 dilend
@@ -163,6 +190,10 @@ code
 	if (ln==1)
 	{
 		insert (rm.extra.["xp_comp"].names,1,u.name);
+		if (length(rm.extra.["xp_comp"].vals) == 0){  // only necessary for empty lists
+			log("fixing xp comp extra of 0 size");
+			insert (rm.extra.["xp_comp"].vals,0,0);
+		}
 		insert (rm.extra.["xp_comp"].vals,1,p);
 	}
 	else
@@ -208,7 +239,7 @@ code
 	rm:=findsymbolic("dead_obj@competition");
 	if (rm==null)
 	{
-		log ("Error no room found for xp information<br>");
+		log ("Error no room found for death and xp information<br>");
 		return;
 	}
 	if (rm.extra.["dead_comp"]==null)
@@ -231,6 +262,10 @@ code
 	if (ln==1)
 	{
 		insert (rm.extra.["dead_comp"].names,1,u.name);
+		if (length(rm.extra.["dead_comp"].vals) == 0){   // only necessary for empty lists
+			log("fixing comp death extra of 0 size");
+			insert (rm.extra.["dead_comp"].vals,0,0);
+		}
 		insert (rm.extra.["dead_comp"].vals,1,p);
 	}
 	else
@@ -309,9 +344,29 @@ code
 }
 dilend
 
-dilbegin string rlc_format (sl:stringlist,sc:string);
+/* n spaces */
+dilbegin string rlc_pad (n:integer);
 var
-	buf:string; 
+	buf:string;
+	i:integer;
+code
+{
+	buf:="";
+	i:=0;
+	while (i<n)
+	{
+		buf:=buf+"&nbsp;";
+		i:=i+1;
+	}
+	return (buf);
+}
+dilend
+
+dilbegin string rlc_format (sl:stringlist,sc:string);
+external
+	string rlc_pad (n:integer);
+var
+	buf:string;
 	ln:integer;
 	sln:integer;
 	starts:integer;
@@ -321,7 +376,7 @@ code
 {
 	s:=textformat(sc);
 	if (s=="")
-		return("&nbsp;"+sl.[1]); 
+		return(rlc_pad(atoi(sl.[1])));
 	buf:="";
 	sln:=length(s);
 	ln:=atoi(sl.[1]);
@@ -331,7 +386,7 @@ code
 	{
 		if (ln>sln)
 		{
-			buf:="&nbsp;"+itoa(ln-sln)+s;
+			buf:=rlc_pad(ln-sln)+s;
 		}
 		else
 			buf:=right(s,ln);
@@ -339,7 +394,7 @@ code
 	else if (sl.[0]=="l")
 	{
 		if (ln>sln)
-			buf:=s+"&nbsp;"+itoa(ln-sln);
+			buf:=s+rlc_pad(ln-sln);
 		else
 			buf:=left(s,ln);
 	}
@@ -349,10 +404,10 @@ code
 		{
 			start:=ln/2;
 			starts:=sln/2;
-			buf:="&nbsp;"+itoa((start-starts)-1)+s;
+			buf:=rlc_pad((start-starts)-1)+s;
 			start:=start-starts;
 			start:=start+sln;
-			buf:=buf+"&nbsp;"+itoa(ln-start);
+			buf:=buf+rlc_pad(ln-start);
 		}
 		else
 			buf:=left(s,ln);
@@ -400,13 +455,13 @@ code
 	rm:=findsymbolic("board_obj@competition");
 	if (rm.extra.["competitions"]==null)
 	{
-		sendtext("No competitions Ongoing<br>",activator);
+		sendtext("No competitions ongoing.<br>",activator);
 		goto start;
 	}
 	ln:=length(rm.extra.["competitions"].names);
 	if (ln<2)
 	{
-		sendtext("No competitions Ongoing<br>",activator);
+		sendtext("No competitions ongoing.<br>",activator);
 		goto start;
 	}
 	i:=1;
@@ -442,9 +497,9 @@ code
 	if ((i<1) or (i>(ln-1)))
 	{
 		if (ln==1)
-			sendtext ("No such competition found, try 'list 1'.",activator);
+			sendtext ("No such competition found, try 'list 1'.<br/>",activator);
 		else
-			sendtext ("No such competition found, try 'list 1' to 'list "+itoa(ln-1) +"'.<br>",activator);
+			sendtext ("No such competition found, try 'list 1' to 'list "+itoa(ln-1) +"'.<br/>",activator);
 		goto start;
 	}
 	cname:=itoa(rm.extra.["competitions"].vals.[i]);
@@ -515,7 +570,7 @@ code
 			log ("No one was in the competition when it ended "+cname+"<br>");
 			quit;
 		}
-		act_world(rm.extra.[cname+" LIST"].names.[1]+ " has just won the "+rm.extra.[cname+" INFO"].names.[1]+ " competition!  Congratulations!");
+		act_world(rm.extra.[cname+" LIST"].names.[1]+ " has just won the "+rm.extra.[cname+" INFO"].names.[1]+ " competition!  Congratulations!<br/>");
 		quit;
 	}
 	goto start;
@@ -732,7 +787,7 @@ code
 	if (arg!="")
 	{
 		args:=split(arg," ");
-		if (length(args)>1)
+		if ((length(args)>1) and (args.[0]==left("delete",length(args.[0]))))
 			goto del_single_comp;
 		if (arg==left("delete",length(arg)))
 			goto del_comp;
@@ -804,7 +859,7 @@ code
 		sendtext ("1)  Yes<br>",self);
 		sendtext("2)  No<br>",self);
 		sendtext("3)  Both<br>",self);
-		sendtext ("<br>Select (1 or 2):  ",self);
+		sendtext ("<br>Select (1, 2 or 3):  ",self);
 		wait (SFB_CMD,TRUE);
 		if (command("1"))
 		{
@@ -834,11 +889,11 @@ code
 :race_menu:
 		
 		sendtext("<br>Please choose your race:<br>"
-		+"  <div class='cpw'>1</div>) Human</div>            <div class='cpw'> 7</div>) Dark-Elf<br>"
-		+"  <div class='cpw'>2</div>) Dwarf</div>            <div class='cpw'> 8</div>) Brownie<br>"
-		+"  <div class='cpw'>3</div>) Halfling</div>         <div class='cpw'> 9</div>) Groll<br>"
-		+"  <div class='cpw'>4</div>) Gnome</div>            <div class='cpw'>10</div>) Half-Orc<br>"
-		+"  <div class='cpw'>5</div>) Elf</div>              <div class='cpw'>11</div>) Half-Ogre<br>"
+		+"  <div class='cpw'>1</div>) Human            <div class='cpw'> 7</div>) Dark-Elf<br>"
+		+"  <div class='cpw'>2</div>) Dwarf            <div class='cpw'> 8</div>) Brownie<br>"
+		+"  <div class='cpw'>3</div>) Halfling         <div class='cpw'> 9</div>) Groll<br>"
+		+"  <div class='cpw'>4</div>) Gnome            <div class='cpw'>10</div>) Half-Orc<br>"
+		+"  <div class='cpw'>5</div>) Elf              <div class='cpw'>11</div>) Half-Ogre<br>"
 		+"  <div class='cpw'>6</div>) Half-elf            <div class='cpw'>12</div>) All races<br>"
 		+"Please select 1 - 12: ", self);
 		wait (SFB_CMD,TRUE);
@@ -864,7 +919,7 @@ code
 		}
 		else if (command ( "5"))
 		{
-			sendtext("You are now an elf.<br>", self);
+			sendtext("Set to elf.<br>", self);
 			rc := RACE_ELF;
 		}
 		else if (command ( "6"))
@@ -899,40 +954,40 @@ code
 		}
 		else if (command ( "12"))
 		{
-			sendtext ("Set to all races<br>",self);
+			sendtext ("Set to all races.<br>",self);
 			rc :=-1;
 		}
 		else
 		{
-			sendtext ("Try again<br>",self);
+			sendtext ("Try again.<br>",self);
 			goto race_menu;
 		}
 		goto comp_menu;
 	}
 	else if (command("6"))
 	{
-		sendtext ("how many hours from now do you want the competition to start:  ",self);
+		sendtext ("How many hours from now do you want the competition to start:  ",self);
 		wait(SFB_CMD,TRUE);
 		dt:=realtime+60*60*atoi(excmdstr);
 		goto comp_menu;
 	}
 	else if (command("7"))
 	{
-		sendtext ("how many hours from "+asctime(dt)+ " do you want it to end:  ",self);
+		sendtext ("How many hours from "+asctime(dt)+ " do you want it to end:  ",self);
 		wait(SFB_CMD,TRUE);
 		edt:=60*60*atoi(excmdstr);
 		goto comp_menu;
 	}
 	else if (command ("8"))
 	{
-		sendtext("Enter a slash (/) delimited list of Competitions you don't want to participate in this <br> competition:  ",self);
+		sendtext("Enter a slash (/) delimited list of quests not allowed in this <br> competition:  ",self);
 		wait(SFB_CMD, TRUE);
-		ncname:=textformat("&nbsp;"+excmdstr+" "+argument);
+		ncname:=excmdstr+" "+argument;
 		goto comp_menu;
 	}
 	else if (command ("9"))
 	{
-		sendtext("Enter a slash (/) delimited list of Extra flags you don't want to participate in this <br> competition:  ",self);
+		sendtext("Enter a slash (/) delimited list of quests allowed in this <br> competition:  ",self);
 		wait(SFB_CMD, TRUE);
 		nename:=excmdstr+" "+argument;
 		goto comp_menu;
@@ -942,7 +997,7 @@ code
 		rm:=findsymbolic("board_obj@competition");
 		if (rm==null)
 		{
-			sendtext ("No competition room found fix it<br>",self);
+			sendtext ("No competition room found, fix it.<br>",self);
 			gamestate(self, GS_PLAY);
 			quit;
 		}
@@ -989,6 +1044,11 @@ code
 		addextra(rm.extra,line,"Top 20 and experience");
 		remove (line,0);
 	}
+	else
+	{
+		sendtext ("Try again.<br>",self);
+		goto comp_menu;
+	}
 	upd_comp(cname);
 	gamestate(self, GS_PLAY);
 	quit;
@@ -1003,19 +1063,19 @@ code
 	}
 	if (rm.extra.["competitions"]==null)
 	{
-		sendtext("No competitions Ongoing<br>",self);
+		sendtext("No competitions ongoing.<br>",self);
 		quit;
 	}
 	ln:=length(rm.extra.["competitions"].names);
 	if (ln<2)
 	{
-		sendtext("No competitions Ongoing<br>",self);
+		sendtext("No competitions ongoing.<br>",self);
 		quit;
 	}
 	i:=atoi(args.[1]);
 	if ((i<1) or (i>(ln-1)))
 	{
-		sendtext ("No such quest found try again.<br>",self);
+		sendtext ("No such quest found, try again.<br>",self);
 		quit;
 	}
 	sendtext("Deleting "+rm.extra.["competitions"].names.[i]+".<br>",self);
@@ -1038,14 +1098,14 @@ code
 	}
 	if (rm.extra.["competitions"]==null)
 	{
-		sendtext("No competitions Ongoing<br>",self);
+		sendtext("No competitions ongoing.<br>",self);
 		quit;
 	}
 	gamestate(self, GS_MENU);
 	ln:=length(rm.extra.["competitions"].names);
 	if (ln<2)
 	{
-		sendtext("No competitions Ongoing<br>",self);
+		sendtext("No competitions ongoing.<br>",self);
 		gamestate(self, GS_PLAY);
 		quit;
 	}
@@ -1072,7 +1132,7 @@ code
 	i:=atoi(excmdstr);
 	if ((i<1) or (i>(ln-1)))
 	{
-		sendtext ("No such quest found try again.<br>",self);
+		sendtext ("No such quest found, try again.<br>",self);
 		gamestate(self, GS_PLAY);
 		quit;
 	}
@@ -1202,6 +1262,7 @@ code
 				goto got_quest;
 			i:=i+1;
 		}
+		return;  // none of the allowed quests: not in this competition
 	}
 
 :got_quest:
@@ -1342,7 +1403,7 @@ end
 
 board_obj
 names {"boardobj"}
-title "The comp object"
+title "the comp object"
 descr
 "A board obj that should not be seen by mortals is here."
 minv 200
@@ -1350,7 +1411,7 @@ end
 
 xp_obj
 names {"xpobj"}
-title "The xp object"
+title "the xp object"
 descr
 "A XP board obj that should not be seen by mortals is here."
 minv 200
@@ -1361,7 +1422,7 @@ end
 
 dead_obj
 names {"deadobj"}
-title "The dead  object"
+title "the dead object"
 descr
 "A death board obj that should not be seen by mortals is here."
 minv 200
@@ -1374,16 +1435,16 @@ end
 
 death_board
 names {"board of the dead", "death board", "dead board", "board"}
-title "The board of the dead."
+title "the board of the dead"
 descr
-"A board held up by carved Valkeries is here."
+"A board held up by carved Valkyries is here."
 type ITEM_BOARD
 dilcopy death_brd();
 end
 
 xp_board
 names {"ornate board","silver names","board","names"}
-title "Legends of Valhalla board"
+title "the Legends of Valhalla board"
 descr
 "An ornate board with names in silver is mounted on the wall here."
 extra{}
@@ -1398,26 +1459,25 @@ names {"Competition board", "board"}
 title "a competition board"
 descr "A magical competition board is mounted on a wall here."
 extra{}
-"Its a big shiny competition board with a small sign in the lower corner."
+"It's a big shiny competition board with a small sign in the lower corner."
 extra {"sign","corner"}
 "<dl>
 <dt>The Sign Says:</dt>
 <dt>look board</dt>
 <dd>-shows all competitions</dd>
-<dt>read [number]</dt>
-<dd>-shows individual competition information</dd>
 <dt>list [number]</dt>
-<dd>-shows the top 200 leaders for that competition</dd>
+<dd>-shows the top 20 leaders for that competition</dd>
 </dl>
 "
 type ITEM_BOARD
 dilcopy board();
+dilcopy auto_xp_death();
 end
 
 %reset
 
-load comp_board into moot_sou@udgaard
-load xp_board into moot_nor@udgaard
-load death_board into moot_nowe@udgaard
+load comp_board into th_entrance@midgaard
+load xp_board into th_entrance@midgaard
+load death_board into th_entrance@midgaard
                            
 %end 

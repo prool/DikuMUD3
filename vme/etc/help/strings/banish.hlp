@@ -1,12 +1,28 @@
-<br/>
-<br/>
-<br/>
-<br/>
-Sphere: Summoning Sphere<br/><br/>
-<br/><br/>
-Usage cast banish (target)<br/><br/>
-<br/>
-An effective counter to the awesome conjuring powers of the conjurers,<br/>
-this spell will return a summoned creature to its home plane.<br/>
-<br/><br/>
-<br/>
+<div class="mw-parser-output"><h1>Banish</h1>
+<p>Sphere: Summoning Sphere
+Class: none (no guild or teacher teaches it)
+Mana: 20
+</p><p>Usage:
+</p>
+<pre>cast banish &lt;creature&gt;
+</pre>
+<p>The caster calls on the power of the vortex to take a summoned creature 
+back: an elemental, a demon or a devil called up by a summoning spell, or 
+a ranger's eagle, twists in pain and dissolves. It is the answer to a conjurer's servants.
+</p><p>It only works on creatures that were summoned by magic; on anything else, 
+nothing happens. The target resists with its mind, and if the spell fails, 
+it turns on you, summoned or not. You must be standing, not fighting. No guild or 
+teacher teaches it.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Summon Earth</a>
+&gt; <a cmd='#'>Help Summon Demon</a>
+&gt; <a cmd='#'>Help Eagle Cry</a>
+&gt; <a cmd='#'>Help Summoning Sphere</a>
+</pre>
+
+
+
+
+</div>

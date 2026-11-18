@@ -88,11 +88,12 @@ code
 
       act(TRANS_TEXT,
 	  A_HIDEINV, u, null, null, TO_CHAR);
-
-      exec("look", u);
    }
 
    link(u, findsymbolic("rn_8200@ww1"));
+
+   if (u.type & (UNIT_ST_PC | UNIT_ST_NPC))
+      exec("look", u);
 
    :done:
    return;
@@ -123,7 +124,7 @@ end
 
                 sml_pass_1
 
-title "A small passage."
+title "A small passage"
 descr
 "   You are standing in a small passage, that is clearly intended mostly
 for the servants of the Castle. It is only dimly lit and quite narrow.
@@ -179,7 +180,7 @@ end
 
 title "Under the Tower"
 descr
-"   You are below one the three mighty towers of the Castle. There are
+"   You are below one of the three mighty towers of the Castle. There are
 no guards here, and you sense that this part of the Castle is largely
 unused. There are stairs going up to the tower, and there is also an
 exit to the south."
@@ -295,7 +296,7 @@ end
 title "A passage"
 descr
 "   You are standing in a passage, that leads north and south. To the north
-it leads towards one of towers."
+it leads towards one of the towers."
 south to sml_pass_3 descr
     "You see the small passage continue.";
 north to under_ne_tower;
@@ -452,7 +453,7 @@ descr
 "   You are standing in a corridor, that stretches further to the east.
 There are doors to the south and west. The corridor itself is mainly
 used by servants, and lacks some of the beauty of the rest of the
-castle.."
+castle."
 south to srvnt_quarter open {EX_OPEN_CLOSE, EX_CLOSED} descr
     "The door is made out of wood." keyword {"wooden door", "door"};
 east to servant_corr_e descr
@@ -552,7 +553,7 @@ servants. The room is full of comfortable-looking beds. There is also
 a large chest, probably containing some of the servants' belongings."
 north to servant_corr_w descr
     "The door is made out of wood." keyword {"wooden door", "door"};
-extra {"bed"}
+extra {"beds","bed"}
 "The beds all look comfortable, despite the fact that this is just
 the servants' place."
 
@@ -567,7 +568,7 @@ title "The butler's quarters"
 descr
 "   You see at once that this must be the butler's room, for it lies
 in the servants' wing, and still it is large and comfortable; almost
-luxurious, in fact. There is a large bed and a drawer in the room.
+luxurious, in fact. There is a large bed in the room.
 The only exit is via the door to the north."
 north to servant_corr_e open {EX_OPEN_CLOSE, EX_CLOSED, EX_LOCKED}
     descr "The corridor lies to the north."
@@ -684,7 +685,7 @@ end
 
                 mid_ne_tower
 
-title "In the north-east tower."
+title "In the north-east tower"
 descr
 "   This part of the tower is fairly uninteresting, but it leads further
 upwards..."
@@ -721,7 +722,7 @@ end
 
 title "By the treasure room"
 descr
-"   You are standing by a great iron door. The door is very large, and
+"   You are standing by a great steel door. The door is very large, and
 seems very solid indeed. There is a sign posted by it. "
 east to treasury open {EX_OPEN_CLOSE, EX_CLOSED, EX_LOCKED}
     descr "You see a large steel door."
@@ -946,8 +947,8 @@ end
 
 title "In the Tower"
 descr
-"   You are standing in the south-eastern of the three great watch-
-towers of the Castle. To the west, you can enter the Ball Room and
+"   You are standing in the south-eastern of the three great
+watch-towers of the Castle. To the west, you can enter the Ball Room and
 there are stairs leading up into the Tower."
 west to ball_room_se descr
     "You see the Ball Room.";
@@ -1071,7 +1072,7 @@ The only evident exit is down the stairs again."
 down to grand_staircase descr
     "The stairs go down to the second floor.";
 extra {"window","slit"}
-"As you look out the windows, you are granted a view of the country.."
+"As you look out the windows, you are granted a view of the country."
 
 movement SECT_INSIDE
 flags {UNIT_FL_INDOORS}
@@ -1174,11 +1175,11 @@ descr
 "   On both sides of the corridor there are steel bars, closing the
 entrances to prison cells. Although the straw on the floor seems
 reasonably fresh, the smell down here is anything but nice."
-north to accuse_room;
+north to accuse_room descr
+    "The damp corridor continues north.";
 west to cell_3 open {EX_OPEN_CLOSE, EX_CLOSED, EX_LOCKED}
     key prison_key keyword {"steel bars", "bar", "bars", "door"};
 east to cell_4 open {EX_OPEN_CLOSE, EX_CLOSED, EX_LOCKED}
-    descr "The damp corridor continues north."
     key prison_key keyword {"steel bars", "bar", "bars", "door"};
 south to prison_corr_3 descr
     "The damp corridor continues south.";
@@ -1270,7 +1271,7 @@ end
 
 title "The Damp Corridor"
 descr
-"   On south side of the corridor there are steel bars, closing the
+"   On the south side of the corridor there are steel bars, closing the
 entrance to a prison cell. Although the straw on the floor seems
 reasonably fresh, the smell down here is anything but nice. To the west,
 the corridor ends in a brick wall."
@@ -1455,7 +1456,7 @@ end
 title "A Narrow Passage"
 descr
 "   You are walking along a narrow passage leading east and south. The roof
-is somewhere up there, far beyond you vision. It almost seems like this is
+is somewhere up there, far beyond your vision. It almost seems like this is
 the bottom of some deep crack."
 south to junction;
 east to dead_end;
@@ -1557,6 +1558,13 @@ code
    else
    {
       exec("shake", self);
+      if (cup.objecttype != ITEM_MONEY)
+      {
+         unsecure(cup);
+         link(cup, pc);
+         act("$1n hands $2n back to you.", A_SOMEONE, self, cup, pc, TO_VICT);
+         act("$1n hands $2n back to $3n.", A_SOMEONE, self, cup, pc, TO_NOTVICT);
+      }
    }
 
    goto loop;
@@ -1875,22 +1883,20 @@ code
 dilend
 
 
-dilcopy teach_q_block@function(QUEST_WELMAR, "say Thou art not a loyal follow of the King you should talk to the Royal Herald.");
+dilcopy teach_q_block@function(QUEST_WELMAR, "say Thou art not a loyal follower of the King; you should talk to the Royal Herald.");
 
 special SFUN_TEACH_INIT
-"weapons;;
+"weapons;;;
 $1n tells you, 'Tell me more, I do not know of such weapons!';
 $1n tells you, 'I will only teach you how to use a rapier.';
 $1n tells you, 'You haven't got %s for me.';
 $1n tells you, 'You haven't got %d skill points.';
-$1n tells you, 'I can not teach you any more';
-$1n tells you, 'You must be unaffected by magic, otherwise I can't teach you';
+$1n tells you, 'I can not teach you any more.';
+$1n tells you, 'You must be unaffected by magic, otherwise I can't teach you.';
 $1n tells you, 'Remove all equipment, please.';
 
  0;   80; category sword;         20; 100; 10; 0;
  1; 100; rapier;          50; 100; 10; 0;"
-
-
 end
 
                 royal_herald
@@ -1976,25 +1982,29 @@ code
    else if ((activator == pc) and command("bow") and (target == king))
    {
       if (pc.level < 10)
-	goto loop;
+      {
+         exec("say Come back when thou art more experienced, "+pc.name+".", self);
+	 goto loop;
+      }
       pause;
 
       exec("say His majesty, King Welmar of Midgaard, has declared that "+
            "he will show his gratitude,", self);
       pause;
 
-      exec("say to any person which will bring before him a chalice filled "+
+      exec("say to any person who will bring before him a chalice filled "+
            "with the water of life!", self);
       pause;
 
-      exec("say "+pc.name+", if thou art brave and strong go into the cellar,"+
+      exec("say "+pc.name+", if thou art brave and strong, go into the cellar"+
            " of this mighty castle. It contains a secret entrance to the"+
            " cavern which contains the water of life.", self);
       pause;
       u := load("chalice@kingc");
       link(u, pc);
 
-      exec("emote gives you the chalic.", self);
+      act("$3n gives you $2n.", A_SOMEONE, pc, u, self, TO_CHAR);
+      act("$3n gives $2n to $1n.", A_SOMEONE, pc, u, self, TO_REST);
       pause;
       exec("say Return with the water of life, and prove your loyalty to the "+
            "King of Midgaard.", self);
@@ -2107,7 +2117,7 @@ end
                 cleaning_woman
 names {"cleaning woman","woman"}
 title "the Cleaning Woman"
-descr "There is a Cleaning Woman here, trying not be noticed."
+descr "There is a Cleaning Woman here, trying not to be noticed."
 extra {} "Although she has a menial job, she seems to like it."
 
 romflags {CHAR_PROTECTED}
@@ -2165,14 +2175,14 @@ dilcopy shopkeeper@function(
 "scroll_id@kingc 1 5"
 },{
 "   $1n says, 'I am sorry, but I have no such item for sale' ",
-"   $1n says, 'But you are in posession of no such thing, $3n!' ",
+"   $1n says, 'But you are in possession of no such thing, $3n!' ",
 "   $1n says, 'I will not buy that kind of item.' ",
 "   $1n says, 'I am afraid you cannot afford $2n, $3n.' ",
 "   $1n says, 'That will be %s for $2n' ",
 "   $1n says, 'Thank you $3n, here are %s for $2n.' ",
 "$1n says, 'I don't seem to have that many in my stock'",
 "$1n says, 'I'm on my break, GET LOST!'",
-"$1n says, 'I have no use for a $2n'",
+"$1n says, 'I have no use for $2n'",
 "$1n says, 'Sorry, I can't afford it'"},
 {"4","12","13","23"},
 ""+ITEM_WAND+""+ITEM_STAFF+""+ITEM_SCROLL+"",
@@ -2250,7 +2260,7 @@ dilcopy shopkeeper@function(
 "   $1n says, 'Here is %s...' ",
 "$1n says, 'I don't seem to have that many in my stock'",
 "$1n says, 'I'm on my break, GET LOST!'",
-"$1n says, 'I have no use for a $2n'",
+"$1n says, 'I have no use for $2n'",
 "$1n says, 'Sorry, I can't afford it'"},
 {"4","12","13","23"},
 ""+ITEM_WAND+""+ITEM_STAFF+""+ITEM_SCROLL+"",
@@ -2352,8 +2362,9 @@ code
 	wait(SFB_CMD, ((activator.type == UNIT_ST_PC) and (self.position != POSITION_FIGHTING)));
 	pc := activator;
 	secure(pc, lost);
-	dice := load("dice@manse");
-	link(dice, self);
+	dice := findsymbolic(self, "dice@manse", FIND_UNIT_INVEN);
+	if (dice == null)
+		dice := load("dice@manse");
 	exec("roll", self);
 	pause;
 	exec("curse", self);
@@ -2419,8 +2430,9 @@ code
 	wait(SFB_CMD, ((activator.type == UNIT_ST_PC) and (self.position != POSITION_FIGHTING)));
 	pc := activator;
 	secure(pc, lost);
-	dice := load("dice@manse");
-	link(dice, self);
+	dice := findsymbolic(self, "dice@manse", FIND_UNIT_INVEN);
+	if (dice == null)
+		dice := load("dice@manse");
 	exec("roll", self);
 	pause;
 	exec("clap", self);
@@ -2523,7 +2535,7 @@ end
                 jack
 names {"jack","prison guard","guard"}
 title "Jack, the Prison Guard"
-descr "Jack, the Prison guard is here, keeping things under control."
+descr "Jack, the Prison guard, is here, keeping things under control."
 extra {} "As all members of the Guard, Jack wears the chain mail required of
 them as uniform. Like the other Prison Guards, he seems less occupied
 with formalia than the Royal Guard is. Less shine to the mail, in other
@@ -2577,7 +2589,7 @@ tf:=walk_room@function("kitchen@kingc",4);
    pause;
    exec("sigh", self);
    pause;
-   exec("say What the hell, aint my lunch that's gone.", self);
+   exec("say What the hell, ain't my lunch that's gone.", self);
    pause;
    exec("grin", self);
    goto visit_ergan;
@@ -2590,7 +2602,7 @@ tf:=walk_room@function("kitchen@kingc",4);
    exec("emote carelessly slops up some disgusting gruel on a plate.", u);
    pause;
    i := load("kingc/yakky_gruel");
-   exec("emote gives a plate of disgusting gruel to jack", u);
+   exec("emote gives a plate of disgusting gruel to Jack.", u);
    unsecure(u);
    pause;
 
@@ -2629,6 +2641,10 @@ tf:=walk_room@function("kitchen@kingc",4);
    pause;
 
    :leave_cell:
+   /* gruel Ergan didn't get (he is dead): don't let the plates pile up */
+   i := findsymbolic(self, "yakky_gruel@kingc", FIND_UNIT_INVEN);
+   if (i != null)
+      destroy(i);
    tf:=walk_room@function("prison_corr_3@kingc",4);
    nopriority; /* Re-enable the protect lawful routine */
    exec("close bars", self);
@@ -2651,7 +2667,7 @@ end
                 george
 names {"george","prison guard","guard"}
 title "George, the Prison Guard"
-descr "George, the Prison guard is here, keeping things under control."
+descr "George, the Prison guard, is here, keeping things under control."
 extra {} "As all members of the Guard, George wears the chain mail required of
 them as uniform. Like the other Prison Guards, he seems less occupied
 with formalia than the Royal Guard is. Less shine to the mail, in other
@@ -2675,7 +2691,7 @@ end
                 joanna
 names {"joanna","prison guard","guard"}
 title "Joanna, the Prison Guard"
-descr "Joanna, the Prison guard is here, keeping things under control."
+descr "Joanna, the Prison guard, is here, keeping things under control."
 extra {} "As all members of the Guard, Joanna wears the chain mail required of
 them as uniform. Like the other Prison Guards, she seems less occupied
 with formalia than the Royal Guard is. Less shine to the mail, in other
@@ -2699,7 +2715,7 @@ end
                 sewer_rat
 names {"sewer rat", "rat"}
 title "the Great Sewer Rat"
-descr "The Huge Hungry-looking Sewer Rat sits here"
+descr "The Huge Hungry-looking Sewer Rat sits here."
 
 M_RAT_MAD(7,SEX_NEUTRAL)
 dilcopy wander_zones@function("kingc", 15, 0, 0);
@@ -2713,14 +2729,14 @@ end
 
 names {"clay chalice", "chalice"}
 title "a chalice"
-descr "A chalice made from clay has carelessly been left here.."
+descr "A chalice made from clay has carelessly been left here."
 
 manipulate {MANIPULATE_TAKE}
 LIQ_DEF("clear", 0,1,0,10,1,0,0)
 cost 10 IRON_PIECE
 
 extra {}
-"Its fairly nice and not as crooked as most clay chalices are theese days.
+"It's fairly nice and not as crooked as most clay chalices are these days.
 You notice an inscription in the bottom of the chalice, it says 'From The
 Castle of his Majesty King Welmar'."
 
@@ -2772,7 +2788,7 @@ type ITEM_WORN
 weight 1
 cost 20 GOLD_PIECE
 rent 2 SILVER_PIECE
-DEX_TRANSFER (+1)
+DEX_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
 extra {"$identify"}
 "This ring transfers the wearer partially into the ethereal plane, thus making
 him harder to hit."
@@ -2800,7 +2816,7 @@ rent 50 SILVER_PIECE
 extra {"$identify"}
 "This Sceptre is made by the old Gods and is rumored to give immense strength
 to the person holding it."
-STR_TRANSFER (+1)
+STR_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
 end
 
                            golden_crown
@@ -2810,12 +2826,12 @@ title "a golden crown"
 descr "A magnificently jewelled golden crown has been left here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
 /* It is not a "real" chain armour, therefore -5%, gold -20% */
-ARMOUR_CHAIN(-5, 1)  /* Gold / Very good craft 15% */
+ARMOUR_CHAIN(BONUS_TERRIBLE_MINUS, BONUS_AVERAGE_PLUS)  // Xyzzy: -5,1
 weight 40
 cost 100 GOLD_PIECE
 rent 50 SILVER_PIECE
 extra {"$identify"}
-"This Crown is made by the old Gods and is rumored to enhance a persons
+"This Crown is made by the old Gods and is rumored to enhance a person's
 ruling powers and bring the subject closer to the Gods."
 extra {"$improved identify"}
 "The crown gives +2 to brain and +1 to divine when worn on the head."
@@ -2867,7 +2883,7 @@ end
 
                            butler_key
 
-names {"butlers key","key"}
+names {"butler's key","butlers key","key"}
 title "the Butler's key"
 descr "The Butler's key is here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_HOLD}
@@ -2911,8 +2927,7 @@ CONTAINER_DEF(400)
 weight 450
 cost 22 COPPER_PIECE
 extra {}
-"It is equipped with a small lock, that any self-respecting thief
-should be able to pick."
+"It is a plain chest and has no lock."
 end
 
 
@@ -2925,7 +2940,7 @@ title "a training sword"
 descr "A training sword with blunt edges is leaned against a wall."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Wood 30 % and Poor Craftsmansship = -40 % */
-WEAPON_DEF(WPN_LONG_SWORD, -20, 0)
+WEAPON_DEF(WPN_LONG_SWORD, BONUS_JUNK, BONUS_AVERAGE)  // Xyzzy: -20,0
 weight 7
 cost 2 COPPER_PIECE
 /* Supposed to be negative affect on TODAM or TOHIT */
@@ -2933,12 +2948,12 @@ end
 
                            guards_sword
 
-names {"sword","longsword"}
+names {"long sword","longsword","sword"}
 title "a long sword"
 descr "A long sword has been left here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Iron 100 % Average craft 0 % */
-WEAPON_DEF(WPN_LONG_SWORD, 0, 0)
+WEAPON_DEF(WPN_LONG_SWORD, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 12 SILVER_PIECE
 end
@@ -2946,10 +2961,10 @@ end
                            guards_shield
 names {"guard's shield","shield"}
 title "a guard's shield"
-descr "A guard's shield lies on the floor"
+descr "A guard's shield lies on the floor."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_SHIELD}
 /* Pure iron and decent craft (100% + 5%) */
-SHIELD_DEF(SHIELD_MEDIUM, 1, 0)
+SHIELD_DEF(SHIELD_MEDIUM, BONUS_AVERAGE_PLUS, BONUS_AVERAGE)  // Xyzzy: 1,0
 weight 40
 cost 6 SILVER_PIECE
 extra {}
@@ -2962,9 +2977,9 @@ end
 
 names {"guard's mail jerkin","chain mail jerkin","jerkin"}
 title "a guard's chain mail jerkin"
-descr "A chain mail jerkin lies on the floor"
+descr "A chain mail jerkin lies on the floor."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_LEATHER(0,0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 30
 cost 25 SILVER_PIECE
 end
@@ -2973,9 +2988,9 @@ end
 
 names {"guard's skirt", "chain mail skirt","skirt"}
 title "a guard's chain mail skirt"
-descr "A chain mail skirt lies on the floor"
+descr "A chain mail skirt lies on the floor."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_LEATHER(0,0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 28
 cost 30 SILVER_PIECE
 end
@@ -2984,20 +2999,20 @@ end
 
 names {"chain mail coif","coif"}
 title "a guard's chain mail coif"
-descr "A chain mail coif lies on the floor"
+descr "A chain mail coif lies on the floor."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
-ARMOUR_LEATHER(0,0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 7
 cost 20 COPPER_PIECE
 end
 
                            guards_sleeves
 
-names {"chain mail sleeves","mail"}
+names {"chain mail sleeves","sleeves","mail"}
 title "a guard's chain mail sleeves"
-descr "A pair of chain mail sleeves lie on the floor"
+descr "A pair of chain mail sleeves lie on the floor."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_LEATHER(0,0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 12
 cost 30 SILVER_PIECE
 end
@@ -3009,7 +3024,7 @@ title "a large broadsword"
 descr "There is a large broadsword lying here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Pure iron and Decent craft (100% + 5%) */
-WEAPON_DEF(WPN_LONG_SWORD, 0, 0)
+WEAPON_DEF(WPN_LONG_SWORD, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 18
 cost 15 SILVER_PIECE
 end
@@ -3028,7 +3043,7 @@ end
 
                            caviar
 
-names {"russion caviar", "caviar"}
+names {"russian caviar", "caviar"}
 title "some Russian caviar"
 descr
 "There is some delicious-looking Russian caviar here, making your mouth water."
@@ -3089,7 +3104,7 @@ cost 5 GOLD_PIECE
 SCROLL_DEF(78, SPL_WORD_OF_RECALL, SPL_NONE, SPL_NONE)
 
 extra {}
-"The scroll has written a formulae of 'Word of Recall' upon it."
+"The scroll has the formula of 'Word of Recall' written upon it."
 extra {"$identify"}
 "This scroll has the power to transfer persons home."
 extra {"$improved identify"}

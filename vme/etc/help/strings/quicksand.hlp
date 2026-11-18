@@ -1,7 +1,29 @@
-<br/>
-<br/>
-Usage: cast quicksand<br/>
-This area-affect spell soaks the ground in viscous quicksand, hampering<br/>
-the movement of anyone in the immediate vicinity.<br/>
-<br/>
-<br/>
+<div class="mw-parser-output"><h1>Quicksand</h1>
+<p>Sphere: Creation Sphere
+Class: Druid (guild level 31, up to 50%)
+Mana: 40
+</p><p>Usage:
+</p>
+<pre>cast quicksand
+</pre>
+<p>The caster folds their hands and chants 'Liquidus Sub Terra', and the 
+ground of the whole room turns to a mire of quicksand. It slows everyone in 
+the room but you and your group, making them slower in a fight for a 
+while, longer the better the casting. Other players are slowed only if you 
+both have signed the Book of Blood. If the spell fails, the ground holds 
+firm.
+</p><p>It can't be cast indoors, in the desert, on or under water, or on snow, 
+slush or ice. It can be cast while fighting.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Mud Puddle</a>
+&gt; <a cmd='#'>Help Slow</a>
+&gt; <a cmd='#'>Help Creation Sphere</a>
+&gt; <a cmd='#'>Help Druid Spells</a>
+</pre>
+
+
+
+
+</div>

@@ -13,14 +13,14 @@
     <!-- ============ CONTENT ============== *-->
     <div class="c_container flex-direction"> <!-- Outer -->
 	    <div class="c_left">
-		<div id="al_text" role="tree" aria-live="polite" ondblclick="onMainClick()">
+		<div id="al_text" role="tree" aria-live="assertive" ondblclick="onMainClick()">
                 <ul id="converse" style="list-style-type: none; display: inline;"></ul>
             </div>
             <div id="al_cmd">
                 <table width="100%">
                     <tr>
                         <td style="width:4%; height:34px; color:white;">&nbsp;Cmd</td>
-                        <td style="width:76%;height:34px;"><input style="width:97%;" type="text" id="message"/><input style="width:97%;display:none" type="password" id="pwd"/></td>
+                        <td style="width:76%;height:34px;"><input style="width:97%;" type="text" id="message"/><input style="width:97%;display:none" type="text" id="pwd"/></td>
                         <td style="width:15%;height:34px;"><input id="btnSend" type="button" value=">" disabled="disabled" onclick="onSendClick()"></td>
                     </tr>
                 </table>
@@ -57,7 +57,7 @@
                 <a href="#" role="presentation" aria-label="Inventory" onclick="cmd('inventory')">In</a><br/>
                 <a href="#" role="presentation" aria-label="Equipment" onclick="cmd('equipment')">Eq</a><br/>
                 <a href="#" role="presentation" aria-label="Help" onclick="cmd('help')">He</a><br/>
-        		<a href="#" role="presentation" aria-label="Score" onClick="cmd('score')">Sc</a><br/> 
+        		<a href="#" role="presentation" aria-label="Score" onclick="cmd('score')">Sc</a><br/> 
 		        <a href="#" role="presentation" aria-label="Show static text snapshot" aria-haspopup="Static Text Popup" onclick="modalShow()">MOD</a><br/>
             </div>
         </div> <!-- ac_right -->
@@ -185,7 +185,8 @@
                 g_sPlyName = "";
                 window.document.title = "Login Password - DikuMUD";
                 document.getElementById("message").style.display = "none";
-                document.getElementById("pwd").style.display = "inline"; 
+                document.getElementById("pwd").style.display = "inline";
+                document.getElementById("pwd").style.webkitTextSecurity = 'disc';
             }
 
             function PasswordOff(plyname, mudname) {

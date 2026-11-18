@@ -30,8 +30,6 @@ END HEADER*/
 #define BOLDIN_ROGUE_COMPLETE  "Boldin Seeking Rogue Complete"
 
 #define ROGUE_QUEST        "Rogue Quest"
-#define ROGUE_ONGOING      "Rogue Ongoing"
-#define ROGUE_COMPLETE     "Rogue Complete"
 
 #define EXPLORE_ONGOING  "Seeking Bernhard"
 #define EXPLORE_COMPLETE "Seeking Bernhard Complete"
@@ -61,10 +59,10 @@ help
 "<pre><br/>
 Gremlins have invaded Barnham's pleasant farmstead. Help him to rid the farm
 of these terrible vermin once and for all!<br/><br/>
-This zone is intended to provide a soft-launch for new players of all profession. 
+This zone is intended to provide a soft-launch for new players of all professions. 
 Quests, equipment, and experiences are designed to teach what can be expected playing
 at higher levels. Zone by Sender.
-</div></pre>"
+</pre>"
 
 /* ================================================================== */
 /*                               DIL                                  */
@@ -184,7 +182,7 @@ code
 	{
 		act("Your $2n glows slightly as it attempts to battle $3n's will!"
 		   ,A_ALWAYS, self.outside, self, self.outside.fighting,TO_CHAR);
-		act("$1n's $2n glows slightly in an attempt to battle $3n will!"
+		act("$1n's $2n glows slightly in an attempt to battle $3n's will!"
 		   ,A_ALWAYS, self.outside, self, self.outside.fighting,TO_NOTVICT);
 		act("You feel $1n's $2n intruding on your will, you push the assault back!"
 		   ,A_ALWAYS, self.outside, self, self.outside.fighting,TO_VICT);
@@ -201,7 +199,7 @@ code
 	position_update(self.outside);
 	act("Your Vorous glows a little as it draws your energy to prepare for battle!"
 		,A_ALWAYS, self.outside, self, self.outside.fighting,TO_CHAR);
-	act("$1n's grimaces a bit as $1s $2n glows."
+	act("$1n grimaces a bit as $1s $2n glows."
 		,A_ALWAYS, self.outside, self, self.outside.fighting,TO_REST);
 	goto start;
 
@@ -212,7 +210,7 @@ code
 	if (pwr>12) pwr := 12;
 	act("Your Vorous hums as it regenerates itself."
 		,A_ALWAYS, self.outside, self, self.outside.fighting,TO_CHAR);
-	act("$1n's Vorous hums quietly ."
+	act("$1n's Vorous hums quietly."
 		,A_ALWAYS, self.outside, self, self.outside.fighting,TO_REST);
 	goto init;
 }
@@ -240,200 +238,10 @@ dilend
 
 
 
-dilbegin rogue_request();
-external
-   extraptr qstSetDone@quests(qname : string, pc : unitptr);
-
-var
-  pc: unitptr;
-  exdp: extraptr;
-
-code
-{
-	heartbeat:= PULSE_SEC*4;
-
-:start:
-	wait(SFB_CMD,(activator.type == UNIT_ST_PC) and (BOLDIN_ROGUE_ONGOING in activator.quests) and (activator.position == POSITION_STANDING));
-
-	pc := activator;
-	secure(pc, lostpc);
-
-	if (ROGUE_ONGOING in pc.quests)
-		goto rogue_ongoing;
-	
-    pause;
-    exec("say Ahoy "+pc.name+". So you be another of Boldin's youngsters then, eh?.", self);
-    pause;
-	exec("say If he's sent you to me it means he wants you to see what an adventurer has to do to keep the wolf from the door...", self);
-	pause;
-	exec("say Apart from killing it, of course.", self);
-	pause;
-	exec("say First things first, boats.", self);
-	pause;
-	exec("say Running hither and yon on those legs of yours is all well and good but sooner or later you'll need to take to the water.", self);
-	pause;
-	exec("emote scans the seaward horizon where a galleon can be seen under full sail.", self);
-	pause;
-	exec("say Ah, how I wish I was there!", self);
-	pause;
-	exec("emote brushes away an anguished tear but then turns to you with a hopeful smile.", self);
-	pause;
-	exec("say Hold hard, me hearty. How'd you like to do a favour for an old salt who's down on his luck?", self);
-	pause;
-	exec("say I could easily rejoin me old crew if I had a boat and the right equipment to get me there safely.", self);
-	pause;
-	exec("say Perhaps you could fetch a few things for me?", self);
-	pause;
-	exec("say You might want to make notes of the things I asks for. People round here aren't much minded to repeat themselves when they asks favours of an obliging cove.", self);
-	pause;
-	exec("say Let me see... I need a boat, of course. There be plenty of boat shops around, and a couple of folk even keep rafts themselves.", self);
-	pause;
-	exec("say Next I need a nice piece of thick hemp rope. They make good rope up in Whesland.", self);
-	pause;
-	exec("say I mustn't forget a drop of something to warm me up after a squall. A mug of hobgoblin whiskey will be just the thing. They sells it in their town in the mountains to the south of the King's Road.", self);
-	pause;
-	exec("emote smacks his lips appreciatively.", self);
-	pause;
-	exec("say Lastly, I'd like me old serrated cutlass back. I lost it playing cards against those orcs underneath the Midgaard sewers. And if that scurvy knave Branneth says he wants it then don't listen to him. I asked first!", self);
-	pause;
-	act("<div class='whisper'>Sventer the rogue whispers to you, 'Just <div class='hint'>nod</div> if you'll be happy to help a poor lubber out of the scuppers and back into some honest buccaneering.</div>",A_SOMEONE, pc, null, null, TO_CHAR); 
-	
-	goto accept_rogue;
-	
-:accept_rogue:
-
-	wait(SFB_CMD, activator #= pc);
-	if (command("nod"))
-		goto rogue_accepted; 
-	else if (command("shake"))
-		goto no_quest;
-	else
-	{
-		act("<div class='whisper'>Sventer the rogue whispers to you, '<div class='hint'>Nod</div> if you agree to help, <div class='hint'>shake</div> your head otherwise.'</div>",A_SOMEONE, pc, null, null, TO_CHAR); 
-		goto accept_rogue;
-	}
-
-:no_quest:
-
-	exec("say So be it!", self);
-	unsecure(pc);
-	goto start;
-
-:rogue_accepted:
-
-	pause;
-	exec("say Thank ye kindly, mate.", self);
-	pause;
-	exec("say Some of the boats around aren't exactly cheap though.", self);
-	pause;
-	exec("say If you can't afford all of my supplies, try roughing up one of those good-for-nothing fishermen on the eastern beach and selling their rods to Fred at the fishing supply store in the harbour market.", self);
-	pause;
-	exec("say Now look lively and fetch me them things, or I'll miss me ship.", self);
-	addextra(pc.quests, {ROGUE_ONGOING}, "");
-
-	unsecure(pc);
-	goto start;
-	
-:rogue_ongoing:
-
-	exdp := ROGUE_ONGOING in pc.quests;
-	if(("boat" in exdp.names) and ("cutlass" in exdp.names) and ("rope" in exdp.names))
-	{
-		subextra(pc.quests, ROGUE_ONGOING);
-		addextra(pc.quests, {ROGUE_COMPLETE}, "");
-		exdp := qstSetDone@quests(BOLDIN_ROGUE, pc);
-		experience(3000, pc);
-		act("<br><div class='hint'>Quest Completed!</div>",A_SOMEONE, pc, null, null, TO_CHAR); 
-		act("<br><div class='xpgain'>You recieve 3000 experience.</div><br>",A_SOMEONE, pc, null, null, TO_CHAR); 
-
-		exec("say That's the way, me hearty! And did you have to sell any of those fishing rods to pay for me dunnage?", self);
-		pause;
-		exec("say Even if you didn't this time, you should bear them in mind if you find yourself in a fix in future.", self);
-		pause;
-		exec("say I'd have done the same already, only I'm not so handy without me trusty cutlass.", self);
-		pause;
-		exec("emote turns his attention to provisioning his boat, giving you a dismissive wave.", self);
-		// give a treasure map to find buried treasure. Treasure dil to be applied to map, faking a load in a room. 
-		// small_hill@tower is the treasure room 4gp 32 sp 128 cp. item that is a necklace of mana in some way.
-	}
-
-	unsecure(pc);
-	goto start;	
-:lostpc:
-
-	exec("sigh", self);
-	goto start;
-}
-dilend // END rogue_request
-
-dilbegin rogue_give();
-var
-	pc: unitptr;
-	item: unitptr;
-	exdp: extraptr;
-
-code
-{
-	heartbeat:= PULSE_SEC*3;
-
-:start:
-
-	wait(SFB_DONE, (command("give")) and (target == self) and (ROGUE_ONGOING in activator.quests));
-
-:give:
-
-	pc:= activator;
-	item:= medium;
-	secure(pc, lostpc);
-	exdp:= ROGUE_ONGOING in pc.quests;
-	if (("sercutlass@midsewers" == self.inside.symname) and (not(ROGUE_COMPLETE in activator.quests)))
-	{
-		addstring(exdp.names, "cutlass");
-		exec("say Ah-har, matey. That's the very thing!", self);
-		destroy(self.inside);
-	}
-	else if (("rope@korandin" == self.inside.symname) and (not(ROGUE_COMPLETE in activator.quests)))
-	{
-		addstring(exdp.names, "rope");
-		exec("say Ah-har, matey. A strong one at that!", self);
-		destroy(self.inside);
-	}
-	else if (("whisky@hobgob" == self.inside.symname) and (not(ROGUE_COMPLETE in activator.quests)))
-	{
-		addstring(exdp.names, "whisky");
-		exec("say Ah-har, matey. This smells like it could strip the paint off a hull!", self);
-		destroy(self.inside);
-	}
-	else if ((ITEM_BOAT == self.inside.objecttype) and (not(ROGUE_COMPLETE in activator.quests)))
-	{
-		addstring(exdp.names, "boat");
-		exec("say Ah-har, matey. She aint pretty, but she looks to float.", self);
-		destroy(self.inside);
-	}
-	else
-	{
-		destroy(self.inside);
-		exec("say No, "+pc.name +", I dont need this.", self);
-		pause;
-	}
-
-:rejected:	
-	
-	unsecure(pc);
-	goto start;
-
-:lostpc:
-
-	exec("say bah!", self);
-	goto start;
-}
-dilend // END rogue_give
-
-
-
 dilbegin aware boldin_request();
 external
-   unitptr qstWaitHero@quests(qname : string, pc : unitptr, sl : stringlist, acptfunc : string);
+   unitptr qstDonePc@quests(arg : string);
+   unitptr qstWaitHero@quests(qname : string, pc : unitptr, sl : stringlist, acptfunc : string, prereqfunc : string);
    extraptr qstAssign@quests(qname : string, pc : unitptr, sl : stringlist, qdescr : string);
    unitptr qstWaitDone@quests(qname : string, pc : unitptr,
                              sl : stringlist, xp : integer, gold : integer, itemsl : stringlist);
@@ -442,132 +250,119 @@ var
   pc: unitptr;
   exdp: extraptr;
   i : integer;
+  s : string;
 
 code
 {
-	heartbeat:= PULSE_SEC*3;
+	interrupt(SFB_MSG, TRUE, check_msg);
+	heartbeat := PULSE_SEC*3;
 
 :start:
-   unsecure(pc);
-	wait(SFB_CMD,(activator.type == UNIT_ST_PC) and (not (BOLDIN_COMPLETE in activator.quests)));
-
-   if (not (BOLDIN_ONGOING in activator.quests))
-      goto boldingo;
-
+    unsecure(pc);
+	wait(SFB_CMD, TRUE);
 	pc := activator;
+
+:msgskipin:
+    if (pc.type != UNIT_ST_PC)
+        goto start;
+    if (BOLDIN_COMPLETE in pc.quests)
+        goto start;
+
 	secure(pc, lostpc);
 
-   if (not (BOLDIN_BREAD_COMPLETE in pc.quests))
-   {
-      if (not (BOLDIN_BREAD_ONGOING in pc.quests))
-         goto bread;
-      else
-         goto bread_ongoing;
-   }
-   else if (not (BOLDIN_WATER_COMPLETE in pc.quests))
-   {
-      if (not (BOLDIN_WATER_ONGOING in pc.quests))
-         goto water;
-      else
-         goto water_ongoing;
-   }
-   else if (not (BOLDIN_HANDOFF_COMPLETE in pc.quests))
-   {
-      if (not (BOLDIN_HANDOFF_ONGOING in pc.quests))
-         goto handoff;
-      else
-         goto handoffdone;
-   }
-   else if (not (BOLDIN_ROGUE_COMPLETE in pc.quests))
-   {
-      if (not (BOLDIN_ROGUE_ONGOING in pc.quests))
-         goto rogue;
-      else
-         goto roguedone;
-   }
+    if (not (BOLDIN_ONGOING in pc.quests))
+        goto boldingo;
 
-   goto start;
+    if (not (BOLDIN_BREAD_COMPLETE in pc.quests))
+    {
+        if (not (BOLDIN_BREAD_ONGOING in pc.quests))
+            goto bread;
+    }
+    else if (not (BOLDIN_WATER_COMPLETE in pc.quests))
+    {
+        if (not (BOLDIN_WATER_ONGOING in pc.quests))
+            goto water;
+    }
+    else if (not (BOLDIN_HANDOFF_COMPLETE in pc.quests))
+    {
+        if (not (BOLDIN_HANDOFF_ONGOING in pc.quests))
+            goto handoff;
+    }
+    else if (not (BOLDIN_ROGUE_COMPLETE in pc.quests))
+    {
+        if (not (BOLDIN_ROGUE_ONGOING in pc.quests))
+            goto rogue;
+    }
+    else
+        goto alldone;
+
+    unsecure(pc);
+    goto start;
 
 :boldingo: 
-	pc := qstWaitHero@quests(BOLDIN_QUEST, activator,
-      {"say Ahoy there traveller!",
-      "say you look to be somewhat new around here.",
-      "whisper $1N I could use some help. And I'm guessing you could as well!",
-      "whisper $1N You see, the older I get, the harder it seems it is to get around.",
-      "whisper $1N Would you be so kind as to help me out?",
-      "whisper $1N Just <a cmd='#'>nod</a> your head, and I'll give you the details.' <div class='cpy'>HINT: Simply type 'nod' and hit enter.</div>"
-      }, ""
-   );
+    pc := qstWaitHero@quests(BOLDIN_QUEST, pc,
+        {"say Ahoy there traveller!",
+        "say You look to be somewhat new around here.",
+        "whisper $1N I could use some help. And I'm guessing you could as well!",
+        "whisper $1N You see, the older I get, the harder it seems it is to get around.",
+        "whisper $1N Would you be so kind as to help me out?",
+        "whisper $1N Just <a cmd='#'>nod</a> your head, and I'll give you the details. <div class='cpy'>HINT: Simply type 'nod' and hit enter.</div>"
+        }, "", ""
+    );
 
-   if (pc == null)
-      goto start;
+    if (pc == null)
+        goto start;
 
-   secure(pc, lostpc);
+    // Boldin Quest accepted
 
-   // Boldin Quest accepted
-
-   exdp := qstAssign@quests(BOLDIN_QUEST, pc, 
-      {"say Excellent!",
-       "clap"},
-      "Help Boldin in Udgaard with various quests."
-   );
+    exdp := qstAssign@quests(BOLDIN_QUEST, pc, 
+        {"say Excellent!",
+        "clap"},
+        "Help Boldin in Udgaard with various quests."
+    );
 
 :bread:
    // Bread Quest accepted
+    exdp := qstAssign@quests(BOLDIN_BREAD, pc, 
+        {"say A man gets hungry in his age.",
+        "whisper $1N If you could find a store and <div class='hint'>buy bread</div> for me, it would be well appreciated.",
+        "whisper $1N Take this money, and you can keep anything that's left after your purchase.",
+        "whisper $1N Use the <a cmd='#'>purse</a> command to check how much money you are carrying.",
+        "whisper $1N A food store can be found west and north of here.",
+        "emote gives 2 copper pieces to $1N"},
+        "Buy some bread and give it to Boldin."
+    );
 
-
-   exdp := qstAssign@quests(BOLDIN_BREAD, pc, 
-      {"say A man gets hungry in his age.",
-      "whisper $1N If you could find a store and <div class='hint'>buy bread</div> for me, it would be well appreciated.",
-      "whisper $1N Take this money, and you can keep anything thats left after your purchase.",
-      "whisper $1N Use the <a cmd='#'>purse</a> command to check how much money you are carrying.'",
-      "whisper $1N A food store can be found west and north of here.",
-      "emote gives 2 copper pieces to $1N"},
-      "Buy a bread and give it to Boldin."
-   );
-
-   // Give money to the player
-   i := transfermoney(null, pc, 2 * COPPER_MULT);
+    // Give money to the player
+    i := transfermoney(null, pc, 2 * COPPER_MULT);
 
 	unsecure(pc);
 	goto start;
-
-:bread_ongoing:
-   pc := qstWaitDone@quests(BOLDIN_BREAD, pc, 
-         {"smile $1N",
-          "say Quest complete, brave adventurer!",
-          "whisper $1N I suspect you'll need these coins sooner or later."},
-          500, 2 * COPPER_MULT,{""});
-	unsecure(pc);
-	goto start;
-	
 
 
 :water:	
-   pc  := qstWaitHero@quests(BOLDIN_WATER, pc,
-      {"emote quietly chews a chunk of bread.",
-      "say Thank you again for that bread, traveller!",
-      "say Now, could I ask one more favor?",
-      "whisper $1N You see, I'm feeling rather parched.",
-      "whisper $1N A dash of water would do me well!",
-      "whisper $1N Would you be so kind as to help me out?",
-      "whisper $1N Just <a cmd='#'>nod</a> your head, and I'll give you the details.'"}, "");
+    pc  := qstWaitHero@quests(BOLDIN_WATER, pc,
+        {"emote quietly chews a chunk of bread.",
+        "say Thank you again for that bread, traveller!",
+        "say Now, could I ask one more favor?",
+        "whisper $1N You see, I'm feeling rather parched.",
+        "whisper $1N A dash of water would do me well!",
+        "whisper $1N Would you be so kind as to help me out?",
+        "whisper $1N Just <a cmd='#'>nod</a> your head, and I'll give you the details. <div class='hint'>HINT: Simply type 'nod' and hit enter.</div>"}, "", "");
 
-	act("<div class='hint'>HINT: Simply type 'nod' and hit enter.</div>",A_SOMEONE, pc, null, null, TO_CHAR); 
+    if (pc == null)
+        goto start;
 
-   if (pc == null)
-      goto start;
-
-   // Find a hero to take the water quest
-   exdp := qstAssign@quests(BOLDIN_WATER, pc, 
-      {"say Excellent!",
-      "say I've got the thirst of a man twice my size and with three times my vigor.",
-      "whisper $1N Take this barrel, and map.",
-      "whisper $1N Simply <a cmd='look map'>look at this map</a> and it will guide you to the nearby city of Midgaard.",
-      "whisper $1N At the Midgaard Market Square you will find an obelisk full of water! Simply <a cmd='#'>pour obelisk in barrel</a> to fill it up.'",
-      "::$3n hands you an empty barrel and a crumpled map.::$3n hands an empty barrel and a crumpled map to $1n."},
-      "Return to Boldin with his barrel full of water. You can fill up the barrel in Midgaard at the Obelisk."
-   );
+    // Find a hero to take the water quest
+    exdp := qstAssign@quests(BOLDIN_WATER, pc, 
+        {"say Excellent!",
+        "say I've got the thirst of a man twice my size and with three times my vigor.",
+        "whisper $1N Take this barrel and map.",
+        "whisper $1N Simply <a cmd='look map'>look at this map</a> and it will guide you to the nearby city of Midgaard.",
+        "whisper $1N At the Midgaard Market Square you will find an obelisk full of water! Simply <a cmd='#'>pour obelisk in barrel</a> to fill it up.",
+        "::$3n hands you an empty barrel and a crumpled map.::$3n hands an empty barrel and a crumpled map to $1n."},
+        "Return to Boldin with his barrel full of water. You can fill up the barrel in Midgaard at the Obelisk."
+    );
 
 	item := load("water_barrel@gremlin");
 	link(item, pc);
@@ -579,81 +374,65 @@ code
 	goto start;
 
 
-:water_ongoing:
-   pc := qstWaitDone@quests(BOLDIN_WATER, pc, 
-         {"smile $1N",
-          "emote takes a long drink from the barrel, completely emptying it!",
-          "say I think you're going to need these sooner or later",
-          "emote quite slips you some coins and gives you an empty barrel."
-          },
-          500, 2 * COPPER_MULT, {"water_barrel@gremlin"});
-	unsecure(pc);
-	goto start;
-
-
 :handoff:
-   pc  := qstWaitHero@quests(BOLDIN_HANDOFF, pc,
-      {"say Now that was refreshing, $1N!",
-      "say A dark rumour has been spreading, and I think you're up to helping with it.",
-      "whisper $1N There is word that gremlins have invaded a nearby farmstead!",
-      "whisper $1N What do you think, do you have it in you to help?",
-      "whisper $1N Just <a cmd='#'>nod</a> your head, and I'll give you the details.'"}, "");
+    pc  := qstWaitHero@quests(BOLDIN_HANDOFF, pc,
+        {"say Now that was refreshing, $1N!",
+        "say A dark rumour has been spreading, and I think you're up to helping with it.",
+        "whisper $1N There is word that gremlins have invaded a nearby farmstead!",
+        "whisper $1N What do you think, do you have it in you to help?",
+        "whisper $1N Just <a cmd='#'>nod</a> your head, and I'll give you the details."}, "", "");
 
-   if (pc == null)
-      goto start;
+    if (pc == null)
+        goto start;
 
-   // Find a hero to take the water quest
-   exdp := qstAssign@quests(BOLDIN_HANDOFF, pc, 
-      {"say Your help will be well appreciated $1N!",
-      "whisper $1N Between Cypress Forest and the City of Midgaard lies a dusty trail.",
-      "whisper $1N A small farmstead can be found by heading north on this trail.",
-      "whisper $1N Barnham is the master of this farm, and also a distant cousin of mine.",
-      "whisper $1N Please go find Barnham, he will warmly welcome you."},
-      "Go see Barnham in the farmstead north of a dusty trail between the Cypress forest and Midgaard."
-   );
+    // Find a hero to take the water quest
+    exdp := qstAssign@quests(BOLDIN_HANDOFF, pc, 
+        {"say Your help will be well appreciated, $1N!",
+        "whisper $1N Between Cypress Forest and the City of Midgaard lies a dusty trail.",
+        "whisper $1N A small farmstead can be found by heading north on this trail.",
+        "whisper $1N Barnham is the master of this farm, and also a distant cousin of mine.",
+        "whisper $1N Please go find Barnham, he will warmly welcome you."},
+        "Go see Barnham in the farmstead north of a dusty trail between the Cypress forest and Midgaard."
+    );
 
-	unsecure(pc);
-	goto start;
+    unsecure(pc);
+    goto start;
 
 	
-:handoffdone:
-   pc := qstWaitDone@quests(BOLDIN_HANDOFF, pc, 
-         {"say I see you have returned, $1N.",
-          "say I am truly saddened by the news that has reached me.",
-          "whisper $1N Bernhard will be deeply missed. He was the last of a long line of heroic adventurers."},
-          500, 2 * COPPER_MULT, {""});
-	unsecure(pc);
-	goto start;
-
 :rogue:
-   pc  := qstWaitHero@quests(BOLDIN_ROGUE, pc,
-      {
-      "whisper $1N Given the state of affairs, I'm afraid I must ask for additional assistance.",
-      "whisper $1N Can I count on you for one more request?"
-      },"");
+    pc  := qstWaitHero@quests(BOLDIN_ROGUE, pc,
+        {
+        "whisper $1N Given the state of affairs, I'm afraid I must ask for additional assistance.",
+        "whisper $1N Can I count on you for one more request?"
+        },"", "");
 
-   if (pc == null)
-      goto start;
+    if (pc == null)
+        goto start;
 
-   // Find a hero to take the water quest
-   exdp := qstAssign@quests(BOLDIN_ROGUE, pc, 
-      {"say And so another adventure begins $1N.",
-   	  "whisper $1N Away beyond the East gate of Midgaard lies a crossroads.",
-        "whisper $1N South from this crossroads, lies the seaside town of Torsbay.",
-        "whisper $1N There in Torsbay, a rogue has landed on the shore.",
-        "whisper $1N Find this rogue, and mention my name. He will know what to do."
-      }, "Find the rogue in Torsbay.");
-	unsecure(pc);
-	goto start;
+    // Find a hero to take the water quest
+    exdp := qstAssign@quests(BOLDIN_ROGUE, pc, 
+        {"say And so another adventure begins, $1N.",
+        "whisper $1N Away beyond the East gate of Midgaard lies a crossroads.",
+            "whisper $1N South from this crossroads lies the seaside town of Torsbay.",
+            "whisper $1N There in Torsbay, a rogue has landed on the shore.",
+            "whisper $1N Find this rogue, and mention my name. He will know what to do."
+        }, "Find the rogue in Torsbay.");
+        unsecure(pc);
+        goto start;
 
-:roguedone:
-   // Check if BOLDIN_ROGUE is done (qstWaitDone). For now I don't think you've compelted this part?
-   goto start;
+:alldone:
+    // Every part is done: close Boldin's Request
+    exec("say There you are again, " + pc.name + "! The rogue sailed off, I hear.", self);
+    exec("whisper " + pc.name + " That was all an old man could ask for. Thank you, for everything.", self);
+    subextra(pc.quests, BOLDIN_ONGOING);
+    addextra(pc.quests, {BOLDIN_COMPLETE}, "");
+    act("<br><div class='hint'>Quest Completed!</div>", A_SOMEONE, pc, null, null, TO_CHAR);
+    unsecure(pc);
+    goto start;
 
 
 :no_quest:
-
-	exec("say So be it!", self);
+    exec("say So be it!", self);
 	unsecure(pc);
 	goto start;
 
@@ -661,6 +440,16 @@ code
 :lostpc:
    exec("sigh", self);
    goto start;
+
+:check_msg:
+	pc := qstDonePc@quests(argument); // The player activator
+
+	if (pc == null) {
+		// log("PC is null...");
+		goto start;
+	}
+	goto msgskipin;
+
 }
 dilend // END boldin_request
 
@@ -683,21 +472,22 @@ code
 
   :start:
 
-    wait(SFB_DONE, (activator.type == UNIT_ST_PC) and (not (SOUL_ANCHOR_COMPLETE in activator.quests)));
+    wait(SFB_DONE, activator.type == UNIT_ST_PC);
     pc := activator;
 
     if (SOUL_ANCHOR_COMPLETE in pc.quests)
     {
-      goto start;
+        goto start;
     }
 
     if (SOUL_ANCHOR_ONGOING in pc.quests)
     {
-      goto soul_anchor_ongoing;
+        if (command("give") and (target == self))
+            goto soul_anchor_ongoing;
+        goto start;
     }
 
     wait(SFB_DONE,(activator.type == UNIT_ST_PC) and command("smile"));
-
     pc := activator;
     secure(pc, lostpc);
 
@@ -720,7 +510,7 @@ code
     pause;
     exec("say Of course, the easiest thing to do would be to simply go find it.", self);
     pause;
-    exec("say But your corpse could wind up in the most inconvient locations!", self);
+    exec("say But your corpse could wind up in the most inconvenient locations!", self);
     pause;
     exec("emote mutters something about giant ants.", self);
     pause;
@@ -735,8 +525,7 @@ code
     goto accept_explore;
 
   :accept_explore:
-    wait(SFB_DONE, activator.type == UNIT_ST_PC);
-    pc := activator;
+    wait(SFB_DONE, activator == pc);
     if (command("nod"))
     {
       goto anchor_accepted;
@@ -777,7 +566,7 @@ code
 
     // note to self: there's explicitly-set heartbeat before this kicks in
     qstAssign@quests(SOUL_ANCHOR_QUEST, pc,
-                     {"This string doesn't seem to be used?"},
+                     {"nod"},
                      "seeking Gaflaw's life");
     exec("say Go now, and return when you have what I need.", self);
 
@@ -787,8 +576,7 @@ code
   :soul_anchor_ongoing:
 
     // Due to this being very simple and issues with qstWaitDone / qstItemsWanted,
-    // it's just re-implemented here.
-    wait(SFB_DONE, command("give") and (target == self));
+    // it's just re-implemented here. Reached on a give from a player with the quest ongoing.
 
     pc := activator;
     item := medium;
@@ -814,7 +602,7 @@ code
       pause;
       if (pc.hometown == "temple@udgaard")
       {
-        exec("emote mutters 'Probably that temple in udgaard...'", self);
+        exec("emote mutters 'Probably that temple in Udgaard...'", self);
       }
       else
       {
@@ -825,7 +613,7 @@ code
       pause;
       exec("say Now, go forth and die freely!", self);
       pause;
-      exec("wave $1n", self);
+      exec("wave " + pc.name, self);
 
       // settle rewards
       subextra(pc.quests, SOUL_ANCHOR_ONGOING);
@@ -878,7 +666,7 @@ code
 	pause;
 	exec("say My son Bernhard went exploring, and has not returned.", self);
 	pause;
-	exec("say Whats more, it appears those nasty gremlins have invaded.", self);
+	exec("say What's more, it appears those nasty gremlins have invaded.", self);
 	pause;
 	exec("say For generations, we have seen one or two periodically attack from their cave to the west.", self);
 	pause;
@@ -926,7 +714,7 @@ code
 	pause;
 	exec("emote reaches over to the drawers, and with a deft move, opens a false bottom!", self);
 	pause;
-	exec("emote carefully lifts an object from the drawer, and unwraps it's cloth covering.", self);
+	exec("emote carefully lifts an object from the drawer, and unwraps its cloth covering.", self);
 	pause;
 	exec("say "+pc.name+", this has been handed down to me, for use fending off invading gremlins.", self);
 	pause;
@@ -964,7 +752,7 @@ code
 	exdp := EXPLORE_ONGOING in pc.quests;
 	if ("dagger" in exdp.names)
 	{
-		exec("say I thank you for bringing me this, but please I cant bear to keep it.", self);
+		exec("say I thank you for bringing me this, but please, I can't bear to keep it.", self);
 		pause;
 		exec("emote returns the dagger to you.", self);
 		subextra(pc.quests, EXPLORE_ONGOING);
@@ -972,7 +760,7 @@ code
       exdp := qstSetDone@quests(BOLDIN_HANDOFF, pc);
 		experience(1000, pc);
 		act("<br><div class='hint'>Quest Completed!</div>",A_SOMEONE, pc, null, null, TO_CHAR); 
-		act("<br><div class='xpgain'>You recieve 1000 experience.</div><br>",A_SOMEONE, pc, null, null, TO_CHAR); 
+		act("<br><div class='xpgain'>You receive 1000 experience.</div><br>",A_SOMEONE, pc, null, null, TO_CHAR); 
 		item := load("tarn_dagger@gremlin");
         item.height := pc.height;
 		link(item, pc);
@@ -1017,8 +805,8 @@ code
 	if ((item.symname == "tarn_dagger@gremlin") and (not(EXPLORE_COMPLETE in activator.quests)))
 	{
 		addstring(exdp.names, "dagger");
-		destroy(self.inside);
-		exec("say I see. It is as I feared, then.", self);
+		destroy(item);
+		// exec("say I see. It is as I feared, then.", self);
 		pause;
 		exec("cry", self);
 		pause;
@@ -1028,9 +816,9 @@ code
 	else
 	{
 		exec("say Did I ask for this, "+pc.name +"?", self);
+		link(item, pc);
 		pause;
 		exec("say I think not.", self);
-		link(self.inside, pc);
 	}
 
 :rejected:	
@@ -1081,7 +869,7 @@ title "Barnham's Attic"
 descr
 "A dry and dusty smell tickles your nose as you climb into the attic. 
 It seems that Barnham has maintained his roof well, as despite all the 
-rain this area is known for, the space free from moisture. A range of 
+rain this area is known for, the space is free from moisture. A range of 
 artifacts that seem somewhat out of place for a simple farmer are 
 scattered through the space. A door leads back down."
 movement SECT_INSIDE
@@ -1097,7 +885,7 @@ farm_01
 names {"farm yard", "farm"}
 title "Outside Barnham's Farm"
 descr
-"Stepping outside of barnham's farmhouse a large well-kept field 
+"Stepping outside of Barnham's farmhouse a large well-kept field 
 is spread out here. Rich brown soil clumps underfoot, moist from 
 the recent rains, and clearly fertile. To the south you see a 
 simple well outside the farmhouse, and away to the north west a 
@@ -1156,7 +944,7 @@ has been recently tilled to prepare for planting. Away to the east
 Barnham's farmhouse sits solidly overlooking the land. The entry 
 to the farmhouse looks welcoming after a long day of work. North and south 
 of here the freshly tilled soil is turned and prepared for planting. 
-The farms western fence blocks travel to the west."
+The farm's western fence blocks travel to the west."
 movement SECT_FIELD
 
 north to farm_03 descr "Barnham's Farm";
@@ -1172,7 +960,7 @@ descr
 has been recently tilled to prepare for planting. To the east 
 Barnham's farmhouse sits solidly overlooking the land. A small well 
 is there, outside the home. North of here the freshly tilled soil 
-is turned and prepared for planting. The farms western fence blocks 
+is turned and prepared for planting. The farm's western fence blocks 
 travel to the west. To the south, a wide gate leads to the southern 
 fields, where tall corn stalks sway in the light breeze."
 movement SECT_FIELD
@@ -1205,7 +993,7 @@ descr
 clear that the land has been well maintained, and that it provides well 
 for Barnham, delivering value for his clearly diligent labor. A fence 
 blocks travel to the west, and separates the southern field in that direction. 
-A visibile path sits on the other side of it leading to the western hills. 
+A visible path sits on the other side of it leading to the western hills. 
 North and east the carrot field continues."
 movement SECT_FIELD
 
@@ -1235,8 +1023,8 @@ names {"farm yard", "farm"}
 title "Barnham's Carrot Field"
 descr
 "Barnham's northern fields are well-kept and dotted with carrots. It is 
-clear that the fields are well kept. A strong fence opens to a wide gate 
-here leading to the south. North, east, and west, carrots dot the ground. 
+clear that the fields are well kept. A strong fence blocks travel to the 
+north and west. South and east of here, carrots dot the ground. 
 Far to the east some hills rise into the distance, and far to the west is 
 Barnham's farmhouse."
 movement SECT_FIELD
@@ -1299,8 +1087,8 @@ title "Barnham's Corn Field"
 descr
 "Tall corn stalks sway against you as the light breeze pushes them this way 
 and that. The rows of corn grow out of loose dark soil, and are alternated with 
-well traveled paths where Barnham walks through a maintains the field. North of 
-here the gate separating fields appears to be well maintaintained, and strong. 
+well traveled paths where Barnham walks through and maintains the field. North of 
+here the gate separating fields appears to be well maintained, and strong. 
 The fence runs along both east, and west, ultimately encircling the growth of 
 corn. Travel is possible to the north, south, east, and west."
 movement SECT_FIELD
@@ -1354,7 +1142,7 @@ and that. The tall corn stalks appear to be nearly ready for harvest, Barnham
 will have his hands full in the coming days. It is clear looking around 
 that Barnham cares deeply for his land, and crop. Everywhere are the signs of 
 hard work, and a well-kept field. Travel is blocked to the south and east by 
-the fence surrounding the farm. North, west the rows of corn continue."
+the fence surrounding the farm. North and west the rows of corn continue."
 movement SECT_FIELD
 
 north to fs_02 descr "Barnham's Corn Field";
@@ -1365,7 +1153,7 @@ fs_05
 names {"farm yard", "farm"}
 title "Barnham's Corn Field"
 descr
-"Strong tall corn stalks block much view beyond whats right here. You can make 
+"Strong tall corn stalks block much view beyond what's right here. You can make 
 out the fence surrounding Barnham's farm to the immediate north and west. 
 Somewhere, the sound of a crow exulting in finding a trinket is emerging to 
 break the otherwise peaceful quiet. South and east of here the corn fields 
@@ -1380,7 +1168,7 @@ fs_06
 names {"farm yard", "farm"}
 title "Barnham's Corn Field"
 descr
-"Here in the far corner of Barnhams farm, a peaceful quiet can be found. 
+"Here in the far corner of Barnham's farm, a peaceful quiet can be found. 
 Indeed, a small bench sits here among the rows of corn. It appears as if 
 Barnham himself has taken advantage of the solitude offered, and spent time 
 reflecting in its well-worn seat. The fence surrounding the fields blocks 
@@ -1390,7 +1178,7 @@ movement SECT_FIELD
 north to fs_05 descr "Barnham's Corn Field";
 east to fs_03 descr "Barnham's Corn Field";
 extra {"small bench", "bench"}
-"A small wooden bench, sturdy but well used rests among the corn."
+"A small wooden bench, sturdy but well used, rests among the corn."
 end
 
 outside_farm
@@ -1399,7 +1187,7 @@ title "Outside Barnham's Farm"
 descr
 "You stand before Barnham's farmhouse, a small haven sitting at the edge of a 
 large field that extends beyond it. It is a well-constructed home, with 
-amenities to support the operations and maintainance of the property. A small 
+amenities to support the operations and maintenance of the property. A small 
 farm cart rests along one side of the front door. Beyond, in the distance 
 to the north and west, some hills rise up obscuring the horizon. Away to the 
 south and east you know lies the city of Midgaard."
@@ -1417,10 +1205,10 @@ trail_01
 names {"dusty trail", "trail"}
 title "On a Dusty Trail"
 descr
-"Gravel, sand and dust makes this desert like trail, which leads north from the 
+"Gravel, sand and dust make this desert-like trail, which leads north from the 
 path ultimately connecting to the city of Midgaard to the east, and Udgaard far 
 away to the west beyond the Cypress Forest. As you travel to the north, the 
-well-traveled becomes less dusty, and more firmly-packed. The trail continues 
+well-traveled path becomes less dusty, and more firmly-packed. The trail continues 
 to the north, where some distance away you can make out a farm house. 
 Travelling south from here will return you to the Dusty Trail west of Midgaard."
 movement SECT_CITY
@@ -1435,7 +1223,7 @@ names {"well worn trail", "trail"}
 title "On a Well-Worn Trail"
 descr
 "The gravel and dust that had greeted you to the south give way to a darker and 
-richer soil which make for a well-packed and easy to travel trail. West of here 
+richer soil which makes for a well-packed and easy to travel trail. West of here 
 a cheery farmstead looks welcomingly on to the trail. Rich fields extend beyond 
 it to the cypress trees which make way for hills rising beyond. A rocky 
 outcropping prevents travel to the east, while north of here, the hills give 
@@ -1455,7 +1243,7 @@ end
 
 outcropping
 names {"rocky outcropping", "outcropping"}
-title "On The Rocky Outcropping"
+title "On the Rocky Outcropping"
 descr
 "Perched from this vantage, a broad array of landscape is highlighted in 
 the surrounding area. To the east the city of Midgaard sprawls widely with 
@@ -1477,8 +1265,8 @@ end
 
 
 fpath_01
-names {"smail path", "path"}
-title "On a small path"
+names {"small path", "path"}
+title "On a Small Path"
 descr
 "A small dirt path leads away from the farm, and towards the hills to the 
 west. While it appears to have fallen to disuse in recent times, there are 
@@ -1493,12 +1281,12 @@ west to fpath_02 descr "A small path";
 end
 
 fpath_02
-names {"smail path", "path"}
-title "On a small path"
+names {"small path", "path"}
+title "On a Small Path"
 descr
 "The dirt path continues winding towards the hills, slowly gaining some 
 elevation as you travel west and north. While still the evidence of  
-disuse in recent times is clear, more and more often clear signs of 
+disuse in recent times is clear, more and more often there are clear signs of 
 recent travel everywhere. Here some trampled bushes, there the remains 
 of some food left to the birds. Travel is possible only along the trail 
 to both the east leading towards Barnham's farm, and where it turns 
@@ -1510,8 +1298,8 @@ north to fpath_03 descr "A small path";
 end
 
 fpath_03
-names {"smail path", "path"}
-title "Climbing a small path"
+names {"small path", "path"}
+title "Climbing a Small Path"
 descr
 "The path begins to climb steeply here into the hills as one travels to 
 the north from Barnham's farm, which is now seeming small and distant 
@@ -1536,7 +1324,7 @@ descr
 comfortably walk into this cave abreast, though in the darkness it's not 
 clear how deep the cave goes. A cool draft can be felt emerging from 
 within the cave, and a slightly acrid smell accompanies it. In the 
-immediate surrounding, clear remains of a group having made camp here 
+immediate surroundings are clear remains of a group having made camp here 
 in the recent past. The remains of a burned-out fire are surrounded by 
 well compacted earth. Remains of food and drink are being picked through 
 by crows, hopping around and enjoying their find. The trail returns south 
@@ -1555,7 +1343,7 @@ descr
 "Stepping into the cave the fresh air of the hills is replaced by a slightly 
 dank and somewhat acrid smell. Cool air can be felt moving towards the exit, 
 though it brings with it more reek. The ground is firm beneath your feet, 
-and from the darnkess, sounds of... something. This cave does not have the 
+and from the darkness, sounds of... something. This cave does not have the 
 comforting feel of a safe place. It seems there are two paths leading deeper 
 into this cave, one to the south, the other to the west. Exiting the cave to 
 the east will lead towards the trail from Barnham's farm."
@@ -1572,7 +1360,7 @@ names {"inside cave", "cave"}
 title "Inside the Cave"
 descr
 "The dark and dank floods your senses. Sounds that come from everywhere and 
-nowere reach your ears on a continual basis. The slapping of feet. The scrape 
+nowhere reach your ears on a continual basis. The slapping of feet. The scrape 
 of things being moved around. You are not alone in here. Returning to the 
 junction to the east seems the safest path, though the cave moves deeper to 
 the north."
@@ -1589,7 +1377,7 @@ title "Junction in the Cave"
 descr
 "Here, another junction point in this maze of caves opens up. The dark and 
 dank continues to flood your senses. Still, sounds come from everywhere and 
-nowere at once. The slapping of feet. The scrape of things being moved around. 
+nowhere at once. The slapping of feet. The scrape of things being moved around. 
 You are not alone in here. The cave splits here to the north, east, and south. 
 It's no longer clear which path leads where."
 movement SECT_CITY
@@ -1604,7 +1392,7 @@ fcave_06
 names {"inside cave", "cave"}
 title "Inside the Cave"
 descr
-"With dispair you find that the path of the cave you had been traveling down 
+"With despair you find that the path of the cave you had been traveling down 
 has come to an end. This space, while closing off the path and preventing 
 further travel, is certainly not empty. There are... remains here. The smell 
 is somewhat overwhelming, and a sickness crawls in your gut. Everything inside 
@@ -1638,10 +1426,10 @@ title "A Large Cavern"
 descr
 "The narrow tunnel opens here into a large cavern. The ceiling climbs up and 
 becomes lost in the darkness high above. Here and there, a steady heartbeat of 
-a water dripping can be heard as the moisture falls from distant stalactites. 
-The darnkess feels complete and almost smothering, and every noise echoes 
+water dripping can be heard as the moisture falls from distant stalactites. 
+The darkness feels complete and almost smothering, and every noise echoes 
 through the space. And noises there are. There are things moving in the 
-darnkess, somewhere. It seems that the cavern contiues north, or back through 
+darkness, somewhere. It seems that the cavern continues north, or back through 
 the narrow passage west."
 movement SECT_CITY
 flags {UNIT_FL_INDOORS}
@@ -1655,10 +1443,10 @@ names {"inside cave", "cave"}
 title "Inside the Cave"
 descr
 "The large cavern disappears into the darkness high above. Here and there, a 
-steady heartbeat of a water dripping can be heard as the moisture falls from 
-distant stalactites. The darnkess feels complete and almost smothering, and 
+steady heartbeat of water dripping can be heard as the moisture falls from 
+distant stalactites. The darkness feels complete and almost smothering, and 
 every noise echoes through the space. Somewhere, there are things moving in 
-the darnkess. It seems that the cavern contiues south and east."
+the darkness. It seems that the cavern continues south and east."
 movement SECT_CITY
 flags {UNIT_FL_INDOORS}
 
@@ -1670,7 +1458,7 @@ fcave_04
 names {"inside cave", "cave"}
 title "Inside the Cave"
 descr
-"The darnkess here encompasses you, and within it, sounds of... something. 
+"The darkness here encompasses you, and within it, sounds of... something. 
 This cave does not have the comforting feel of a safe place. It seems the 
 cave winds and turns as you follow this path. The air that was flowing 
 in other parts of the cavern, seems to be stale here, and the smell is 
@@ -1686,7 +1474,7 @@ fcave_10
 names {"inside cave", "cave"}
 title "Inside the Cave"
 descr
-"The darnkess here encompasses you, and within it, sounds of... something. 
+"The darkness here encompasses you, and within it, sounds of... something. 
 This cave does not have the comforting feel of a safe place. The ground 
 underfoot is wet, whether from moisture leaking through the cave or otherwise 
 is impossible to tell with the little available light. The air that was flowing 
@@ -1708,7 +1496,7 @@ forever, comes to an abrupt end. Travel is no longer possible along this trail.
 The stale rank air in this end of the cave is overwhelming, where that smell 
 comes from, is perhaps better not explored. The damp accumulates into pools 
 here and you suspect that they may be related to the smell. The sounds of 
-something, or someone moving in the darnkess leaves hair raised on end."
+something, or someone moving in the darkness leaves hair raised on end."
 movement SECT_CITY
 flags {UNIT_FL_INDOORS}
 
@@ -1722,10 +1510,10 @@ descr
 "Suddenly the cave that seemed like it may continue winding through the hills 
 forever, comes to an abrupt end. A slight draft, and with it the welcome aroma 
 of fresh air, tickles the senses here. The cave wall before you is evidently 
-the end of the path. Where is that fresh air coming from however. The rocks on 
+the end of the path. Where is that fresh air coming from, however? The rocks on 
 the cave wall may be worth looking at further. The damp accumulates into pools 
 here and you suspect that they may be related to the smell. The sounds of 
-something, or someone moving in the darnkess leaves hair raised on end."
+something, or someone moving in the darkness leaves hair raised on end."
 movement SECT_CITY
 flags {UNIT_FL_INDOORS}
 
@@ -1736,7 +1524,7 @@ key nokey
 open {EX_OPEN_CLOSE, EX_CLOSED, EX_HIDDEN};
 extra {"cave wall","wall"}
 "The wall here is made of piled rocks, as if they were placed here 
-intentionally. I wonder what a more careful search the rock wall 
+intentionally. I wonder what a more careful search of the rock wall 
 would reveal?<br><div class='hint'>HINT: Try 'search rock wall' here.</div>"
 end
 
@@ -1748,7 +1536,7 @@ descr
 secret. It appears to be a treasure room, where the gremlins, grumpkins, 
 and their ilk have stored generations of loot and trinkets. Piled rocks 
 sit against the east and west walls, and to the north there is a 
-pile weapons and armours, likely taken from the fallen. Weapons, gemstones 
+pile of weapons and armours, likely taken from the fallen. Weapons, gemstones 
 and other valuables are scattered about."
 movement SECT_CITY
 flags {UNIT_FL_INDOORS, UNIT_FL_NO_MOB}
@@ -1803,7 +1591,7 @@ descr
 "The well-packed and easy to travel trail ends here and opens into a 
 small cave entrance to the west. The fresh air and sounds of the Cypress 
 trees in the breeze fade as the cool cave air seems to flow out of the 
-darkness. The trail returns south towards the farm, and continues east 
+darkness. The trail returns south towards the farm, and continues west 
 into the cave."
 movement SECT_CITY
 flags {UNIT_FL_INDOORS}
@@ -1819,7 +1607,7 @@ names {"Boldin","man"}
 title "Boldin the wise"
 descr "Boldin the wise is here."
 extra {}
-"Boldin The Wise as he is known. A slim elderly man, Boldin definitely didnt 
+"Boldin the Wise, as he is known. A slim elderly man, Boldin definitely didn't 
 make it through life by blade or hammer. The look of one well studied, and 
 with a deep smile, you can appreciate the clear evidence that his alternative 
 path through life has been effective."
@@ -1834,12 +1622,37 @@ dilcopy newbie_nospl@newbie();
 dilcopy boldin_request@gremlin();
 
 dilcopy qstItemsWanted@quests(BOLDIN_BREAD, {"bread@midgaard"}, {""},
-		{"say Ahh, delicious! Thank you $1N.","emote eats the bread."}, 
-       "say Please bring me a bread from Rosanne's bakery.");
+		{"say Ahh, delicious! Thank you, $1N.","emote eats the bread."}, 
+       "say Please bring me some bread from Rosanne's bakery.");
 
 dilcopy qstItemsWanted@quests(BOLDIN_WATER, {"water_barrel@gremlin"}, {"fluidcheck@quests 24"},
-		{"say A barrel full of water. Thank you $1N."},
+		{"say A barrel full of water. Thank you, $1N."},
       "say Please bring me back my barrel filled with water.");
+
+dilcopy qstOnComplete@quests(BOLDIN_BREAD, 
+         {"smile $1N",
+          "say Quest complete, brave adventurer!",
+          "whisper $1N I suspect you'll need these coins sooner or later."},
+          500, 2 * COPPER_MULT, {""});
+
+dilcopy qstOnComplete@quests(BOLDIN_WATER,
+         {"smile $1N",
+          "emote takes a long drink from the barrel, completely emptying it!",
+          "say I think you're going to need these sooner or later.",
+          "emote quietly slips you some coins and gives you an empty barrel."},
+          500, 2 * COPPER_MULT, {"water_barrel@gremlin"});
+
+dilcopy qstOnComplete@quests(BOLDIN_ROGUE,
+         {"say So you found my rogue, $1N!",
+          "whisper $1N He'll have that boat provisioned and be off before the tide turns."},
+          500, 2 * COPPER_MULT, {""});
+
+dilcopy qstOnComplete@quests(BOLDIN_HANDOFF,
+         {"say I see you have returned, $1N.",
+          "say I am truly saddened by the news that has reached me.",
+          "whisper $1N Bernhard will be deeply missed. He was the last of a long line of heroic adventurers."},
+          500, 2 * COPPER_MULT, {""});
+
 
 // dilcopy boldin_give@gremlin();
 
@@ -1946,7 +1759,7 @@ end
 gaflaw
 names {"gaflaw", "grumpkin"}
 title "Gaflaw the Great"
-descr "Gaflaw, the greatest of grumpkins stands proudly here."
+descr "Gaflaw, the greatest of grumpkins, stands proudly here."
 extra {}
 "Gaflaw is a terrifying grumpkin indeed! His presence clearly commands respect
 among the grumpkins and gremlins that have been set loose on this place."
@@ -1959,7 +1772,7 @@ end
 
 gguard
 names {"guard", "grumpkin"}
-title "grumpkin guard"
+title "a grumpkin guard"
 descr "A large grumpkin guard is here."
 extra {}
 "This is the biggest grumpkin you've ever seen! You immediately want nothing more than to kill it."
@@ -1977,15 +1790,135 @@ names {"rogue", "sventer"}
 title "Sventer the rogue"
 descr "A tall roguish man is here."
 extra {}
-"Tall, and dashingly handsom, Sventer has a scar down one cheek from an 
+"Tall, and dashingly handsome, Sventer has a scar down one cheek from an 
 apparent run-in with a blade of one form or another. He is cowled in a dark 
 cloak, and has a gleam in his eye."
 M_HUMAN_THIEF_AXE(30,SEX_MALE)
 money 1 GOLD_PIECE
 
 dilcopy wander_zones@function ("torsbay", 180, 0,0);
-dilcopy rogue_request@gremlin();
-dilcopy rogue_give@gremlin();
+
+dilbegin fnpri(FN_PRI_MISSION) rogue_request();
+external
+   extraptr qstAssign@quests(qname : string, pc : unitptr, sl : stringlist, qdescr : string);
+   unitptr qstWaitHero@quests(qname : string, pc : unitptr, sl : stringlist, acptfunc : string, prereqfunc : string);
+   extraptr qstSetDone@quests(qname : string, pc : unitptr);
+
+var
+  pc: unitptr;
+  exdp: extraptr;
+
+code
+{
+	heartbeat:= PULSE_SEC*4;
+
+:start:
+	wait(SFB_CMD, activator.type == UNIT_ST_PC);
+
+	pc := qstWaitHero@quests(ROGUE_QUEST, activator, 
+		{"say Ahoy $1N. So you be another of Boldin's youngsters then, eh?",
+		 "say If he's sent you to me it means he wants you to see what an adventurer has to do to keep the wolf from the door...",
+		 "say Apart from killing it, of course.",
+		 "say First things first, boats.",
+		 "say Running hither and yon on those legs of yours is all well and good but sooner or later you'll need to take to the water.",
+		 "emote scans the seaward horizon where a galleon can be seen under full sail.",
+	     "say Ah, how I wish I was there!",
+		 "emote brushes away an anguished tear but then turns to you with a hopeful smile.",
+		 "say Hold hard, me hearty. How'd you like to do a favour for an old salt who's down on his luck?",
+		 "say I could easily rejoin me old crew if I had a boat and the right equipment to get me there safely.",
+		 "say Perhaps you could fetch a few things for me?",
+		 "say You might want to make notes of the things I asks for. People round here aren't much minded to repeat themselves when they asks favours of an obliging cove.",
+		 "say Let me see... I need a boat, of course. There be plenty of boat shops around, and a couple of folk even keep rafts themselves.",
+		 "say Next I need a nice piece of thick hemp rope. They make good rope up in Whesland.",
+		 "say I mustn't forget a drop of something to warm me up after a squall. A mug of hobgoblin whiskey will be just the thing. They sells it in their town in the mountains to the south of the King's Road.",
+		 "emote smacks his lips appreciatively.",
+		 "say Lastly, I'd like me old serrated cutlass back. I lost it playing cards against those orcs underneath the Midgaard sewers. And if that scurvy knave Branneth says he wants it then don't listen to him. I asked first!",
+		 "whisper $1N Just <div class='hint'>nod</div> if you'll be happy to help a poor lubber out of the scuppers and back into some honest buccaneering."
+		 },
+		 "", "hasquest@quests 0 "+BOLDIN_ROGUE_ONGOING);
+		 
+
+	if (pc == null)
+		goto start;
+
+	secure(pc, lostpc);
+
+	exdp := qstAssign@quests(ROGUE_QUEST, pc, 
+		{"say Thank ye kindly, mate.",
+		 "say Some of the boats around aren't exactly cheap though.", 
+		 "say If you can't afford all of my supplies, try roughing up one of those good-for-nothing fishermen on the eastern beach and selling their rods to Fred at the fishing supply store in the harbour market.",
+		 "say Now look lively and fetch me them things, or I'll miss me ship."
+        },
+		"Bring Sventer: a boat, an old serrated cutlass lost in the Sewers of Midgaard, a piece of good rope from Whesland, a mug of hobgoblin whiskey sold in the mountains south of the King's Road.");
+
+	unsecure(pc);
+
+	if (exdp == null)
+	{
+		exec("say So be it!", self);
+	}
+	goto start;
+	
+:lostpc:
+	exec("sigh", self);
+	goto start;
+}
+dilend // END rogue_request
+
+
+
+// Check if the rogue quest is complete
+//
+dilbegin fnpri(FN_PRI_MISSION) CompleteCheck();
+external
+   unitptr qstWaitPc@quests();
+	extraptr qstSetDone@quests(qname : string, pc : unitptr);
+   unitptr qstWaitDone@quests(qname : string, pc : unitptr,
+                             sl : stringlist, xp : integer, gold : integer, itemsl : stringlist);
+
+var
+  pcname : string;
+  item   : unitptr;
+  pc     : unitptr;
+  i      : integer;
+  exdp   : extraptr;
+
+code
+{
+   :start:
+   pc := qstWaitPc@quests();
+
+   pc := qstWaitDone@quests(ROGUE_QUEST, pc, 
+            {"say That's the way, me hearty! And did you have to sell any of those fishing rods to pay for me dunnage?", 
+ 			 "say Even if you didn't this time, you should bear them in mind if you find yourself in a fix in future.",
+			 "say I'd have done the same already, only I'm not so handy without me trusty cutlass.",
+			 "emote turns his attention to provisioning his boat, giving you a dismissive wave.",
+			 "::<br><div class='hint'>Quest Completed!</div>::", 
+			 "::<br><div class='xpgain'>You receive 3000 experience.</div><br>::"
+             }, 3000, 0, {""});
+
+	if (pc == null)
+		goto start;
+
+	exdp := qstSetDone@quests(BOLDIN_ROGUE, pc);
+
+	// give a treasure map to find buried treasure. Treasure dil to be applied to map, faking a load in a room. 
+	// small_hill@tower is the treasure room 4gp 32 sp 128 cp. item that is a necklace of mana in some way.
+
+	goto start;	
+}
+dilend
+
+
+dilcopy qstItemsWanted@quests(ROGUE_QUEST,
+            {"sercutlass@midsewers", "rope@korandin", "whisky@hobgob", "$anyboat"}, {"", "", "", "boatcheck@quests 0"},
+            {"say Ah-har, matey. That's the very thing!",
+ 			 "say Ah-har, matey. A strong one at that!",
+  		     "say Ah-har, matey. This smells like it could strip the paint off a hull!",
+			 "say Ah-har, matey. She aint pretty, but she looks to float." 
+			},
+             "say Bah!");
+
 end
 
 %objects
@@ -2027,12 +1960,12 @@ end
 gaflaw_club
 names {"large club","club"}
 title "a large club"
-descr "A large knobby club is here"
+descr "A large knobby club is here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_CLUB, 0,0)
+WEAPON_DEF(WPN_CLUB, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 4
 extra {}
-"It's a simple yet effective club. Large and knobby, it wouldnt 
+"It's a simple yet effective club. Large and knobby, it wouldn't 
 feel good to have this thwack you upside the head."
 end
 
@@ -2041,19 +1974,19 @@ names {"small club","club"}
 title "a simple club"
 descr "A simple wooden club is here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_CLUB, -1,-1)
+WEAPON_DEF(WPN_CLUB, BONUS_AVERAGE_MINUS, BONUS_AVERAGE_MINUS)  // Xyzzy: -1,-1
 weight 1
 extra {}
-"It's a simple club. Despite it small size, it still wouldnt 
+"It's a simple club. Despite its small size, it still wouldn't 
 feel good to have this thwack you upside the head."
 end
 
 rusty_sword
 names {"rusty sword","sword"}
 title "a rusty sword"
-descr "A rusty short sword is here"
+descr "A rusty short sword is here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_SHORT_SWORD, -1,-1)
+WEAPON_DEF(WPN_SHORT_SWORD, BONUS_AVERAGE_MINUS, BONUS_AVERAGE_MINUS)  // Xyzzy: -1,-1
 weight 1
 extra {}
 "This rusty sword appears to have been left in the rain for a period of 
@@ -2086,9 +2019,9 @@ extra {}
 Step 1: Start at the Village Square of Udgaard. <br>
 Step 2: Travel as far as you can to the east (five rooms) and you will arrive at the Top of Hill.<br>
 <div class='hint'>HINT: Try typing 'help area' here. You will find that you have arrived in an area known as Cypress Forest.</div><br>
-Step 3: From Top of Hill, travel along the path through the Cypress Forest to it's edge. The directions will be as follows:<br>
+Step 3: From Top of Hill, travel along the path through the Cypress Forest to its edge. The directions will be as follows:<br>
 south, east, south, east, east, north, east, north<br>
-Step 4: Get your bearings! You should find that to the east lies a Dustry Trail west of Midgaard.<br>
+Step 4: Get your bearings! You should find that to the east lies a Dusty Trail west of Midgaard.<br>
 <div class='hint'>HINT: Try typing 'directions' here -- you can shorten it to 'dir'. </div><br>
 Step 5: Continue to the east, and you will find yourself on the Main Street of Midgaard itself!"
 manipulate {MANIPULATE_TAKE}
@@ -2103,7 +2036,7 @@ descr
 extra {}
 "This is a simple hand axe.  It appears to be equally well suited for chopping wood and self defense."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_HAND_AXE, 2, 0)
+WEAPON_DEF(WPN_HAND_AXE, BONUS_GOOD, BONUS_AVERAGE)  // Xyzzy: 2,0
 end
 
 barnham_dagger // thief, sorcerer, necromancer, assassin, conjurer
@@ -2114,11 +2047,11 @@ descr
 extra {}
 "This dagger gleams with a magical glow. It appears to be well suited for self defense.<br>"
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_DAGGER, 7, 7)
+WEAPON_DEF(WPN_DAGGER, BONUS_EXCELLENT, BONUS_EXCELLENT)  // Xyzzy: 7,7
 WEAPON_SLAYER(RACE_GOBLIN)
-WEAPON_TRANSFER(WPN_DAGGER,+10)
-STR_TRANSFER(+1)
-DEX_TRANSFER(+1)
+WEAPON_TRANSFER(WPN_DAGGER, BONUS_ARTIFACT)  // Xyzzy: +10
+STR_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
+DEX_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
 dilcopy quests_restrict@function({EXPLORE_ONGOING,EXPLORE_COMPLETE},0,10,""); 
 end
 
@@ -2130,11 +2063,11 @@ descr
 extra {}
 "This mace gleams with a magical glow. It appears to be well suited for self defense.<br>"
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_MACE, 7, 7)
+WEAPON_DEF(WPN_MACE, BONUS_EXCELLENT, BONUS_EXCELLENT)  // Xyzzy: 7,7
 WEAPON_SLAYER(RACE_GOBLIN)
-WEAPON_TRANSFER(WPN_MACE,+10)
-STR_TRANSFER(+1)
-DEX_TRANSFER(+1)
+WEAPON_TRANSFER(WPN_MACE, BONUS_ARTIFACT)  // Xyzzy: +10
+STR_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
+DEX_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
 dilcopy quests_restrict@function({EXPLORE_ONGOING,EXPLORE_COMPLETE},0,10,""); 
 end
 
@@ -2146,11 +2079,11 @@ descr
 extra {}
 "This long sword gleams with a magical glow. It appears to be well suited for self defense.<br>"
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_LONG_SWORD, 7, 7)
+WEAPON_DEF(WPN_LONG_SWORD, BONUS_EXCELLENT, BONUS_EXCELLENT)  // Xyzzy: 7,7
 WEAPON_SLAYER(RACE_GOBLIN)
-WEAPON_TRANSFER(WPN_LONG_SWORD,+10)
-STR_TRANSFER(+1)
-DEX_TRANSFER(+1)
+WEAPON_TRANSFER(WPN_LONG_SWORD, BONUS_ARTIFACT)  // Xyzzy: +10
+STR_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
+DEX_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
 dilcopy quests_restrict@function({EXPLORE_ONGOING,EXPLORE_COMPLETE},0,10,""); 
 end
 
@@ -2162,10 +2095,10 @@ descr
 extra {}
 "This dagger seems as if it once gleamed with a magical glow. Now, it is somewhat tarnished. It appears to be better suited for self defense than carving wood.<br>"
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_DAGGER, 5, 5)
-WEAPON_TRANSFER(WPN_DAGGER,+5)
-STR_TRANSFER(+1)
-DEX_TRANSFER(+1)
+WEAPON_DEF(WPN_DAGGER, BONUS_GOOD_PLUS, BONUS_GOOD_PLUS)  // Xyzzy: 5,5
+WEAPON_TRANSFER(WPN_DAGGER, BONUS_EXCELLENT_PLUS)  // Xyzzy: +5
+STR_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
+DEX_TRANSFER(BONUS_AVERAGE_PLUS)  // Xyzzy: +1
 dilcopy quests_restrict@function({EXPLORE_ONGOING,EXPLORE_COMPLETE},0,10,""); 
 end
 
@@ -2175,7 +2108,7 @@ title "a leather jerkin"
 descr "A simple leather jerkin has been left here."
 extra {}
 "A simple leather jerkin, it appears to provide some warmth as well as protection from the world."
-ARMOUR_LEATHER(0,0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
 weight 4
 cost 1 COPPER_PIECE
@@ -2184,10 +2117,10 @@ end
 barnham_legs
 names {"leather leggings","leggings"}
 title "a pair of leather leggings"
-descr "A pair of leather leggings have been left here."
+descr "A pair of leather leggings has been left here."
 extra {}
 "Some simple leather leggings, they appear to provide some warmth as well as protection from the world."
-ARMOUR_LEATHER(0,0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
 weight 2
 cost 1 COPPER_PIECE
@@ -2196,10 +2129,10 @@ end
 barnham_boots
 names {"leather boots","boots"}
 title "a pair of leather boots"
-descr "A pair of leather boots have been left here."
+descr "A pair of leather boots has been left here."
 extra {}
 "Some simple leather boots, they appear to provide some warmth as well as protection from the world."
-ARMOUR_LEATHER(0,0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
 weight 1
 cost 1 COPPER_PIECE
@@ -2211,11 +2144,11 @@ title "an Adventurer's Jerkin"
 descr "A gleaming chain jerkin is here."
 extra {}
 "A fine chainmail jerkin, it looks like it would give any adventurer a distinct advantage in battle!"
-ARMOUR_CHAIN(1,1)
+ARMOUR_CHAIN(BONUS_AVERAGE_PLUS, BONUS_AVERAGE_PLUS)  // Xyzzy: 1,1
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
 weight 5
 cost 1 COPPER_PIECE
-DEX_TRANSFER(2)
+DEX_TRANSFER(BONUS_GOOD)  // Xyzzy: 2
 dilcopy mvlev_restrict@function(40,0,20,"");
 dilcopy resize();
 end
@@ -2223,14 +2156,14 @@ end
 adv_legs
 names {"adventurer's leggings","leggings"}
 title "an Adventurer's Leggings"
-descr "A pair of gleaming chain leggings are here."
+descr "A pair of gleaming chain leggings is here."
 extra {}
 "These fine chain leggings provide good protection, and seem to have a magical gleam to them."
-ARMOUR_CHAIN(1,1)
+ARMOUR_CHAIN(BONUS_AVERAGE_PLUS, BONUS_AVERAGE_PLUS)  // Xyzzy: 1,1
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
 weight 4
 cost 1 COPPER_PIECE
-STR_TRANSFER(2)
+STR_TRANSFER(BONUS_GOOD)  // Xyzzy: 2
 dilcopy mvlev_restrict@function(40,0,20,"");
 dilcopy resize();
 end
@@ -2238,14 +2171,14 @@ end
 adv_boots
 names {"adventurer's boots","boots"}
 title "an Adventurer's Boots"
-descr "A pair of magical boots lie here."
+descr "A pair of magical boots lies here."
 extra {}
 "These fine boots have a magical twinkle to them. They are high quality adventuring boots, to be sure."
-ARMOUR_LEATHER(1,1)
+ARMOUR_LEATHER(BONUS_AVERAGE_PLUS, BONUS_AVERAGE_PLUS)  // Xyzzy: 1,1
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
 weight 2
 cost 1 COPPER_PIECE
-SPEED_TRANSFER(4)
+SPEED_TRANSFER(+4)
 dilcopy mvlev_restrict@function(40,0,20,"");
 dilcopy resize();
 end
@@ -2253,16 +2186,16 @@ end
 adv_glove
 names {"adventurer's gloves","gloves"}
 title "an Adventurer's Gloves"
-descr "A fine pair of gloves lay here."
+descr "A fine pair of gloves lies here."
 extra {}
 "These fine gloves appear to have been well used by adventurers of years past."
-ARMOUR_LEATHER(1,1)
+ARMOUR_LEATHER(BONUS_AVERAGE_PLUS, BONUS_AVERAGE_PLUS)  // Xyzzy: 1,1
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HANDS}
 weight 2
 cost 1 COPPER_PIECE
-WEAPON_TRANSFER(WPN_DAGGER,+5)
-WEAPON_TRANSFER(WPN_MACE,+5)
-WEAPON_TRANSFER(WPN_LONG_SWORD,+5)
+WEAPON_TRANSFER(WPN_DAGGER, BONUS_EXCELLENT_PLUS)  // Xyzzy: +5
+WEAPON_TRANSFER(WPN_MACE, BONUS_EXCELLENT_PLUS)  // Xyzzy: +5
+WEAPON_TRANSFER(WPN_LONG_SWORD, BONUS_EXCELLENT_PLUS)  // Xyzzy: +5
 dilcopy mvlev_restrict@function(40,0,20,"");
 dilcopy resize();
 end
@@ -2273,11 +2206,11 @@ title "a Hero's Helm"
 descr "A hero's helm lies here."
 extra {}
 "This gleaming helmet appears to provide great protection in battle. A hero of ages past must have worn this."
-ARMOUR_CHAIN(1,1)
+ARMOUR_CHAIN(BONUS_AVERAGE_PLUS, BONUS_AVERAGE_PLUS)  // Xyzzy: 1,1
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
 weight 5
 cost 1 COPPER_PIECE
-HIT_TRANSFER(3)
+HIT_TRANSFER(BONUS_GOOD_PLUS)  // Xyzzy: 3
 dilcopy mvlev_restrict@function(40,0,20,"");
 end
 
@@ -2287,7 +2220,7 @@ title "a small sturdy chest"
 descr "A small but sturdy chest is here."
 extra {}
 "This is a fairly small chest, just large enough to hold a few personal items."
-type ITEM_CONTAINER
+CONTAINER_DEF(50)
 weight 30
 open {EX_OPEN_CLOSE,EX_CLOSED}
 cost 1 COPPER_PIECE
@@ -2299,7 +2232,7 @@ title "a sturdy chest"
 descr "A well-made and sturdy chest is here."
 extra {}
 "This is a well-made chest, sturdy and heavy."
-type ITEM_CONTAINER
+CONTAINER_DEF(100)
 weight 50
 open {EX_OPEN_CLOSE,EX_CLOSED}
 cost 5 COPPER_PIECE
@@ -2343,7 +2276,7 @@ names {"healing jug","jug"}
 title "a jug of healing"
 descr "A small white clay jug stands here."
 extra {}
-"The white clay jug is marked with healer's sigil."
+"The white clay jug is marked with a healer's sigil."
 manipulate {MANIPULATE_TAKE,MANIPULATE_HOLD}
 flags {UNIT_FL_BURIED}
 type ITEM_POTION
@@ -2353,12 +2286,12 @@ cost 2 COPPER_PIECE
 end
 
 pendant
-names {"gwydions amulet","amulet"}
+names {"gwydion's amulet","gwydions amulet","amulet"}
 title "Gwydion's Amulet"
 descr "A small wooden amulet is here."
 extra {}
 "This small amulet is intricately carved of an unknown wood. A rich color, 
-it has been worn smoothe by countless generations of hands clasping at it. 
+it has been worn smooth by countless generations of hands clasping at it. 
 While it's not clear why, there seems to be a deep power within."
 extra {"$identify"}
 "Gwydion's Amulet is a powerful tool for both the divine and magically inclined.
@@ -2373,9 +2306,9 @@ extra {"$rem_o"}
 "The power in $1n fades as they remove $2n."
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_NECK}
 MATERIAL_WOOD("This item is made of an unidentified ancient wood.")
-CHA_TRANSFER(+2)
-BRA_TRANSFER(+2)
-STR_TRANSFER(-1)
+CHA_TRANSFER(BONUS_GOOD)  // Xyzzy: +2
+BRA_TRANSFER(BONUS_GOOD)  // Xyzzy: +2
+STR_TRANSFER(BONUS_AVERAGE_MINUS)  // Xyzzy: -1
 dilcopy abi_restrict@function (ABIL_BRA,25,0,0,"bra_rest@skaven");
 dilcopy charger@sorcerer();
 dilcopy mana_drain@sorcerer();

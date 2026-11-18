@@ -5,49 +5,29 @@
  $Revision: 2.4 $
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-
-#include "structs.h"
-#include "utils.h"
-#include "skills.h"
-#include "textutil.h"
-#include "comm.h"
-#include "interpreter.h"
-#include "handler.h"
-#include "db.h"
-#include "spells.h"
-#include "vmelimits.h"
-#include "justice.h"
-#include "affect.h"
-#include "magic.h"
-#include "utility.h"
-#include "money.h"
-#include "str_parse.h"
-#include "files.h"
-#include "trie.h"
-#include "spec_assign.h"
-#include "fight.h"
 #include "cmdload.h"
+#include "trie.h"
+#include "utils.h"
+
+#include <cstring>
 
 /*String has format "<char name>{</><char-name>}<0> "   */
 /* Example: "king welmar/tim/tom"                        */
 /* Players are automatically non-excluded                */
 /* Empty list means none                                 */
-int charname_in_list(class unit_data *ch, char *arg)
+int charname_in_list(unit_data *ch, char *arg)
 {
-    char *c;
+    char *c = nullptr;
 
-    if (!arg || !*arg || IS_PC(ch))
+    if (!arg || !*arg || ch->isPC())
+    {
         return FALSE;
+    }
 
     while ((c = strchr(arg, '/')))
     {
         *c = '\0';
-        if (UNIT_NAMES(ch).IsName(arg))
+        if (ch->getNames().IsName(arg))
         {
             *c = '/';
             return TRUE;
@@ -55,8 +35,10 @@ int charname_in_list(class unit_data *ch, char *arg)
         *c = '/';
         arg = ++c;
     }
-    if (UNIT_NAMES(ch).IsName(arg))
+    if (ch->getNames().IsName(arg))
+    {
         return TRUE;
+    }
 
     return FALSE;
 }

@@ -7,6 +7,10 @@
  
 %option nounput 
 %{
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wredundant-tags"
+
 #include <stdio.h>
 #include <ctype.h>
 #include "vmc.h"
@@ -34,8 +38,8 @@ extern int yylex(); // Testing fix for issue #70
   */
 #define YY_SKIP_YYWRAP  
 #define yywrap(void) 1
-extern char cur_filename[], top_filename[];
-extern struct zone_info zone;
+extern char g_cur_filename[], top_filename[];
+extern struct zone_info g_zone;
 extern int istemplate;
 
 int first_dil = TRUE;
@@ -56,185 +60,244 @@ char tmpstr[YYLMAX + 1], *a, *b;
 %}
 
 %%
-\n			{
-			  linenum++;
+\n          {
+            	linenum++;
 			}
-"{"			|
-"}"			|
-"["			|
-"]"			|
-";"			|
-","			|
-"@"			|
+"{"         |
+"}"         |
+"["         |
+"]"         |
+";"         |
+","         |
+"@"         |
 "("         |
 ")"         |
 "/"         |
 "*"         |
 "+"         |
 "`"         |
-"-"			{
-			  return yytext[0];
-			}
-\"[^\"]*\"	{
-				char deststr[YYLMAX];
-				
-				/* Process string */
-				for (a = yytext + 1, b = tmpstr; *a != '"';a++, b++)
-				{
-					if (a - yytext >= (int)sizeof(tmpstr))
-			      	{
-				 		fprintf(stderr, "Fixed string too long, aborting.\n");
-				 		dmc_exit(1);
-			      	}
+"-"         {
+            	return yytext[0];
+            }
 
-			      	/* if ((*a < ' ') && !isspace(*a))
-			      	{
-				 		sprintf(buf, "Illegal character ascii %d.", *a);
-				 		*b = 'X';
-				 		warning(buf);
-				 		continue;
-			      	} Allow UTF-8 */ 
+\"[^\"]*\" {
+    char deststr[YYLMAX];
 
-			      	if ((*b = *a) == '\n')
-						linenum++;
-			   	}
-			   	*b = '\0';
+    /* Process string */
+    for (a = yytext + 1, b = tmpstr; *a != '"'; a++, b++)
+    {
+        if (a - yytext >= (int)sizeof(tmpstr))
+        {
+            fprintf(stderr, "Fixed string too long, aborting.\n");
+            dmc_exit(1);
+        }
 
-			   	str_escape_format(tmpstr, deststr, sizeof(deststr));
+        /* if ((*a < ' ') && !isspace(*a))
+        {
+            sprintf(buf, "Illegal character ascii %d.", *a);
+            *b = 'X';
+            warning(buf);
+            continue;
+        } Allow UTF-8 */
 
-			   /* + 6 because of concatenated "\n\r" later on
-			      and perhaps 3 leading spaces. */
+        if ((*b = *a) == '\n')
+        {
+            linenum++;
+        }
+    }
+    *b = '\0';
 
-			   yylval.str = (char *) mmalloc(strlen(deststr) + 6);
+    str_escape_format(tmpstr, deststr, sizeof(deststr));
 
-			   strcpy(yylval.str, deststr);
+    /* + 6 because of concatenated "\n\r" later on
+       and perhaps 3 leading spaces. */
 
-			   return STRING;
-			}
-([1-9][0-9]*)|0		{
-			  /* Process number */
-			  yylval.num = atoi(yytext);
-			  return PNUM;
-			}
-0[xX][0-9a-fA-F]+	{
-			  /* Process hexnumber */
-			  sscanf(yytext + 2, "%x", &yylval.num);
-			  return PNUM;
-			}
-dilbegin[^\^]*\^        {
-		          CREATE(dbuf, char, 2048);
-                          curlen=2048;
-                          bptr=dbuf;
-                          dlen=0;
-			  startlinenum = linenum;
-			  /* Process string */
-			  for (a = yytext; *a != '^'; a++)
-			  {
-                            dlen++;
-                            if (curlen < (dlen+10))
-			    {
-				RECREATE(bptr, char, curlen*2);
- 				curlen=curlen*2;
-                                dbuf=bptr+dlen-1;
-			    }
-                            *dbuf=*a;
-                            dbuf++;
-			    *dbuf='\0';
-			    if (*a == '\n')
-			      linenum++;
-			  }
-			  /* During %dil section, tell compiler only to
-                             generate templates */
+    yylval.str = (char *)mmalloc(strlen(deststr) + 6);
 
-			  first_dil = FALSE;
-			  pBuf->Clear();
-			  dilmain(istemplate, zone.z_zone.name,startlinenum,bptr) ;
-			  FREE(bptr);
-			  if (pBuf->GetLength()==0)
-			  {
+    strcpy(yylval.str, deststr);
 
-			    fatal("DIL not compiled properly.");
-                            dmc_exit(1);
-			  }
+    return STRING;
+}
 
-//			  yylval.str = (char *) mmalloc(pBuf->GetLength() + 1);
-//			  strcpy(yylval.str, (char *) pBuf->GetData());
-			  return DILPRG;
-			}
-null  { return NULLRET; }
+([1-9][0-9]*)|0 {
+    /* Process number */
+    yylval.num = atoi(yytext);
+    return PNUM;
+}
 
-[a-zA-Z_][a-zA-Z0-9_]*	{
-			  for (pos = 0; sym[pos].nam; pos++)
-			    if (!strcmp(sym[pos].nam, yytext))
-			      return sym[pos].val;
-			  strcpy(yylval.sym, yytext);
-			  return SYMBOL;
-			}
-\%dil	  		{
-			  return DIL;
-	       		}
-\%end                   {
-                          return ENDMARK;
-                        }
-\%zone			{
-			  return ZONE;
-			}
-\%reset			{
-			  return RESET;
-			}
-\%mobiles		{
-			  return MOBILES;
-			}
-\%rooms			{
-			  return ROOMS;
-			}
-\%objects		{
-			  return OBJECTS;
-			}
-^\#.*\n			{
-			  setline(yytext); /* cpp file/line settings */
-			}
-[\t ]			/* ignore */
-.			{
-			  return UNKNOWN;
-			}
+0[xX][0-9a-fA-F]+ {
+    /* Process hexnumber */
+    sscanf(yytext + 2, "%x", &yylval.num);
+    return PNUM;
+}
+
+dilbegin[^\^]*\^ {
+    CREATE(dbuf, char, 2048);
+    curlen = 2048;
+    bptr = dbuf;
+    dlen = 0;
+    startlinenum = linenum;
+    /* Process string */
+    for (a = yytext; *a != '^'; a++)
+    {
+        dlen++;
+        if (curlen < (dlen + 10))
+        {
+            RECREATE(bptr, char, curlen * 2);
+            curlen = curlen * 2;
+            dbuf = bptr + dlen - 1;
+        }
+        *dbuf = *a;
+        dbuf++;
+        *dbuf = '\0';
+        if (*a == '\n')
+        {
+            linenum++;
+        }
+    }
+    /* During %dil section, tell compiler only to
+       generate templates */
+
+    first_dil = FALSE;
+    pBuf->Clear();
+    dilmain(istemplate, g_zone.z_zone.name, startlinenum, bptr);
+    FREE(bptr);
+    {
+        /* dil's lexer followed the line markers in the DIL; carry on from where it ended */
+        extern int dillinenum;
+        linenum = dillinenum;
+    }
+    if (pBuf->GetLength() == 0)
+    {
+        fatal("DIL not compiled properly.");
+        dmc_exit(1);
+    }
+
+//    yylval.str = (char *)mmalloc(pBuf->GetLength() + 1);
+//    strcpy(yylval.str, (char *) pBuf->GetData());
+    return DILPRG;
+}
+
+null  {
+    return NULLRET;
+}
+
+[a-zA-Z_][a-zA-Z0-9_]* {
+    for (pos = 0; sym[pos].nam; pos++)
+    {
+        if (!strcmp(sym[pos].nam, yytext))
+        {
+            return sym[pos].val;
+        }
+    }
+    strcpy(yylval.sym, yytext);
+    return SYMBOL;
+}
+
+\%dil {
+    return DIL;
+}
+
+\%end {
+    return ENDMARK;
+}
+
+\%zone {
+    return ZONE;
+}
+
+\%reset {
+    return RESET;
+}
+
+\%mobiles {
+    return MOBILES;
+}
+
+\%rooms {
+    return ROOMS;
+}
+
+\%objects {
+    return OBJECTS;
+}
+
+^\#.*\n {
+    setline(yytext); /* cpp file/line settings */
+}
+
+[\t ]   /* ignore */
+.       {
+    return UNKNOWN;
+}
 %%
+
+/* A cpp line marker ("# 12 "file"" or "#line 12"): sets the file name if it has one and
+   returns the line number of the line after it, or -1 if it has none */
+int line_marker(const char *str)
+{
+    char *p;
+    int line;
+
+    while (!isdigit(*str) && *str)
+    {
+        str++;
+    }
+
+    if (!isdigit(*str))
+    {
+        return -1;
+    }
+
+    line = atoi(str);
+
+    while (*str != '"' && *str)
+    {
+        str++;
+    }
+
+    if (!*str)
+    {
+        return line;
+    }
+
+    str++;
+    p = g_cur_filename;
+
+    while (*str != '"' && *str)
+    {
+        (*(p++) = *(str++));
+    }
+
+    *p = '\0';
+
+    if (!*g_cur_filename)
+    {
+        strcpy(g_cur_filename, top_filename);
+    }
+    return line;
+}
+
 void setline(char *str)
 {
-  char *p;
+    int line = line_marker(str);
 
-  while (!isdigit(*str) && *str)
-    str++;
-
-  if (!isdigit(*str))
-    return;
-
-  linenum = atoi(str);
-
-  while (*str != '"' && *str)
-    str++;
-
-  if (!*str)
-    return;
-
-  str++;
-  p = cur_filename;
-
-  while (*str != '"' && *str)
-    (*(p++) = *(str++));
-
-  *p = '\0';
-
-  if(!*cur_filename)
-    strcpy(cur_filename, top_filename);
+    if (line >= 0)
+    {
+        linenum = line;
+    }
 }
 
 void init_lex(char *str)
 {
-   static int count = 0;
+    static int count = 0;
 
-  if (count++ > 0)
-    yy_delete_buffer( YY_CURRENT_BUFFER );
+    if (count++ > 0)
+    {
+        yy_delete_buffer(YY_CURRENT_BUFFER);
+    }
 
-   yy_scan_string(str);
+    yy_scan_string(str);
 }
+
+#pragma GCC diagnostic pop

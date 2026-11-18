@@ -4,79 +4,63 @@
  $Date: 2001/04/10 21:11:37 $
  $Revision: 2.0 $
  */
+#pragma once
 
-#ifndef _MUD_MPLEX_H
-#define _MUD_MPLEX_H
-
-#include "network.h"
-#include <string.h>
-#include "protocol.h"
-#include "essential.h"
-#include "queue.h"
-#include "hook.h"
 #include "color.h"
-class cConHook : public cHook
+#include "essential.h"
+#include "hook.h"
+#include "network.h"
+#include "protocol.h"
+#include "queue.h"
+
+#include <cstring>
+#include <mutex>
+
+namespace mplex
 {
-public:
-    cConHook(void);
-    ~cConHook(void);
 
-    void Close(int bNotifyMud);
-    char AddInputChar(ubit8 c);
-    void AddString(char *str);
-    void ParseInput(void);
-    void SendCon(const char *str);
-    void WriteCon(const char *str);
-    char *IndentText(const char *source, char *dest, int dest_size, int width);
-    int  ColorDisp(const char *current, char *newptr);
-    char *ParseOutput(const char *text);
-    void PromptErase(void);
-    void PromptRedraw(const char *prompt);
-    void TransmitCommand(const char *text);
-    void ShowChunk(void);
-    void ProcessPaged(void);
-    void PressReturn(const char *cmd);
-    void PlayLoop(const char *cmd);
-    void MudDown(const char *cmd);
-    void MenuSelect(const char *cmd);
-    void SequenceCompare(ubit8 *pBuf, int *pnLen);
-
-    void Input(int nFlags);
-    void getLine(ubit8 buf[], int *size);
-    void testChar(ubit8 c);
-    class color_type color;
-
-    bool   m_bColorChange;
-    bool   m_bColorCreate;
-    bool   m_bColorInsert;
-    bool   m_bColorDelete;
-    bool   m_bColorDisp;
-    bool   m_bColorRemove;
-
-    bool   m_bGobble;
-    ubit16 m_nId;
-    int    m_nFirst;
-    ubit8  m_nLine;
-    int    m_nPromptMode;  /* 0 none, 1 press return */
-    int    m_nPromptLen;   /* Prompt length          */
-    int    m_nSequenceCompare;
-
-    int    m_nState;
-    int    m_nEscapeCode;  /* Very simplified state diagram assistance */
-    char   m_aOutput[4096];
-    char   m_aInputBuf[2*MAX_INPUT_LENGTH];
-    char   m_aHost[50];
-    void (*m_pFptr) (class cConHook *, const char *cmd);
-
-    cConHook *m_pNext;
-
-    struct terminal_setup_type m_sSetup;
-
-    ubit8 m_nBgColor;       /* Stupid bitching ANSI   */
-
-    cQueue m_qInput;         /* Input from user        */
-    cQueue m_qPaged;         /* Paged text output      */
+struct arg_type
+{
+    int nMotherPort;
+    int nMudPort;
+    char *pAddress;
+    int g_bModeANSI;
+    int g_bModeEcho;
+    int g_bModeRedraw;
+    int g_bModeTelnet;
+    int g_bModeRawHTML;
+    int bWebSockets;
+    int bMudProtocol;
+    int bForceAscii;
+    bool g_bUseTLS;  ///< -t: with -w, wss:// instead of ws://
+    bool bTelnetTLS; ///< -z: TLS on the telnet port (telnets)
 };
 
-char * mplex_getcolor(class cConHook *hook, char *colorstr);
-#endif
+#define Assert(a, b)                                                                                                                       \
+    do                                                                                                                                     \
+    {                                                                                                                                      \
+        if (!(a))                                                                                                                          \
+        {                                                                                                                                  \
+            fprintf(stderr, "%s\n", b);                                                                                                    \
+            assert(a);                                                                                                                     \
+        }                                                                                                                                  \
+    } while (0);
+
+extern int g_bHadAlarm;
+extern arg_type g_mplex_arg;
+extern char g_mudname[50];
+
+// The hooks and everything they reach (their queues, g_connection_list, g_MudHook) are used
+// by two threads in websocket mode: the main thread's select() loop and the websocket thread.
+// This lock makes them take turns. The main thread holds it all the time, except while it
+// waits in select() or sleeps; the websocket thread takes it for each event it handles.
+extern std::mutex g_hookLock;
+
+// sleep() for the main thread, which lets the websocket thread work meanwhile
+void sleep_unlocked(unsigned int seconds);
+
+int ParseArg(int argc, char *argv[], arg_type *arg);
+void bye_signal(int signal);
+void alarm_signal(int sig);
+
+} // namespace mplex

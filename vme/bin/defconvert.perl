@@ -8,9 +8,11 @@ $libdir = "../lib/";
 $bindir = "../bin/";
 $definf = "@ARGV[0]";
 $defouf = "@ARGV[1]";
-$deftmp = "../log/tmp.cpp";
-$tmplin = "../log/tmp.lin";
-$cpp = "../bin/vmc -p -I../include/ ";
+$deftmp = `mktemp --tmpdir=../log --suffix=.cpp`;
+chomp $deftmp;
+$tmplin = `mktemp --tmpdir=../log --suffix=.lin`;
+chomp $tmplin;
+$cpp = "../bin/vmc -q -p -I../include/ ";
 
 system "$cpp $definf | grep -v \\# > $deftmp";
 if (!open(TMPIN, $deftmp))
@@ -30,7 +32,7 @@ if (!open(MYOUT, ">$tmplin"))
 
 close(MYOUT);
 
-print "Processing...\n";
+#print "Processing...\n";
 
 while (<TMPIN>)
 {
@@ -39,6 +41,11 @@ while (<TMPIN>)
 if 	($_ =~ /^(.*)\=(.*)/){
        ($F1,$Etc) = ($_ =~ /^(.*)\=(.*)/);
 	          $res = calc($Etc);
+       # An index the preprocessor didn't expand, e.g. after an unbalanced quote in a text
+       if ($F1 =~ /^\s*index\s*$/ && $res !~ /^\s*-?\d+\s*$/) {
+           system "rm -f $tmplin $deftmp";
+           die "ERROR: $definf: index = $res is not a number (an unbalanced quote above it?)\n";
+       }
        print TMPOUT "$F1 = $res\n";
 	   }else{
 	          print TMPOUT "$_";
@@ -52,7 +59,7 @@ close(TMPOUT);
 
 system "rm -f $tmplin $deftmp";
 
-system "echo Complete.";
+#system "echo Complete.";
 
 sub calc {
   local ($str) = @_;
@@ -92,4 +99,3 @@ sub calc {
     die ("EVALED ERRORED");
   }
 }
-

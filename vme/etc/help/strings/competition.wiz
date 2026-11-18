@@ -1,0 +1,39 @@
+<div class="mw-parser-output"><h1>Competition (220)</h1>
+<p>Usage:
+</p>
+<pre>competition             (set up a new competition)
+competition delete      (choose one to delete)
+competition delete &lt;n&gt;  (delete number n)
+</pre>
+<p>A competition is a race for experience: from its start to its end, the 
+game counts how much experience each player who takes part gains, and 
+shows the standings on the competition board. Players who qualify are 
+added by themselves, with the message "You have been added to ...", the 
+next time the game checks them.
+</p><p><b>competition</b> opens a menu. Set what you need, then D to save it, or C
+to cancel (anything that isn't on the menu cancels too):
+</p>
+<ol><li>the competition's name (default: Questing for true power);</li>
+<li>the lowest level that may take part (0: no lower limit);</li>
+<li>the highest level (0: no upper limit);</li>
+<li>player killers only, peaceful players only, or both;</li>
+<li>one race, or all;</li>
+<li>when it starts, in hours from now (default: now);</li>
+<li>when it ends, in hours from the start (default: 30 days);</li>
+<li>quests, separated by /: players who have done any of them are left out;</li>
+<li>quests, separated by /: if you give any, only players who have done at least one of them take part.</li></ol>
+<p>Immortals and morphed players never take part.
+</p><p><b>competition delete</b> lists the running competitions with their end 
+dates and asks which to delete; <b>competition delete &lt;n&gt;</b> deletes number 
+n at once. The command is logged.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Boards</a>
+&gt; <a cmd='#'>Help Experience</a>
+</pre>
+
+
+
+
+</div>

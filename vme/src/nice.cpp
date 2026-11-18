@@ -5,61 +5,52 @@
  $Revision: 2.2 $
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <sys/time.h>
-#include <signal.h>
-
-#include "structs.h"
-#include "system.h"
-#include "interpreter.h"
-#include "handler.h"
-#include "db.h"
 #include "comm.h"
-#include "textutil.h"
-#include "utility.h"
+#include "db.h"
+#include "formatter.h"
+#include "main_functions.h"
+#include "slog.h"
 
-#define REBOOT_AT    10		/* 0-23, time of optional reboot if -e lib/reboot */
+#include <cstdio>
 
-int
-check_reboot (void)
+#define REBOOT_AT 10 /* 0-23, time of optional reboot if -e lib/reboot */
+
+int check_reboot()
 {
-    long tc;
-    struct tm *t_info;
-    char buf[200];
-    extern int mud_shutdown, mud_reboot;
+    long tc = 0;
+    tm *t_info = nullptr;
     static int count = 12;
 
-    tc = time (0);
-    t_info = localtime (&tc);
+    tc = time(nullptr);
+    t_info = localtime(&tc);
     if (count < 12)
     {
         count -= 2;
         if (count > 0)
         {
-            sprintf (buf, "ATTENTION: %s will automaticly reboot "
-                     "in %d minutes.<br/>", g_cServerConfig.m_mudname, count);
-            send_to_all (buf);
+            auto msg = diku::format_to_str("ATTENTION: %s will automaticly reboot "
+                                           "in %d minutes.<br/>",
+                                           g_cServerConfig.getMudName().c_str(),
+                                           count);
+            send_to_all(msg);
             return (1);
         }
         else
         {
-            slog (LOG_ALL, 0, "REBOOT:  ***Automatic Reboot***");
-            send_to_all ("Automatic reboot.  Come back in a little while.<br/>");
-            mud_shutdown = mud_reboot = 1;
+            slog(LOG_ALL, 0, "REBOOT:  ***Automatic Reboot***");
+            send_to_all("Automatic reboot.  Come back in a little while.<br/>");
+            g_mud_shutdown = g_mud_reboot = 1;
             return (0);
         }
     }
 
-    if ((t_info->tm_hour + 1) == g_cServerConfig.m_hReboot
-            && (t_info->tm_min > 49))
+    if ((t_info->tm_hour + 1) == g_cServerConfig.getReboot() && (t_info->tm_min > 49))
     {
         count -= 2;
-        sprintf (buf, "ATTENTION: %s will automaticly reboot "
-                 "in 10 minutes.<br/>", g_cServerConfig.m_mudname);
-        send_to_all (buf);
+        auto msg = diku::format_to_str("ATTENTION: %s will automaticly reboot "
+                                       "in 10 minutes.<br/>",
+                                       g_cServerConfig.getMudName().c_str());
+        send_to_all(msg);
         return (1);
     }
     return (0);

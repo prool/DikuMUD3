@@ -1,0 +1,974 @@
+{
+    "name": "zone Directory Files",
+    "relative_path": "vme/zone/",
+    "new_file_check": {
+        "source_extension": ".zon",
+        "files_to_skip": [],
+        "output_extensions": [
+            ".data",
+            ".reset"
+        ]
+    },
+    "files": [
+        {
+            "source_file": {
+                "filename": "arena.zon",
+                "sha512": "13ec42210d43d47a3759866c9f924cf2c1f6e450a3a512ca9b713f93ca2eb5ca816bff63235e9b7d1de23aa15506546521fcc47bff430d0bc8653dc44d0c31d4"
+            },
+            "output": [
+                {
+                    "filename": "arena.data",
+                    "sha512": "01339427cd7e8c2d1991738ec1d334a2152987755320f701cf2ac52248310590078258e05ed34393e627567bebb7d9a3a8f551df64f9715e6493899ce0111e9f"
+                },
+                {
+                    "filename": "arena.reset",
+                    "sha512": "edf2ed161158999f620bc76fee453afba01a8e0f7bc4de1aa9eda7a169b19c9bd321670d5a43113a1f7f7064e831711f461b156b12541e2831671a52ed3a1b9d"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "assassin.zon",
+                "sha512": "31c072b57b5cf21552761afae781b7e72afa555496268042f6613cacdb86a801c191580233283f51826517124d709a0a9e3b981a8d6ad5815fde4eac5bca182b"
+            },
+            "output": [
+                {
+                    "filename": "assassin.data",
+                    "sha512": "ad7602c258016192f0c9a7268b5b41a1dcc66bccac9ed6abe77d366481e33ad412a65ae3744b4c1c8a39f68c7751d4686f3b82230ae3160d90b65402ea6545e1"
+                },
+                {
+                    "filename": "assassin.reset",
+                    "sha512": "7a8f582443722abde8316bd293dbd263c3de44483a72075f40e5aeb5bb89d95d36369aa8261d204c276ff2f778de53290ee9114c2713fe0530f54360f6be1b8b"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "barbarian.zon",
+                "sha512": "ec4ead1c17122b87e6ef2529127a17e3908b4f8247bf34d3608c2d4462bb50302c0cd061f4260d50a5ff1dd54b8cbb0c754273c285a66b4b6b1ec5aba24af40d"
+            },
+            "output": [
+                {
+                    "filename": "barbarian.data",
+                    "sha512": "dff93a13fd12b40a62ff0db4839f750b46e6ed31febf12fcd4d88c063bcd5b03b8b3a64b73eda19c67a29a14b08844cf7bc040e112627d8b799493dc8c7bc839"
+                },
+                {
+                    "filename": "barbarian.reset",
+                    "sha512": "570a17a8e4926018d9b3cd89d2bac8c6c72ab595faa771463f5fed7f9dbcbeaba2530cbe974e3b463309a9e5bab5e857dce6e65d4ef02d28bd4bbec4f30db18d"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "baseget.zon",
+                "sha512": "f491c179522832bedd4aebbfded486bdcfd05143e62badda54553ceab17614c128a244642921b5d9eb9dfdf211eeb05f815fecbef04f364f76e4cd043449471a"
+            },
+            "output": [
+                {
+                    "filename": "baseget.data",
+                    "sha512": "fd5b452ec7a22498f43e20e2f38ef54e7dc45b074247f40b275dc89262c121cd4984167e9da28ac78359029ebcf7a544ac77b664348083808ba26ecfe49c2c3b"
+                },
+                {
+                    "filename": "baseget.reset",
+                    "sha512": "bf2b0f93c765f3b715fc49aba128843e118b3d8c08dc2142b1989c639296a7176b5bc3fd216531af6e186223e233bf8b510c24d44801d399e2f4a3e445426ad9"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "baselook.zon",
+                "sha512": "cf3b1a232738e2476f8d2940e5111bbd2157e23faafdd85cbb0570fdd690bd00f252c51fd39826869faa96e2a3aac2534525a9a28741b93f7cba34e787ecd969"
+            },
+            "output": [
+                {
+                    "filename": "baselook.data",
+                    "sha512": "2dc74d0e87455b6681feb4a0519e26b269bf40929246cf24df3d0020275f70492809c8ad7211d6b5f100bd453bd5e9fd11dc72637bf820dce70718f3a84277fc"
+                },
+                {
+                    "filename": "baselook.reset",
+                    "sha512": "bf2b0f93c765f3b715fc49aba128843e118b3d8c08dc2142b1989c639296a7176b5bc3fd216531af6e186223e233bf8b510c24d44801d399e2f4a3e445426ad9"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "basemove.zon",
+                "sha512": "62e42c0f73a42f3283e6ef26efe53790eadaf921d6b7f193e87b60aa76dcf5dbd3db2ffc4e51439142c684edfb6ec0be6aac6cd2f6b341cc8d6dea60cc18d2d0"
+            },
+            "output": [
+                {
+                    "filename": "basemove.data",
+                    "sha512": "c107330ae84d6b3fc0a4f1f4b3de49a8166ae3aca23fc93a7601234ddf560adf1e17060a26fc89614772a86caa1f99fe58688b1e8beca7b2cbedad641e1368e7"
+                },
+                {
+                    "filename": "basemove.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "basis.zon",
+                "sha512": "2edc939084748738dc4f1ae5d9de0a1a9ec1a33ea76e34195b134002582b352944abbd834351701cc9fe894f0b15af1521e59a925a675c3b957ec5e3658d459b"
+            },
+            "output": [
+                {
+                    "filename": "basis.data",
+                    "sha512": "a2d196727a1fb77912331bfea166a611fe85837ff9097fae72f8e917500e5b2f7e17a7c743d75f823e809261726bbff0b1e82838da26c30fe163c18bf7a7a5c8"
+                },
+                {
+                    "filename": "basis.reset",
+                    "sha512": "e7db65041e0060a98dd2e6c61101f324b203755e9e8269923f8b6094e0d72df95a00c8ca4378cdeaf79259e40ad5335dced16038208f11edbfd4cba186041859"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "boards.zon",
+                "sha512": "a18a06044b0d5c3b9817bc18111a519068f8dd1f7a982165405a2f3e1d7ec48b7a38ed78a5cc8612088273b1aa411d654b7f9a43047a5509082dc4fc357e9ca8"
+            },
+            "output": [
+                {
+                    "filename": "boards.data",
+                    "sha512": "aecdc589de0673383a1c678223e3b94aab543af67ec36cbe91e99f8cfe95f90e2e6cd9b4b0adb87714a3ea1ecd5e370a02e5f4e6b48a12d66a6a8d4b806edca6"
+                },
+                {
+                    "filename": "boards.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "bounty.zon",
+                "sha512": "d7b3592c5dd0db4a6b256fc08ab7200e4abd203d269f7f9c16e512e807be9c4d5942361aeb7c686b1c02dac174789cab94e8e19e881191d79416bffee96c930a"
+            },
+            "output": [
+                {
+                    "filename": "bounty.data",
+                    "sha512": "bcbc4f17d2dc2356555501207684168bd329a6177e4f3b2ba1cc4b678b5870992aab4af682066d75ff6b7d2ff4e9de5f020e3463877f18fd06927d4ee2f88cbf"
+                },
+                {
+                    "filename": "bounty.reset",
+                    "sha512": "28a680aefffe053776745ce4412b0edde3ac20cb58978f2edd08c48ccfa0d0a8c039e8039243adbc6f30adececf2e1af3d89c505d894dd1c7fe1afcb03945cf6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "clan_koh.zon",
+                "sha512": "4d68cf77d9bce92d3f4823cdb27335695c04f4dd6028b37651bdde8119d5792203bb3a0445a6c7daf3a5efa633eadddcaa3e07855c07b6f16b5f87bc4a7fe4b4"
+            },
+            "output": [
+                {
+                    "filename": "clan_koh.data",
+                    "sha512": "66410ecdea857e606f5888f6900ee2f0483832a0cf9d3267bb776e899aa3f352d628dbc611a2b7d4a5ba9643cf2b9a46d34afdbfe14b17918240e15ffda0701d"
+                },
+                {
+                    "filename": "clan_koh.reset",
+                    "sha512": "f0c44a44bc73cad07e596932205b78cc0a917dd7d6380fa86d917be197c7ebe6fb803e67f9cb37e8ad6419ff1328fef124aa0167983f698b51f1fc8cc7eab7e8"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "clans.zon",
+                "sha512": "994f59328b5eaf33edd7fe1b8b6355c2b3ef0e8c5b4f33c14170d26678e1eab8cd6f664e5e2e950ec008474f93c0bb3f39fac05fac6108cc652cc023c60dbd4e"
+            },
+            "output": [
+                {
+                    "filename": "clans.data",
+                    "sha512": "613b9435c587ad3b690ca32fbe58b46428d7a6c2931af269bd4b617a47a7ff5d8428966658e937cd7f92ec453743104d3d145288894c41c71055d159244e3e9a"
+                },
+                {
+                    "filename": "clans.reset",
+                    "sha512": "94eac7e57fdf38fbdf81a7af23ecfca7a3445b9aee16edc6a61fd54b3711fa71a0a0c0e1a2a688f16240913fe97b34305ccd11cf824b02bbe49a81bc8f2637bd"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "clericguild.zon",
+                "sha512": "a5dcbdde5530b492488ea88070aa9d079e3bc46d59cdae8d1d431b3bc034faa8476293c1f0985f6731cf8ad5940ba63130296b74fe9c0df9929d685e87796bb5"
+            },
+            "output": [
+                {
+                    "filename": "clericguild.data",
+                    "sha512": "32d03c96a03913c58b8ac5cfe58e5f7acaf72fa3065fa3e7b5d1e36024ae6483629301b9fdd4009d5adb3ab471e7150f0eb09c8bb97d68e3d08d524ea7ff80c7"
+                },
+                {
+                    "filename": "clericguild.reset",
+                    "sha512": "5b71ecabe0e3c845957a73098b03916226cec0e70d714f49c205dfcf222611c2380274d16da5169004a79852bc2f7500ffa7938864d52728cd270798d1c728ea"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "comm.zon",
+                "sha512": "5212566eb2963d89b308b7c42873002b17dd20cf1b55eb33e8977dd3b5829a2fdb555b5abea40fbaef9231731693cc8abbacdfee5fd8a14eaf036d0f20f0969b"
+            },
+            "output": [
+                {
+                    "filename": "comm.data",
+                    "sha512": "8145db50da3ec06d97a01039f54b0c3637da3c8b95f6325578970044d369ee0a464d93b222c9d7cd72946674e7378ab30d8eed1154ed8b4e8d68217b6ed7e7ed"
+                },
+                {
+                    "filename": "comm.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "commands.zon",
+                "sha512": "80401429a5e6d514719f94f5ca4d027974d3579768ad1742c46e85b2f7fe32c74b2f8f136dbebbbfdafa2ea9d9e76a43f16d4025c82d1cd1f293879328b130fd"
+            },
+            "output": [
+                {
+                    "filename": "commands.data",
+                    "sha512": "fe9a0628c9a47362d1a97f43ed331d7f686cf0b4a77cb134bcfe6861c568cac58a01f982e82458f95971f25d89f09b3ccb018b4d214277d3d87ecf3b754aed3c"
+                },
+                {
+                    "filename": "commands.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "competition.zon",
+                "sha512": "bf284ef1471ffa343cea8074b98f5bbbdec22c4dd4730208ef760968dc850500147860fa588ea3cb71627de9899f5022ff661b012ea6c17cfa3be7d01aed113d"
+            },
+            "output": [
+                {
+                    "filename": "competition.data",
+                    "sha512": "26dc8727097c9f5a59408a8c5bab51f850e8a13a89ec2fbb1169b0ddb25df3ba20465a3bd914efbb9de540d4e8289631e547049223ddbc305528afb006bd5528"
+                },
+                {
+                    "filename": "competition.reset",
+                    "sha512": "c598a9db25a6b1b0cb10744656ebce151d43f5c4f6cec34d8deadbb9b984d577fe5ddbd334c4cde27e2cfbd70a78f02524e95e7943f665c843fd08105f249f49"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "cypress.zon",
+                "sha512": "6c5145bbb2449f7cfa9e047a41c28dfe3bb96ae8d93f65f1ce95c55046223ad811b9a85e1ae41fc716a9782c4f19570d70fa56e1da3da3d303b1732403ec2131"
+            },
+            "output": [
+                {
+                    "filename": "cypress.data",
+                    "sha512": "466a07853a6db517464c3f284abcf7a8e1f31f8e42a1327a91621864ad777a5a055452be016958388334d0e417b1ac22aaec37d757c6c1cfb1b16ba121861378"
+                },
+                {
+                    "filename": "cypress.reset",
+                    "sha512": "23479d73ab78ef475c6120ec602d4beffbfe9bbf6185b5b0dc2b7685fea3596c797b62997452a81525d2d7a20c75c08a67fd8898c9e0b49ccdb2c91c40234fc8"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "death.zon",
+                "sha512": "5ca4b194fe738409fe9fa0c5c133fad9846c152d940e6a9e2ed912aba462a0852dc3a811635faf2e8482a8cb89fdb61f99abb2535284bd8796b23cac573d1d07"
+            },
+            "output": [
+                {
+                    "filename": "death.data",
+                    "sha512": "a245657ccb9e0794e2273ad8a9a0da206a1a51b0e9cca906e835e2c79e8647939ec023a728a9c91e6f343b44f2b03d14bec08c06643bd750e1dceb0762a73635"
+                },
+                {
+                    "filename": "death.reset",
+                    "sha512": "86373e77bfe384e2a9beacc7e6d0d9ff8d1ca01244e25e47e5424cb58a1c054806df118361d0e0b2b2db6cbaf126a8a43889af6b3ec0eb25ff0988d83ceb4eb8"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "druid.zon",
+                "sha512": "a1fb1a9969ef5df34a6604fa3c598d221470ef156de30041bf33a45b36019df0b0d2ef058ecfd918141d551ec3d789f6455257b38f444d34f4478034bd0e60ec"
+            },
+            "output": [
+                {
+                    "filename": "druid.data",
+                    "sha512": "ac53a2f68756329bedecaa14742c872e0d70a4d7ab18c1cf42776ed5508b202b8c8d6f3bd28edb6174f72d175f450ee3c2f31135059bce82924cfb5587db1680"
+                },
+                {
+                    "filename": "druid.reset",
+                    "sha512": "71daef1ea395a3792a09c8c9402830b96fffa4a31296c434c4d5e43cc8f9de49735092c9d68591e607d1186ee01fdef03c3742aea1eac92027245ef075d2adef"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "fightersguild.zon",
+                "sha512": "bc6bea21fbf2ebb745cad57020d4f19666f993b3643851d0a99a61fe31740e6637384be234b524a892f5714068dbd90a5b309b83cddba1a191e265e912002406"
+            },
+            "output": [
+                {
+                    "filename": "fightersguild.data",
+                    "sha512": "a33a837ca52f7f22542229066d7abaaeb50bbdae15cc4b7b1c712914304c5eb0d7d8582bfcc181e12364006f31714135fcbc7d8ec79b9e7a746e1ee974d382a7"
+                },
+                {
+                    "filename": "fightersguild.reset",
+                    "sha512": "db3f7969f6e1fb9ddef5af80519aa841a23428eda2a9282b67c9716f78945092372cb91a864f011cc14caf92c56f21dd9614e8cbd68f128c7cce145a947009c4"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "function.zon",
+                "sha512": "53859353aaa301566c9657954e969662605f2463bacef36fa45696f37cade4ec248b499db4e0f34a2ec8b18d5d30ef52fb8a0769517d7892db1affee4bad7cb6"
+            },
+            "output": [
+                {
+                    "filename": "function.data",
+                    "sha512": "61bf6869f07dc00554cb3a387ceed5c9fa4e32a67b059ddb0d9a68028919505dd030dae47e0bffae3c48fbb6e1f40d60e6f09ba96713c9db9ca4935c768ff517"
+                },
+                {
+                    "filename": "function.reset",
+                    "sha512": "86373e77bfe384e2a9beacc7e6d0d9ff8d1ca01244e25e47e5424cb58a1c054806df118361d0e0b2b2db6cbaf126a8a43889af6b3ec0eb25ff0988d83ceb4eb8"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "g_q.zon",
+                "sha512": "2eba14183c4c1af07c425e474ca28aef350f56d5013bc95fb08413f8f91db7cfeb45d407270c5b43064efbf9c9e65eaad6e89d73b166bd693490b05970b499ff"
+            },
+            "output": [
+                {
+                    "filename": "g_q.data",
+                    "sha512": "f2610b39f3038a8a4693e43b201fd2e07948601ab55def6059a1a98aaae268f1ce757d62b6d5956a74149d3de347fd7a7153d18efb3bf9109c2a17b3a8eac0ee"
+                },
+                {
+                    "filename": "g_q.reset",
+                    "sha512": "ffa15507b6b36682692622bb3fead18b08d4e1a5a6c4eec355c78a9a8edc539b01c2788e401905a3097acdfcfd10a208f70380dbb5606456afb1d23f1229ba36"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "goblin_cave.zon",
+                "sha512": "7244177b14efa00aa459aa71b4930c8b1d89e1ac61ea5ec701ecab9e7442a29235b3a59d79d19661909c2d64f1f44a35adb567d69f482e2f064d0deecc3c3c3f"
+            },
+            "output": [
+                {
+                    "filename": "goblin_cave.data",
+                    "sha512": "bfc356691331edc6ca887e4fa19596b7565ff030a6fc3176c02169e12b71ca635de3e8f24c2d14dcb44030a30087b4a60188502b617789ffc3f651dc82157754"
+                },
+                {
+                    "filename": "goblin_cave.reset",
+                    "sha512": "2eb6e18684eac1c0b2a8e7ca722938281554975edaccb766efc6568191187dc76742b841a45103e96c5ed382de4c394b6005da92f52b2f879df192bda57f8fd7"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "gremlin.zon",
+                "sha512": "79af8072ca36cd34c15d7fcb1f5b38df600914b4d04b3963ae3834766312ad980c86d0d2ef8572f276e9576a969460bcb6733dacc1dbbd9d18e5bdee5f8f8376"
+            },
+            "output": [
+                {
+                    "filename": "gremlin.data",
+                    "sha512": "d24f71243aec96fd8c2b31694a08a54f05cb4f347f4fd710d7f5c7aa876e61579aed50c605d7f623c4db68b2afb9c7c0f823c4dad2082c9c1fd7d101b40cc422"
+                },
+                {
+                    "filename": "gremlin.reset",
+                    "sha512": "d3ae3f9ebe3ddefd824d61d7ebd4cccfcc38ce0a2420a705b4c762f58af6930682af7efe7456983fe3ea528a3a75ce5060da44f8659933b628df39948baa54a7"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "guild_paths.zon",
+                "sha512": "2426239d9a6467086160bf4c55bdc458362df7e7736993e5effc2573b070fafd99c4c617d8a0208a782444f38916eb96385fd2161b076672948fafa901bdfbef"
+            },
+            "output": [
+                {
+                    "filename": "guild_paths.data",
+                    "sha512": "97312c7bf69d3d4db259408357648637c7c4f45e0a0d2cd4c78f31d84ca83c96c91e3417c4a050cd7f91e4858fd755258456003b8092baf6902538c65866c7c1"
+                },
+                {
+                    "filename": "guild_paths.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "guilds.zon",
+                "sha512": "ce96373083b89e780d7e7e2bfe93655a0bdd0f4578084cf7473e4f30537fdb9b38db5e6835b5b0bb4d385ea510440bf302be30174b2b8be5179903083128c1f9"
+            },
+            "output": [
+                {
+                    "filename": "guilds.data",
+                    "sha512": "b69fc5a32876b2bd692c5b345d342521fa2467e00e90ed5b29431409ec7589c8950ff2f1eb90f756c78e3e8ed19c2c33512f9dda770895def4f9c0a5dbf81f62"
+                },
+                {
+                    "filename": "guilds.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "halfzon.zon",
+                "sha512": "e338a46bc48bab30386d7b10b0c370a0f6e22569058ef4bd19f606238fc137eacf692d9a83cdac98c038ef02e651e34f7b4d9f5fe4e33ab7254f2fb8dd0bf16f"
+            },
+            "output": [
+                {
+                    "filename": "halfzon.data",
+                    "sha512": "70a9275044c21681b1ec0dec22882ebb0a07e8316b2afcb7102388ebcd583f8da61b987b5d1d1ca8efd7f991b0567723433dd9952307fe49c4e9aa39daeaf6f3"
+                },
+                {
+                    "filename": "halfzon.reset",
+                    "sha512": "3f54b41e563818dcf58c63ddf2fa05b03a574d8e9efb212cbe4e07cdf04af5808bbf9b8982c078974b01c8807c36e72c12ff08ca4c34e167e3fd08eb2e0a73a0"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "haon_dor.zon",
+                "sha512": "e277832f6c10f3fb984d50f8b5227807c6e2ec4681eeffaa1748256842e95906455211bd58ee71b567c9560f01012c9c9a867da12024a5e63b58b2c02641f05c"
+            },
+            "output": [
+                {
+                    "filename": "haon_dor.data",
+                    "sha512": "485419cf60eb22788f0d59ff550637848bc7c2443159514d89cef605d620df9b6ae4a7f2a1f1bc4e091371115d19109282044b91aa2ab0834ffe5d034739f4e2"
+                },
+                {
+                    "filename": "haon_dor.reset",
+                    "sha512": "f6bccc2e754e9e75cd91142a93e7feccc9f377680185a9d8e0cbe6dcc1ae8f6b153f4b844e40e5ecabaaf01cf79d225b3d45d488b0c2756ba72c95e2893a8688"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "helpzon.zon",
+                "sha512": "c8ea057ea9ede0c3718709cf8524688a8b8d97c9590d32fbaa3053ef8fabda4ff18f87328452384d6f1e61ba9fdddfbb32acd1608639fff82e0ad5db42bf5780"
+            },
+            "output": [
+                {
+                    "filename": "helpzon.data",
+                    "sha512": "8e69440bfe41c87783a27e8cd15e3d03343950506bcada29c2df57e8a35c7bdd126e9c0491b312916a6b44c105f3ec9fcba193236fbf8c2356cb868c4ed4c96a"
+                },
+                {
+                    "filename": "helpzon.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "hobgob.zon",
+                "sha512": "53b5cd70a77271f12fe161010fff65fc3910084ba31e87cc8872463020981cb40ff3b722612da45388b4abad71c6fad45917bc991282fe6a5a6cd2321dd2d8a9"
+            },
+            "output": [
+                {
+                    "filename": "hobgob.data",
+                    "sha512": "6f1df050159a97f6eb498bbd65c348440e3c3efdc7e9993997205543c7b7f39476e588aaf9466d1ddb38cbfe43b113bc250ed6f0157c1be9a5a7f20ca59aec5f"
+                },
+                {
+                    "filename": "hobgob.reset",
+                    "sha512": "d4bd1d812ec04d61aa5d6c56138b3331039ab0b5da5b8d7f189328c0ba935ef69eb8fb7b35dd9d30a9088afe47482c14044afbe598a572de0e740a953964fa7e"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "holiday20.zon",
+                "sha512": "73f7bf8041d224db189cda62d926e38bf294f0914891fc37bcf0b70b88c08d1072c280773ba99e38b952971feef0e121e1561d740067040c8d44cdeffab6a715"
+            },
+            "output": [
+                {
+                    "filename": "holiday20.data",
+                    "sha512": "833502dbc6cb208218b8885d904643e988b786b2baff1d583a82045e51e5c0c41a06ea8d24721a2c6a6184636e62041d01fc91958feebddabde65c8949f65056"
+                },
+                {
+                    "filename": "holiday20.reset",
+                    "sha512": "d36676a9ae24a67377d5c6d69fce70bc6fe4a45aa4fbfd67685e7e7e63eac5b9d6fd6d4af89ad8f17c36160322666f322fdd8cebbcab513497bde1a6d7dc1eda"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "holiday21.zon",
+                "sha512": "174ebdb0f70d8471d13d29eec2c40c0b4e18dcecbb1e12c2df3fe5c88b8437cb3380c9e828b8785eda97de95020614af1662866ceb7c44fd7aed08be07e51996"
+            },
+            "output": [
+                {
+                    "filename": "holiday21.data",
+                    "sha512": "9b3fec33b8654ceab30c799eab8341c53d64d4256db49a3c531670fa26cf9f4c77f8c18848e8d0393ab8a90da74eb19ab2ac98984a5302d6e9a187bc95c893ac"
+                },
+                {
+                    "filename": "holiday21.reset",
+                    "sha512": "ed1563074b9f34b2671ebd85fc00b155ef4ad23418a60e3dbcb72c84efb56f6cb96ffef240ce3ce8a085524e492bf954f4745cb739f6b77eaf2e5c44c0488eaf"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "justice.zon",
+                "sha512": "ee27d0ba0667708b8426d26ae0d7f4f5fa960fe25477a95a72cd11ef0c9bfb3c283f06ba39afe09ed5f6974733b2c92daf7b344adc53cd2f86cf392f871bb3d4"
+            },
+            "output": [
+                {
+                    "filename": "justice.data",
+                    "sha512": "b098d0332d2f375b0d397526daa438509bc397e960c7c414d44e9950a883e8bbd6879e227937f44688209892cbba22b62593a12ded48b9625d124165826c6c44"
+                },
+                {
+                    "filename": "justice.reset",
+                    "sha512": "86373e77bfe384e2a9beacc7e6d0d9ff8d1ca01244e25e47e5424cb58a1c054806df118361d0e0b2b2db6cbaf126a8a43889af6b3ec0eb25ff0988d83ceb4eb8"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "kingc.zon",
+                "sha512": "b5e2d490806afbc22b10bba1268f74ebf83c0dd7b1969e8b875ac5a063492fddc4bbe8ac5c0a46fdb420e48704edc4af22d815b4083af5b65dc54453d2638e8f"
+            },
+            "output": [
+                {
+                    "filename": "kingc.data",
+                    "sha512": "c4d200acde192a5cef9b263cac90b91256cf4ba271053d77b61ed14aeec6c0d33bc0df7a13f5a47be6fb5f550339db90da15984a4a4f71778b39857ce4b79586"
+                },
+                {
+                    "filename": "kingc.reset",
+                    "sha512": "efbd106d198b404154d11f08120f83ce7fb4cba62deb7cc2165151e002b1f4be6dbe40acbf1c288011be0caa699b74b5385e14fed619654e68e6cc26b49a7e91"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "knight.zon",
+                "sha512": "cda863a978a8f9db87f9ae7da9cad3c97ac80f6c256a1d4efbdf41d4bb4154126415aec607ea4ec4bbdd4a717f7f4432b3215490cba79dbeb8a9331b8da8cbd1"
+            },
+            "output": [
+                {
+                    "filename": "knight.data",
+                    "sha512": "fdcca653fb3869524a29853593283a4451e1c092c6bb775be5b6708bf0d68f3774daddce3dbe4c10c7f984ded269f3bb0f16933a3c4b65b6298a4bfc7d3e3c77"
+                },
+                {
+                    "filename": "knight.reset",
+                    "sha512": "41230b182cdbfacfcc30ec5708a95f7cec3697c73082dd9ea379dd7e3839bc60b4ed30ee47beed97aab2ecef27f1bb02a7f2a4e43f0dc94bf73e3414880c9bf6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "mageguild.zon",
+                "sha512": "ac176f128517da790aa0b88912d6dde3277e2345ac14a97a3ba5719adeafad3d8547b66642c6edb3b0c7e1c168a3cb6611a674dc58eafe7479e266d7d9c04632"
+            },
+            "output": [
+                {
+                    "filename": "mageguild.data",
+                    "sha512": "45196facd69299f62c3aedc76bdc5bcc64c82126009afd8c120ea2eb0f97844fdb695a489892332abba3f027adba1f08ea6f1dde2209e17d9cce82e83ec2d74a"
+                },
+                {
+                    "filename": "mageguild.reset",
+                    "sha512": "2c4fb2a89671108b138d7863bfcb7d2901e16db48031787e58ac124d185afd586d7d3b17dc73d59d9ccbf477c8906505a3aca5f3372e8383bdc9bcf25fadb6d3"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "mail.zon",
+                "sha512": "b73f720f46ebb4bd41c41ab802e74722c49a7af444f1e75196eda5877b0edaca9a607784aa6e58cca5ca41ed3936c140d36baa26c8c13a07650c68316df94ea4"
+            },
+            "output": [
+                {
+                    "filename": "mail.data",
+                    "sha512": "ac236f73524d6e05ec4e392a69c6781aac80779f24dee89bd5dc67fbf63616d600c2e812b3bdea33475bf3d48e84f06b8e8e4b74b49fbbdac6b324054ff230aa"
+                },
+                {
+                    "filename": "mail.reset",
+                    "sha512": "ed1563074b9f34b2671ebd85fc00b155ef4ad23418a60e3dbcb72c84efb56f6cb96ffef240ce3ce8a085524e492bf954f4745cb739f6b77eaf2e5c44c0488eaf"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "midgaard.zon",
+                "sha512": "39baad9a5e3868d27089b11dac2a6f6b79d7c60b98845d4822347383e35a6aeb183de669fc78a73502fd6da5ec7a8aa4f6d85308710e98c600517ba4e1f1569f"
+            },
+            "output": [
+                {
+                    "filename": "midgaard.data",
+                    "sha512": "be015857c457d4a6f78bfa23164d57408c782a1c0807b2f6e3657f2a40b92bf0bff6d60e9a7c5e32df0294229f443139b519aaa031b3faddb9cd7c7128fbdccc"
+                },
+                {
+                    "filename": "midgaard.reset",
+                    "sha512": "df702708b6e0a55bdde4ebde5aa2f1e84ae48ab5a94535ac77efb795b6efc18118ed49fff9d31fd3719023cba4245fddf99b4d0024afecb0ec46582cc785dffd"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "midwalls.zon",
+                "sha512": "b451b041691e533e2ec0b8b0cac4149f513de2b28715e4c48ba0d7e4a2e0ee58654f8f912febb1e33bbb59de8af67b377433d840e49cef9c01a5c0ae8d740484"
+            },
+            "output": [
+                {
+                    "filename": "midwalls.data",
+                    "sha512": "6040b0df16ea291a70586c883fe1950a8c0bc2b78f64110efdb25775647d47ea66c555bc6b1042e4666f97915cc83324a888972d51bb87fff01156f29c61765d"
+                },
+                {
+                    "filename": "midwalls.reset",
+                    "sha512": "ea6ee139f7c7cce01cf5bfc6e79b3016db683e5096807dc4b9f5987633a46b9eee47cca7662e1e86af4bd257e147d0f55bac0a357d2ac8db2ee5e5d631ad5c5f"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "necro_guild.zon",
+                "sha512": "57702e090bb50de6bc84be67f50b7c34d352f223322d67f335de4d441ef645609f3efa6f1f8d3bf2a5fa23b41706aaf4701673574f58c66facf55e481148767d"
+            },
+            "output": [
+                {
+                    "filename": "necro_guild.data",
+                    "sha512": "83497978c56daea73fe435709fb715790caabe16b26e3f9c7b53e19ef43afddbf2570c6649d7769bcb500858a7aa11792cc4d85cc376ae60e0450cd62c3215c1"
+                },
+                {
+                    "filename": "necro_guild.reset",
+                    "sha512": "82dace25d921ccba9fba066a1532e60cf8c0d96ce3f4b4e7dec3409a69163ca12121290181c2abdfb479b47c1d94a8678fab8ff5740273cfb17314ab824b3fc6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "newbie.zon",
+                "sha512": "ac4def97c8136f5c2903031c16e32fa3263830a611ddb08b9cf7eef684fe1ff1810de1b2447afe9b0bb1ed6b5b2de1997ee5bc3edc753fbc6fb139b631a7a479"
+            },
+            "output": [
+                {
+                    "filename": "newbie.data",
+                    "sha512": "1a9d70c53320a1050e393c4886d300b28e3ae30df494ea534bdabbe25adc3bb18eac7492817051ba1a97c2f7196147714e2b581aa636a9780c68eb209edd418a"
+                },
+                {
+                    "filename": "newbie.reset",
+                    "sha512": "f7afb0a6816705e03bd3b8a0b0e42b05835dbca0715594bbedc479e12664d3e0229d29f4007beeb595da62090a5202ce4441ac1b19ddfc48456b6afff256a499"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "offices.zon",
+                "sha512": "6377c46871034b1e2d5c2b6bdd60f21428aea96e73f3000dd0071d755320e9bf0c2c46d098c434a7d50abdfe58d4c1e58d744e14771953a1303ca07d3275dd82"
+            },
+            "output": [
+                {
+                    "filename": "offices.data",
+                    "sha512": "7ce25ebe0fcd6b5e7b70b885a11e5d94ea254d0aa884b54f988b6d759c686d9b5fbd42ebdc8275d303f48c8929d9e6c3fe30dea52a4ec4ae8b08b60225677c6e"
+                },
+                {
+                    "filename": "offices.reset",
+                    "sha512": "b0fd4b85ab3d3de51a8faebb2f7d6ed34e96ef0da29be01e381360587931df4f2f36142d9063ef6975bf4d0cca639def144a142076879b23d313691fa6e65ffe"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "paladin_guild.zon",
+                "sha512": "e60d287781f6db2425ab6853c7869a92aa8553e0c2c77bd7b57f22cbec4f79eca086059e30df81d483c859b581e41654c8c473beae70ebcf4c08a625973bf609"
+            },
+            "output": [
+                {
+                    "filename": "paladin_guild.data",
+                    "sha512": "5d3010919fdec3ca2f5857b1a14c03889d4689fc2ca3b461ab7ef16039d652cfae827c3f8328abc996be3692af227b497a4666786f98e97e6f9c9280488b8973"
+                },
+                {
+                    "filename": "paladin_guild.reset",
+                    "sha512": "8159f75850324ff6acb6ff1bdd8f103dbf4171c1c173498209538e4c542479b1512a8d5b5cee2a41e9d23a3acf45b9589973efdcc1f75bff040eaf0bfcaf06da"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "professions.zon",
+                "sha512": "7269ee6315c97050dd40589438509c2650e3f2feec5221c2f724deda292060a3ef5b2a241dcbaece477ba43df0c68c93ea53ffcb1c4caabaa68628ec3f54c525"
+            },
+            "output": [
+                {
+                    "filename": "professions.data",
+                    "sha512": "58cdfca42ae20a4fa9bc7ae5ac7518d7727b55ae697677439cdc67d6f718ebd3938f8f10b5eccdd90387f176eaa5d6df9451178d9c163ec84e1cbcf51a2ca2ab"
+                },
+                {
+                    "filename": "professions.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "quests.zon",
+                "sha512": "23e0b1270da3b45572642b2d27608ba02b654ea48057c3eee3f42b1581d07a534a2068b45009d96f68e19b862a1cfb6ba3f61f47636b4666e20675e37ded2537"
+            },
+            "output": [
+                {
+                    "filename": "quests.data",
+                    "sha512": "cd84661c762ed23522c1779669f095e4dcbc6b513872f7b1f70531318199aa4ac65b06f1d30bab19f033f5b3e77fb5433a876310dc44f84554758d4b8e5fc7c5"
+                },
+                {
+                    "filename": "quests.reset",
+                    "sha512": "94d4b3dedcf460045a9e4c3925855345266870d4a740e44a697d0af66efeaf8ad3f17f7af45dd8f3b3dd8cc4f8fac11c661efeeb3316a447c3886e8cbd2439e7"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "randomt.zon",
+                "sha512": "0aa370a250a67f7a385bdfe63f05c68ca660ce54907701e2e38ace5d7e7cbc8b2cb3bb7591064f2a9de0be9237d96ce3d50a4257ed96c0b32c9827aadda6180c"
+            },
+            "output": [
+                {
+                    "filename": "randomt.data",
+                    "sha512": "84aeec87698d8e33cbb81e8fc45a6615b842f467a300335b6d148aed560f510d837f58f9974389a35680e548e013173548e63c01ea882e6b6b23325656c627a8"
+                },
+                {
+                    "filename": "randomt.reset",
+                    "sha512": "6c826bffa20689f84f376ec13d921393a064f34a215a675633c7eac7ba215bd6b2faa383f18c39ea40160dce42514ad7d6b9a1b5882eee2ac584d4b38eed391a"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "ranger.zon",
+                "sha512": "e5d59879538766413ecfad380aca34db82a54696132bb0460f24112eed31414c77beddde41d4f3f4833a38739f50e6d32c7dcd716b3d70ba7be17a169240dc96"
+            },
+            "output": [
+                {
+                    "filename": "ranger.data",
+                    "sha512": "3f47bafdde091f1606494edcfce6487fccc92376e947e3431d47c194e591d094e1dc3d4c9dd785e0bd9474ceeca4f4e52055fac2a252a471b399f740481f2342"
+                },
+                {
+                    "filename": "ranger.reset",
+                    "sha512": "97399a596fbc2d29556eb4617311850137256fe9128a292db1f82c67802a9597c8980eeba750f491aea4cf02c34f102b9a93f5189b9cf05c979273ca5ea6fc8c"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "ratswarf.zon",
+                "sha512": "ae8dd967383c507e2124d4b7358c2a7dce72c5d84611217733e43932a185bf52eb1c5afc53b5d61a1e38dd75f72e3564215ddada8b02946edeb0b7428cf7fa01"
+            },
+            "output": [
+                {
+                    "filename": "ratswarf.data",
+                    "sha512": "aa6cb7186928dadd603ff57aaf6ac11197963094db1c9fdd0240c8237e32cc573b628f32c92e4bcb4bf367ee54924d5b528a9148040818b022a0756cb54b2e23"
+                },
+                {
+                    "filename": "ratswarf.reset",
+                    "sha512": "530fab0d349a73aae9be29855ab8393b353dfe1bfa73f9ae800f72a35dc8853bf3567d456b7d846f2e5295d4fda2fdd463372ba5ed4915661d4cfc85a4029f26"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "rebirth.zon",
+                "sha512": "5afcddaf59ce07e11ecc0034068c73c8e5d5f58bee51c7af0d822ac0f12680fc572a4d08404b673ebf6b1f88693b8d7c904c06c49c1afaa52b467524030673bd"
+            },
+            "output": [
+                {
+                    "filename": "rebirth.data",
+                    "sha512": "3598c0eb577074867be1117e37417cbd0465b420ff4b2a5ed054f320a14b32e2ea19ecf22578771362f90e93d4fa354d9b45f626d23ab220b643c416d210de8a"
+                },
+                {
+                    "filename": "rebirth.reset",
+                    "sha512": "70a4c46b3a42b2bfb9ac40b490025e3f0e6efe9fec43dabfff9f6b7560b7d823239e2d6f8cbe86cd8c52445f4d120d417ab38f8df5543868903e344f1ffa7b0d"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "restrict.zon",
+                "sha512": "c496184beed1613285d0af29c59bf0d8938d29d304de4d990c708c79e3e47d1d76049b45ec4bd3f810f99f34dbba8149cffa616597fc7e9a6a1ce42d4c581af6"
+            },
+            "output": [
+                {
+                    "filename": "restrict.data",
+                    "sha512": "8acc9e57dce549ddc73b2aea90d025b09602befa348dd057fcfc0514d9a5d7bf872d508fafee4ad25f21d88ac643f37be77fe0ec80bfc5f89e82d2ff41292866"
+                },
+                {
+                    "filename": "restrict.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "set.zon",
+                "sha512": "b2274516a8ce87befcb1e872f120e277ecc1f95a65f2a340981d94b28632484842b22eb637efaaac634fc9a071e6ce83c9a01f2cb68d12c6966798c397bd577d"
+            },
+            "output": [
+                {
+                    "filename": "set.data",
+                    "sha512": "a01910bbec1bd1c0b0470bc5b9520eba480b37d2ce79c6c7c69ec82155b6b3517ddeba99b19553245262cc85db643e6f928385610eb4f33f88799d90164d5ea1"
+                },
+                {
+                    "filename": "set.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "skills.zon",
+                "sha512": "b302af36baf6ef0302ecb1c15d2cbbe95c89e881a955d2c9b2ccac1799d62aa5173696d056622f9265c5f018e635ae5625991749778d764f971e6471ab8d5073"
+            },
+            "output": [
+                {
+                    "filename": "skills.data",
+                    "sha512": "aac4471a02eb96f72a9736094398b5fd6c52d3e35f71bb69ddebd45bd3ca254234a80f9f3437a4602cdb1daed8f2c373f15112ddadb42cc2d3212b01d413dbe5"
+                },
+                {
+                    "filename": "skills.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "socials.zon",
+                "sha512": "3658b4464a665ad0751e85530ce525cf568e6508f51efbbf246624200d8bf1b30d874f8271c56689e8dbbbe9255826f65e5b5e2a591dbb847d8b86a45c410f53"
+            },
+            "output": [
+                {
+                    "filename": "socials.data",
+                    "sha512": "9ddad1a9ab160deb8ad50881f2279011cd020c6436ba4dbb3a35ea29f50c35bfa55ffad966a04533b89866b3a487bee277faea02b5cd178cd8cf220f9632f36e"
+                },
+                {
+                    "filename": "socials.reset",
+                    "sha512": "86373e77bfe384e2a9beacc7e6d0d9ff8d1ca01244e25e47e5424cb58a1c054806df118361d0e0b2b2db6cbaf126a8a43889af6b3ec0eb25ff0988d83ceb4eb8"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "sorcerer.zon",
+                "sha512": "8270ffcce0deb71e029bb1877d06f4fb9b5b857a1121d3a3b360ee3e7c1bc0593fd544aa4b83bb1733afb442234cb8aebbfadcf2e1c7e788ab5cec7c7a0a80ec"
+            },
+            "output": [
+                {
+                    "filename": "sorcerer.data",
+                    "sha512": "5788bb305b3b13a7b13ac8515d377132373c0243a083605f8e695d415a7883940aedcc0fecd1f69197355592e38ed6dfc6685cd7a91403387c8bd06ef3613f2c"
+                },
+                {
+                    "filename": "sorcerer.reset",
+                    "sha512": "0e19a1e2af60d26a102c749b82afc2b7d8be1635708b0e62c0fe84400884000fe2434272ca773013c1acd9dfc4a01f72ea2a61343056d3f5b323c1d50add025e"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "spells.zon",
+                "sha512": "6b9548b0cc3068324695e9577e309c021502c7da3dfbcb5c80649d646c7928e025005fe0ea03dba93d8ccbe0b4e43e3ded86a227d000004e5844e473ea9bf12a"
+            },
+            "output": [
+                {
+                    "filename": "spells.data",
+                    "sha512": "c0ede3f56bc012759a9a3255279135a1bd3b8fabe397981d09de62bb347252e145d55bca1bfba6741cfe681b2a48fdfe649d8936bfaeea1a36713439b23f577e"
+                },
+                {
+                    "filename": "spells.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "test.zon",
+                "sha512": "665e96e1a52708ee173fe1744a1a1bd2d19736044fdfaf90cdcded19fb36e4572a27c68f5d1384ad615cf2e75cf956b4e4aa0e3aeeecc909d254c0a7e7aca39b"
+            },
+            "output": [
+                {
+                    "filename": "test.data",
+                    "sha512": "30b1cd4593fd02f243db2ac3cde1c93beba0fba6928843482f737be4620cc7083f0cd844faadc342934765928e88c040b096e00da80c2a66e7aeb081fde5dd94"
+                },
+                {
+                    "filename": "test.reset",
+                    "sha512": "34e571f25274c2ee07fefe3522340f0c1fb9bd483110a6fc78e1452feab7bed4016005fbd4d42e541540c2986f52a6ef146c83aa24bd2d90bac02f9761e1c846"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "thievesguild.zon",
+                "sha512": "ca59fd57df5b6c2ab17ccd74d705e17d020c09be97fd5cdccbd2f501a49cfcc1e15473b945bacf55b8c932e1401aff377d2e085a8f7d420ca6788d0ede946825"
+            },
+            "output": [
+                {
+                    "filename": "thievesguild.data",
+                    "sha512": "876a34e557fe2dabef68a2b5ff98df325128ffae2676411f6e9fac69381d96e772e455200646afc179ac11229255972443fb9cd209349ed8634f5d30ff1c7cc8"
+                },
+                {
+                    "filename": "thievesguild.reset",
+                    "sha512": "491a6c1488182e8242c6797a4fb9cb9c66440a8223411728a269afef688a32fd65fc53f3e224dbb826f88d0fc4006813ab913bee379a78ca62f31143d429df39"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "udgaard.zon",
+                "sha512": "dfbe741655ab0cef4e1050a811366eaf045ff98b6c0600cc950bdd11c5b3de7de0618f93cb856b0b3ad53e2bb694730f8b3cedf70adeca7db7af36461e810ead"
+            },
+            "output": [
+                {
+                    "filename": "udgaard.data",
+                    "sha512": "ef870f568a6241b09cda6d0de5280f6534b7ed41f5cf3dbf1944971ea33f9fb527227166609542c92a6008f2fc13fc3c249098666052cd76b98386757c5f1e6c"
+                },
+                {
+                    "filename": "udgaard.reset",
+                    "sha512": "93bcb934b9817a012320c658ab66841c8b1a9df92e8175c0908ab7b2148abcea815bcd0786231a2506e9f2fb91be49ff5ec990cfc1474b5c2c4e9fb244f73e8f"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "update.zon",
+                "sha512": "f761910ae5ae64f23e07d719d03e687264cfcf9415d8db04a964f3a08c61c9650d2ffae4bd5c70e5a0459ad4db909c57dbeecaad13bf38d7a8c1de41bc6b1b4b"
+            },
+            "output": [
+                {
+                    "filename": "update.data",
+                    "sha512": "acf6231e03b9f4a215c00d19f46085fe7f770936cba5691e1f5f0060a8118bd7ec3dabd75a1b565a74feb17be0f6ca9dabafd2f68f0e73aae6087b80c6ba70b8"
+                },
+                {
+                    "filename": "update.reset",
+                    "sha512": "6cae24e00bb44fee43d067fac8eaf8ae136fcab13c7891ec921ca45a54177e3fd88debc5b032f02535dd7eddd84dd9ffd34316d357e3f4a2a4b1889129b92aa6"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "wiz.zon",
+                "sha512": "e28eed5ac97db4ebba051acf837f05ab9b42e47c59ddb2257e8f6720f28088cf6ea35947f36b38d709d25bc635cced2f69831db013153cb4af160b805049f98b"
+            },
+            "output": [
+                {
+                    "filename": "wiz.data",
+                    "sha512": "c1d85a984e207b0cd6b4770f6e41beefd2c15b025cff715d9e8cdcafeb8b76711b55b7731b14fbbeb5ad3b8f13747d6b0b1f40e3d18d2319c3468231093a158f"
+                },
+                {
+                    "filename": "wiz.reset",
+                    "sha512": "d9ac55256695dcd6e164766810cdfc7285e6df6409750bf9ff34a0eac678b3e0f0c8c2a407772c1ee787aa07f9422e7b404fd8857dc79e10cb5c12d0367d4400"
+                }
+            ]
+        },
+        {
+            "source_file": {
+                "filename": "youth.zon",
+                "sha512": "c68fae1a5a5a4a960508aa197beef0087d86b55724fb95278dd970d52c880cc7280e0acbd72f65d1d76c5049593f47847105a881fb20087ed8ab4143635a2759"
+            },
+            "output": [
+                {
+                    "filename": "youth.data",
+                    "sha512": "4214aaebd909afde772b4c2dcaf57ec41deddef11fbb6d4d6cb6403ab0042874ed225528de0c75af330d23f0b71d4908a7629b601dd41ccbd4c096a283f761bb"
+                },
+                {
+                    "filename": "youth.reset",
+                    "sha512": "88b979249e5e3e8d8f144ad9fa8d49805e6dcb034871425456f26be8157f91a4778b1e2b0f30748a55b2cb5cc671eec83cd7fc4854cb6b5643c8293aa523a781"
+                }
+            ]
+        }
+    ]
+}

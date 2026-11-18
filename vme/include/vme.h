@@ -27,19 +27,25 @@
 
 #define START_LEVEL           1
 #define MORTAL_MAX_LEVEL     50	/* Maximum level for mortal players */
-#define IMMORTAL_LEVEL      200	/* At 200 you can't really die      */
-#define GOD_LEVEL           220	/* Here are the *real* gods         */
-#define CREATOR_LEVEL       230
+/* The god command ladder (WIZARD_LEVELS.md): each rung adds commands to the ones below */
+#define IMMORTAL_LEVEL      200	/* At 200 you can't really die; watch the game */
+#define GOD_LEVEL           220	/* Here are the *real* gods; sport and competition */
+#define CREATOR_LEVEL       230	/* Game master: stage the world, look after players' health */
+#define MODERATOR_LEVEL     240	/* Disruptive players: nocomm, notell, petrify, freeze, ban */
+#define PLAYER_ADMIN_LEVEL  245	/* Change a player or what they carry: set, purge, eat, transfer */
 #define OVERSEER_LEVEL      253
 #define ADMINISTRATOR_LEVEL 254
 #define ULTIMATE_LEVEL      255
 #define FALSE 0
 #define TRUE  1
 
+// These are used as enums
 #define A_HIDEINV  10
 #define A_SOMEONE  11
 #define A_ALWAYS   12
+#define A_RAW      14
 
+// These are used as enums
 #define TO_ROOM    0
 #define TO_VICT    1
 #define TO_NOTVICT 2
@@ -189,11 +195,13 @@
 
  RESET_ANYHOW
    A zone is reset regardless of wheter it contains players or not.
+ RESET_NEVER
+   Zone never resets, not even at boot (useful for programmatic triggering).
 */
-#define RESET_NOT 0
-#define RESET_IFEMPTY 1
-#define RESET_ANYHOW 2
-
+#define RESET_NOT     0     
+#define RESET_IFEMPTY 1     
+#define RESET_ANYHOW 2      
+#define RESET_NEVER 3       
 
 
 /* ------------------------- Directions ------------------------------
@@ -476,26 +484,27 @@
  MANIPULATE_WEAR_ANKLE
    Anklets
 */
-#define MANIPULATE_TAKE           0x00001
-#define MANIPULATE_WEAR_FINGER    0x00002
-#define MANIPULATE_WEAR_NECK      0x00004
-#define MANIPULATE_WEAR_BODY      0x00008
-#define MANIPULATE_WEAR_HEAD      0x00010
-#define MANIPULATE_WEAR_LEGS      0x00020
-#define MANIPULATE_WEAR_FEET      0x00040
-#define MANIPULATE_WEAR_HANDS     0x00080
-#define MANIPULATE_WEAR_ARMS      0x00100
-#define MANIPULATE_WEAR_SHIELD    0x00200
-#define MANIPULATE_WEAR_ABOUT     0x00400
-#define MANIPULATE_WEAR_WAIST     0x00800
-#define MANIPULATE_WEAR_WRIST     0x01000
-#define MANIPULATE_WIELD          0x02000
-#define MANIPULATE_HOLD           0x04000
-#define MANIPULATE_ENTER          0x08000
-#define MANIPULATE_WEAR_EAR       0x10000
-#define MANIPULATE_WEAR_BACK      0x20000
-#define MANIPULATE_WEAR_CHEST     0x40000
-#define MANIPULATE_WEAR_ANKLE     0x80000
+// Had to change to dec because I'm using the QUOTE(x) in randomt
+#define MANIPULATE_TAKE                 1 // 0x00001
+#define MANIPULATE_WEAR_FINGER          2 // 0x00002
+#define MANIPULATE_WEAR_NECK            4 // 0x00004
+#define MANIPULATE_WEAR_BODY            8 // 0x00008
+#define MANIPULATE_WEAR_HEAD           16 // 0x00010
+#define MANIPULATE_WEAR_LEGS           32 // 0x00020
+#define MANIPULATE_WEAR_FEET           64 // 0x00040
+#define MANIPULATE_WEAR_HANDS         128 // 0x00080
+#define MANIPULATE_WEAR_ARMS          256 // 0x00100
+#define MANIPULATE_WEAR_SHIELD        512 // 0x00200
+#define MANIPULATE_WEAR_ABOUT        1024 // 0x00400
+#define MANIPULATE_WEAR_WAIST        2048 // 0x00800
+#define MANIPULATE_WEAR_WRIST        4096 // 0x01000
+#define MANIPULATE_WIELD             8192 // 0x02000
+#define MANIPULATE_HOLD             16384 // 0x04000
+#define MANIPULATE_ENTER            32768 // 0x08000
+#define MANIPULATE_WEAR_EAR         65536 // 0x10000
+#define MANIPULATE_WEAR_BACK       131072 // 0x20000
+#define MANIPULATE_WEAR_CHEST      262144 // 0x40000
+#define MANIPULATE_WEAR_ANKLE      524288 // 0x80000
 
 
 
@@ -571,9 +580,10 @@
 #define CHAR_DETECT_CURSE      0x02000
 #define CHAR_DETECT_LIFE       0x04000
 #define CHAR_WIMPY             0x08000
+                            // 0x1000 Unused
 #define CHAR_SELF_DEFENCE      0x20000
 #define CHAR_PEACEFUL          0x40000	/* Auto-attack stuff? */
-#define CHAR_KILL_SELF     (0x80000)	/*For death if NPC/PC kills self or no exploss */
+#define CHAR_KILL_SELF        (0x80000)	/*For death if NPC/PC kills self or no exploss */
 
 
 /* ------------------------- ITEM Types ------------------------------
@@ -824,6 +834,10 @@
 */
 
 #define SPEED_DEFAULT   12
+#define SPEED_150        8
+#define SPEED_200        6
+#define SPEED_240        5
+#define SPEED_300        4
 #define SPEED_MIN        4
 #define SPEED_MAX      200
 
@@ -912,6 +926,7 @@
 #define SHIELD_SMALL   0	/* Small Shield */
 #define SHIELD_MEDIUM  1	/* Medium Shield */
 #define SHIELD_LARGE   2	/* Large Shield */
+#define SHIELD_TOWER   3	/* Tower Shield */
 
 /* Shield methods set for each weapon type & spell type */
 
@@ -998,8 +1013,9 @@ The function may share with others/continue command sequence
 #define SFB_DONE     (0x0800)	/* Used to tell when something has been done */
 #define SFB_EDIT     (0x1000)	/* Edit */
 #define SFB_DILDESTROY     (0x2000)	/* Edit */
-#define SFB_PROMPT     (0x4000)	/* PROMPT */
-#define SFB_UNIQUE     (0x10000)	/* PROMPT */
+#define SFB_PROMPT     (0x4000)	  /* PROMPT */
+#define SFB_NOOP       (0x8000)   // NOOP, special condition (16th bit)
+
 #define SFB_ALL   (SFB_CMD|SFB_TICK|SFB_DEAD|SFB_COM|SFB_MSG|SFB_SAVE|SFB_PRE)
 
 /* ------------------------- Special Functions ------------------------------
@@ -1313,5 +1329,6 @@ SFUN_ARREST_CHECK
 #define CMD_AUTO_DEATH    -3	/* Used when someone is killed (combat)        */
 #define CMD_AUTO_COMBAT   -2	/* Used when combat round                      */
 #define CMD_AUTO_TICK     -1	/* MUST BE -1 ,Used when units are "ticking"   */
+#define CMD_AUTO_NONE      0	// means not an AUTO CMD (used in DIL)
 
 #endif /* _MUD_VME_H */

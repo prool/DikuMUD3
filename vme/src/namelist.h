@@ -4,64 +4,68 @@
  $Date: 2004/09/18 19:52:56 $
  $Revision: 2.6 $
  */
-
-#ifndef _MUD_NAMELIST_H
-#define _MUD_NAMELIST_H
+#pragma once
 
 #include "bytestring.h"
-using namespace std;
+
+#include <rapidjson/document.h>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/stringbuffer.h>
+
 #include <string>
 
 class cNamelist
 {
 public:
-    cNamelist (void);
-    cNamelist (const char **list);
-    ~cNamelist (void);
-    void operator = (cNamelist * cn);
-    void operator = (const char **);
-    void Free (void);
-    void CopyList (const char **list);
-    void CopyList (class cNamelist *);
+    cNamelist();
+    cNamelist(const char **list);
+    ~cNamelist();
+    void operator=(cNamelist *cn);
+    void operator=(const char **);
+    void Free();
+    void CopyList(const char **list);
+    void CopyList(cNamelist *);
 
-    void AppendBuffer (CByteBuffer * pBuf);
-    int ReadBuffer (CByteBuffer * pBuf, int unit_version);
-    void bread (ubit8 ** b);
-    void bwrite (ubit8 ** b);
+    void AppendBuffer(CByteBuffer *pBuf);
+    int ReadBuffer(CByteBuffer *pBuf, int unit_version);
+    void bread(ubit8 **b);
+    void bwrite(ubit8 **b);
 
     char *catnames();
-    std::string json(void);
-    
-    void Remove (ubit32 idx);
-    void RemoveName (const char *name);
+    std::string json();
 
-    void Substitute (ubit32 idx, const char *newname);
-    const char *Name (ubit32 idx = 0);
-    string *InstanceName (ubit32 idx = 0);
+    void Remove(ubit32 idx);
+    void RemoveName(const char *name);
 
-    void AppendName (const char *name);
-    void dAppendName (const char *name);
-    void PrependName (const char *name);
-    void InsertName (const char *name, ubit32 loc);
+    void Substitute(ubit32 idx, const char *newname);
+    const char *Name(ubit32 idx = 0) const;
+    std::string *InstanceName(ubit32 idx = 0);
 
-    cNamelist *Duplicate (void);
+    void AppendNameTrim(const char *name);
+    void AppendName(const char *name);
+    void PrependName(const char *name);
+    bool InsertName(const char *name, ubit32 loc);
+    bool InsertNameOrdered(const char *name);
 
-    const int IsNameIdx (const char *name);
-    const int IsNameRawIdx (const char *name);
-    const char *IsNameRaw (const char *name);
-    const char *IsName (const char *name);
+    cNamelist *Duplicate();
 
-    const char *StrStrRaw (const char *name);
-    const char *StrStr (const char *name);
+    const int IsNameIdx(const char *name);
+    const int IsNameRawIdx(const char *name);
+    int IsNameExactIdx(const char *name) const;
+    const char *IsNameRaw(const char *name);
+    const char *IsNameRaw(const char *name) const;
+    const char *IsNameRawAbbrev(const char *name);
+    const char *IsNameRawAbbrev(const char *name) const;
+    const char *IsName(const char *name);
 
-    inline ubit32 Length (void)
-    {
-        return length;
-    }
+    const char *StrStrRaw(const char *name);
+    const char *StrStr(const char *name);
+
+    inline ubit32 Length() { return length; }
+
+    void toJSON(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer) const;
 
 private:
-    string ** namelist;
+    std::string **namelist;
     ubit32 length;
 };
-
-#endif

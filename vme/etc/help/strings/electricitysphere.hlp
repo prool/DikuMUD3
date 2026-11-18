@@ -1,16 +1,25 @@
-<br/>
-<br/>
-<br/>
-<br/>
-This sphere enables you to conjure and control electricity.<br/>
-It therefore require a good constitution.<br/>
-<br/><br/>
-<br/>
-    Electrical Shock<br/>
-    Jolt<br/>
-    Lightning Bolt<br/>
-<br/>
-<br/><br/>
-<br/>
-Try help on the individual spells.<br/><br/>
-<br/>
+<div class="mw-parser-output"><h1>Electricity Sphere</h1>
+<p>The spells of the electricity sphere call down and hurl lightning. How strongly one strikes depends on your magic and your skill in that spell.
+</p><p>The sphere itself is a category. It can't be practised: it rises by itself to half your best spell in it. It counts when you resist: against an electricity spell aimed at you, you defend with your brain and the better of your electricity sphere or half your skill in that spell (see <a cmd='#'>Help Spheres</a>). Lightning finds its way past a shield: no shield is of any use against these spells. To resist electricity better, see <a cmd='#'>Help Electricity Resistance</a>; dragons may also breathe lightning (see <a cmd='#'>Help Breath</a>).
+</p><p>The spells, and who teaches them (guild level):
+</p>
+<pre>call lightning     no guild teaches it
+lightning breath   no guild teaches it
+electrical shock   sorcerer 3
+jolt               sorcerer 16
+lightning bolt     sorcerer 30
+lightning storm    sorcerer 160
+</pre>
+<p>Each spell has its own help: help and the spell's name.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Spheres</a>
+&gt; <a cmd='#'>Help Electricity Resistance</a>
+&gt; <a cmd='#'>Help Sorcerer Spells</a>
+</pre>
+
+
+
+
+</div>

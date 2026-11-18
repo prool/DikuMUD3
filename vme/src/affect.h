@@ -4,37 +4,40 @@
  $Date: 2001/04/29 03:46:05 $
  $Revision: 2.1 $
  */
+#pragma once
 
-#ifndef _MUD_AFFECT_H
-#define _MUD_AFFECT_H
+#include "essential.h"
+#include "namelist.h"
+#include "unit_affected_type.h"
 
-void apply_affect (class unit_data * unit);
-void start_affect (class unit_data * unit);
-void stop_affect (class unit_data * unit);
-class unit_affected_type *affected_by_spell (const class unit_data * unit,
-        sbit16 id);
-
-void create_affect (class unit_data * unit, class unit_affected_type *orgaf);
-void destroy_affect (class unit_affected_type *af);
-void affect_clear_unit (class unit_data * unit);
-
-
-/* These functions may not send messages - nor destroy units. Only */
-/* affect a units values                                           */
+/**
+ * These functions may not send messages - nor destroy units. Only
+ * affect a units values
+ */
 struct apply_function_type
 {
-    const   char *descr;
+    const char *descr;
 
-
-    ubit1 (*func) (class unit_affected_type * af, class unit_data * unit, ubit1 set);
+    ubit1 (*func)(unit_affected_type *af, unit_data *unit, ubit1 set);
 };
 
-
-/* These functions may send messages and destroy any unit. */
+/**
+ * These functions may send messages and destroy any unit.
+ */
 struct tick_function_type
 {
-    const   char *descr;
-    void (*func) (class unit_affected_type * af, class unit_data * unit);
+    const char *descr;
+    void (*func)(unit_affected_type *af, unit_data *unit);
 };
 
-#endif /* _MUD_AFFECT_H */
+void affect_beat(void *, void *);
+void affect_clear_unit(unit_data *unit);
+unit_affected_type *affected_by_spell(const unit_data *unit, sbit16 id);
+void apply_affect(unit_data *unit);
+void create_affect(unit_data *unit, unit_affected_type *orgaf);
+void destroy_affect(unit_affected_type *af);
+unit_affected_type *link_alloc_affect(unit_data *unit, unit_affected_type *orgaf);
+void start_affect(unit_data *unit);
+void stop_affect(unit_data *unit);
+void unlink_affect(unit_affected_type *af);
+void get_affects(const unit_data *unit, cNamelist *sl);

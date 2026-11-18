@@ -4,54 +4,35 @@
  $Date: 2005/06/28 20:17:48 $
  $Revision: 2.8 $
  */
-
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/resource.h>
-
-#include <netinet/tcp.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
-#include "interpreter.h"
-#include "structs.h"
-#include "utils.h"
 #include "system.h"
-#include "db.h"
-#include "utility.h"
-#include "comm.h"
-#include "textutil.h"
-#include "ban.h"
-#include "handler.h"
-#include "files.h"
-#include "protocol.h"
-#include "main.h"
+
 #include "account.h"
-#include "vmelimits.h"
-#include "db_file.h"
-#include "str_parse.h"
-#include "common.h"
+#include "comm.h"
+#include "db.h"
 #include "dilrun.h"
+#include "formatter.h"
+#include "handler.h"
 #include "hookmud.h"
+#include "interpreter.h"
+#include "main_functions.h"
+#include "nanny.h"
+#include "pcsave.h"
+#include "protocol.h"
+#include "slog.h"
+#include "utils.h"
+#include "vmelimits.h"
 
+#include <sys/resource.h>
+#include <sys/un.h>
 
-/* extern vars */
-extern class descriptor_data *descriptor_list;
-extern class descriptor_data *next_to_process;
-extern int possible_saves;
+#include <cstdio>
+#include <cstdlib>
 
-void MplexSendSetup(class descriptor_data *d)
+void MplexSendSetup(descriptor_data *d)
 {
     assert(d);
 
-    protocol_send_setup(d->multi, d->id, &PC_SETUP(d->character));
+    protocol_send_setup(d->getMultiHookPtr(), d->getMultiHookID(), &PC_SETUP(d->getCharacter()));
 }
 
 /* ----------------------------------------------------------------- */
@@ -61,190 +42,90 @@ void MplexSendSetup(class descriptor_data *d)
 /* ----------------------------------------------------------------- */
 
 /* Call only once when creating a new char (guest)    */
-void init_char(class unit_data *ch)
+void init_char(unit_data *ch)
 {
-    int new_player_id(void);
+    int i = 0;
 
-    int i;
-
-    extern sbit32 player_id;
-
-    int required_xp(int level);
-
-    if (g_cServerConfig.m_bBBS)
+    if (g_cServerConfig.isBBS())
     {
-        PC_SETUP_ECHO(ch) = TRUE;
-        PC_SETUP_REDRAW(ch) = TRUE;
-        PC_SETUP_EMULATION(ch) = TERM_ANSI;
-        PC_SETUP_TELNET(ch) = FALSE;
+        UPC(ch)->getTerminalSetupType().echo = TRUE;
+        UPC(ch)->getTerminalSetupType().redraw = TRUE;
+        UPC(ch)->getTerminalSetupType().emulation = TERM_ANSI;
+        UPC(ch)->getTerminalSetupType().telnet = FALSE;
 
-        SET_BIT(PC_FLAGS(ch), PC_INFORM);
+        UPC(ch)->setPCFlag(PC_INFORM);
     }
     else
     {
-        PC_SETUP_ECHO(ch) = FALSE;
-        PC_SETUP_REDRAW(ch) = FALSE;
-        PC_SETUP_EMULATION(ch) = TERM_TTY;
-        PC_SETUP_TELNET(ch) = TRUE;
+        UPC(ch)->getTerminalSetupType().echo = FALSE;
+        UPC(ch)->getTerminalSetupType().redraw = FALSE;
+        UPC(ch)->getTerminalSetupType().emulation = TERM_TTY;
+        UPC(ch)->getTerminalSetupType().telnet = TRUE;
     }
 
-    PC_SETUP_WIDTH(ch) = 80;
-    PC_SETUP_HEIGHT(ch) = 15;
-    PC_SETUP_COLOUR(ch) = 0;
-    PC_CRACK_ATTEMPTS(ch) = 0;
+    UPC(ch)->getTerminalSetupType().width = 80;
+    UPC(ch)->getTerminalSetupType().height = 15;
+    UPC(ch)->getTerminalSetupType().colour_convert = 0;
+    UPC(ch)->setNumberOfCrackAttempts(0);
 
     account_defaults(ch);
 
-    CHAR_POS(ch) = POSITION_STANDING;
-    CHAR_SPEED(ch) = SPEED_DEFAULT;
-    CHAR_RACE(ch) = RACE_HUMAN;
-    CHAR_SEX(ch) = SEX_MALE;
+    UCHAR(ch)->setPosition(POSITION_STANDING);
+    UCHAR(ch)->setSpeed(SPEED_DEFAULT);
+    UCHAR(ch)->setRace(RACE_HUMAN);
+    UCHAR(ch)->setSex(SEX_MALE);
 
-    PC_TIME(ch).connect = PC_TIME(ch).birth = PC_TIME(ch).creation =
-        time(0);
-    PC_TIME(ch).played = 0;
-    PC_LIFESPAN(ch) = 100;
+    const auto now = time(nullptr);
+    PC_TIME(ch).setPlayerLastConnectTime(now);
+    PC_TIME(ch).setPlayerBirthday(now);
+    PC_TIME(ch).setPlayerCharacterCreationTime(now);
+    PC_TIME(ch).setTotalTimePlayedInSeconds(0);
+    UPC(ch)->setLifespan(100);
 
-    CHAR_EXP(ch) = 0;
-    CHAR_LEVEL(ch) = 0;
-    PC_ID(ch) = -1;
-    PC_CRIMES(ch) = 0;
+    UCHAR(ch)->setPlayerExperience(0);
+    UCHAR(ch)->setLevel(0);
+    UPC(ch)->setPlayerUID(-1);
+    UPC(ch)->setNumberOfCrimesCommitted(0);
 
-    PC_ABILITY_POINTS(ch) = 0;
-    PC_SKILL_POINTS(ch) = 0;
+    UPC(ch)->setAbilityPoints(0);
+    UPC(ch)->setSkillPoints(0);
 
     /* *** if this is our first player --- he be God *** */
-    if (player_id == -7)
+    if (g_player_id == -7)
     {
-        player_id = 1;
-        PC_ID(ch) = new_player_id();
+        g_player_id = 1;
+        UPC(ch)->setPlayerUID(new_player_id());
     }
 
-    CHAR_ATTACK_TYPE(ch) = WPN_FIST;
-    CHAR_NATURAL_ARMOUR(ch) = ARM_CLOTHES;
+    UCHAR(ch)->setAttackType(WPN_FIST);
+    UCHAR(ch)->setNaturalArmor(ARM_CLOTHES);
 
-    UNIT_HIT(ch) = UNIT_MAX_HIT(ch) = 1;
+    ch->setCurrentHitpoints(1);
+    ch->setMaximumHitpoints(1);
 
-    CHAR_MANA(ch) = mana_limit(ch);
-    CHAR_ENDURANCE(ch) = move_limit(ch);
-    CHAR_LAST_ROOM(ch) = NULL;
+    UCHAR(ch)->setMana(mana_limit(ch));
+    UCHAR(ch)->setEndurance(move_limit(ch));
+    UCHAR(ch)->setLastLocation(nullptr);
 
-    CHAR_FLAGS(ch) = 0;
-    SET_BIT(CHAR_FLAGS(ch), CHAR_PROTECTED);
+    UCHAR(ch)->setAllCharacterFlags(0);
+    UCHAR(ch)->setCharacterFlag(CHAR_PROTECTED);
 
     for (i = 0; i < 3; i++)
-        PC_COND(ch, i) = (CHAR_LEVEL(ch) >= 200 ? 48 : 24);
+    {
+        UPC(ch)->setConditionAtIndexTo(i, (CHAR_LEVEL(ch) >= 200 ? 48 : 24));
+    }
 
-    PC_COND(ch, DRUNK) = 0;
+    UPC(ch)->setConditionAtIndexTo(DRUNK, 0);
 
     set_title(ch);
 }
 
-int no_connections = 0;     /* No of used descriptors                    */
-int max_no_connections = 0; /* Statistics                                */
-
-descriptor_data::descriptor_data(cMultiHook *pe)
-{
-    static int nid = 0;
-
-    void nanny_get_name(class descriptor_data * d, char *arg);
-
-    no_connections++;
-    if (no_connections > max_no_connections)
-        max_no_connections = no_connections;
-
-    /* init desc data */
-    multi = pe;
-    id = ++nid;
-
-    state = 0;
-    fptr = nanny_get_name;
-    wait = 1;
-    timer = 0;
-    prompt_mode = PROMPT_SENT;
-    *last_cmd = *history = '\0';
-
-    host[0] = 0;
-    nPort = 0;
-    nLine = 255;
-
-    localstr = NULL;
-    postedit = NULL;
-    editing = NULL;
-    editref = NULL;
-
-    original = 0;
-    snoop.snooping = 0;
-    snoop.snoop_by = 0;
-    replyid = (ubit32)-1;
-
-    /* Make a new PC struct */
-    character = new EMPLACE(pc_data) pc_data;
-    init_char(character);
-    CHAR_DESCRIPTOR(character) = this;
-
-    /* prepend to list */
-    next = descriptor_list;
-    descriptor_list = this;
-}
-
-void descriptor_data::RemoveBBS(void)
-{
-    if (nLine != 255)
-    {
-        char buf[512];
-
-        sprintf(buf, BBS_DIR "%d.%d", nPort, nLine);
-        remove(buf);
-    }
-}
-
-void descriptor_data::CreateBBS(void)
-{
-    if (nLine != 255)
-    {
-        char buf[512];
-        FILE *f;
-
-        sprintf(buf, BBS_DIR "%d.%d", nPort, nLine);
-
-        if (!character)
-        {
-            slog(LOG_ALL, 0, "No character in %s.", buf);
-            return;
-        }
-
-        f = fopen(buf, "wb");
-
-        if (!f)
-        {
-            slog(LOG_ALL, 0, "Could not create %s.", buf);
-            return;
-        }
-
-        if (account_is_overdue(this->character))
-            fprintf(f, "1\n");
-        else
-            fprintf(f, "0\n");
-
-        fprintf(f, "%d\n", PC_ACCOUNT(this->character).total_credit);
-        fprintf(f, "%s\n", PC_FILENAME(this->character));
-        fprintf(f, "%d\n", CHAR_LEVEL(this->character));
-        fprintf(f, "%d\n", PC_ACCESS_LEVEL(this->character));
-
-        fclose(f);
-    }
-}
-
-descriptor_data::~descriptor_data(void)
-{
-    RemoveBBS();
-    nLine = 255;
-}
+int g_no_connections = 0;     /* No of used descriptors                    */
+int g_max_no_connections = 0; /* Statistics                                */
 
 /* Pass the multi-fd which is to be associated with this new descriptor */
 /* Note that id zero signifies that mplex descriptor has no mplex'er    */
-class descriptor_data *descriptor_new(class cMultiHook *pe)
+descriptor_data *descriptor_new(cMultiHook *pe)
 {
     return new descriptor_data(pe);
 }
@@ -254,114 +135,116 @@ class descriptor_data *descriptor_new(class cMultiHook *pe)
 /* mplex'er has sent a terminate request to the server. Nothing     */
 /* bad happens if you mess up, but the mplex'er receives data to    */
 /* an unknown id...                                                 */
-void descriptor_close(class descriptor_data *d, int bSendClose, int bReconnect)
+void descriptor_close(descriptor_data *d, int bSendClose, int bReconnect)
 {
-    class descriptor_data *tmp;
-    struct diltemplate *link_dead;
-    void unsnoop(class unit_data * ch, int mode);
-    void unswitchbody(class unit_data * npc);
-
-    assert(d->character);
+    descriptor_data *tmp = nullptr;
+    assert(d->cgetCharacter());
 
     /* Descriptor must be either in the game (UNIT_IN) or in menu.  */
     /* If unit has been extracted, then all his data is half erased */
     /* (affects, etc) and he shall not be saved!                    */
-    if (!char_is_playing(d->character)) /* In menu - extract completely */
+    if (!char_is_playing(d->getCharacter())) /* In menu - extract completely */
     {
-        assert(!UNIT_IN(d->character));
-        assert(!d->character->gnext);
-        assert(!d->character->gprevious);
+        assert(!d->cgetCharacter()->getUnitIn());
+        assert(!d->cgetCharacter()->getGlobalNext());
+        assert(!d->cgetCharacter()->getGlobalPrevious());
 
         /* Important that we set to NULL before calling extract,
            otherwise we just go to the menu... ... ... */
-        if (PC_IS_UNSAVED(d->character))
-            possible_saves--;
-        CHAR_DESCRIPTOR(d->character) = NULL;
-        extract_unit(d->character);
-        d->character = NULL;
+        if (PC_IS_UNSAVED(d->getCharacter()))
+        {
+            g_possible_saves--;
+        }
+        UCHAR(d->getCharacter())->setDescriptor(nullptr);
+        extract_unit(d->getCharacter());
+        d->setCharacter(nullptr);
         /* Too much log slog(LOG_ALL, "Losing descriptor from menu."); */
     }
     else
     {
-        if (d->localstr)
-            FREE(d->localstr);
-
-        d->localstr = NULL;
-        d->postedit = NULL;
-        d->editing = NULL;
-        d->editref = NULL;
+        d->clearLocalString();
+        d->setPostEditFunctionPtr(nullptr);
+        d->setEditing(nullptr);
+        d->setEditReference(nullptr);
 
         // Here we don't stop_fightfollow - do we ?
-        stop_snoopwrite(d->character);
+        stop_snoopwrite(d->getCharacter());
 
-        //if (CHAR_IS_SNOOPING(d->character) || CHAR_IS_SNOOPED(d->character))
+        // if (CHAR_IS_SNOOPING(d->character) || CHAR_IS_SNOOPED(d->character))
         //    unsnoop(d->character, 1);
 
-        //if (CHAR_IS_SWITCHED(d->character))
+        // if (CHAR_IS_SWITCHED(d->character))
         //    unswitchbody(d->character);
 
-        assert(!d->snoop.snooping && !d->snoop.snoop_by);
-        assert(!d->original);
+        assert(!d->cgetSnoopData().getSnooping() && !d->cgetSnoopData().getSnoopBy());
+        assert(!d->cgetOriginalCharacter());
 
-        act("$1n has lost $1s link.", A_HIDEINV, d->character, cActParameter(), cActParameter(), TO_ROOM);
-        slog(LOG_BRIEF, UNIT_MINV(d->character),
+        act("$1n has lost $1s link.", eA_HIDEINV, d->cgetCharacter(), cActParameter(), cActParameter(), eTO_ROOM);
+        slog(LOG_BRIEF,
+             d->cgetCharacter()->getLevelOfWizardInvisibility(),
              "Closing link and making link dead: %s.",
-             UNIT_NAME(d->character));
+             d->cgetCharacter()->getNames().Name());
 
-        if (!d->character->is_destructed())
+        if (!d->getCharacter()->is_destructed())
         {
-            if (IS_PC(d->character))
-                UPC(d->character)->disconnect_game();
-            if (!bReconnect)
+            if (!bReconnect) // A throw-out (bReconnect) hands the character to the new connection
             {
-                if (!PC_IS_UNSAVED(d->character))
+                if (d->cgetCharacter()->isPC())
+                {
+                    UPC(d->getCharacter())->disconnect_game(pc_data::leave_e::link_lost);
+                }
+                if (!PC_IS_UNSAVED(d->getCharacter()))
                 {
                     /* We need to save player to update his time status! */
-                    save_player(d->character); /* Save non-guests */
-                    save_player_contents(d->character, TRUE);
-                    link_dead = find_dil_template("link_dead@basis");
-                    if (link_dead)
+                    save_player(d->getCharacter()); /* Save non-guests */
+                    save_player_contents(d->getCharacter(), TRUE);
+
+                    UCHAR(d->cgetCharacter())->setDescriptor(nullptr);
+                    dilprg *prg = dil_copy_template(g_dil_link_dead, d->getCharacter(), nullptr);
+                    if (prg)
                     {
-                        CHAR_DESCRIPTOR(d->character) = NULL;
-                        class dilprg *prg =
-                            dil_copy_template(link_dead, d->character, NULL);
-                        if (prg)
-                        {
-                            prg->waitcmd = WAITCMD_MAXINST - 1;
-                            dil_activate(prg);
-                        }
+                        prg->waitcmd = WAITCMD_MAXINST - 1;
+                        dil_activate(prg);
                     }
                 }
                 else
                 {
-                    CHAR_DESCRIPTOR(d->character) = NULL; // Prevent counting down players, we did above
-                    extract_unit(d->character); /* We extract guests */
-                    possible_saves--;
+                    UCHAR(d->cgetCharacter())->setDescriptor(nullptr); // So extracting doesn't use d, which is closing
+                    extract_unit(d->getCharacter());                   /* We extract guests */
+                    g_possible_saves--;
                 }
             }
         }
         /* Important we set tp null AFTER calling save - otherwise
            time played does not get updated. */
-        CHAR_DESCRIPTOR(d->character) = NULL;
-        d->character = NULL;
+        UCHAR(d->cgetCharacter())->setDescriptor(nullptr);
+        d->setCharacter(nullptr);
     }
 
-    if (bSendClose && d->multi->IsHooked())
-        protocol_send_close(d->multi, d->id);
+    if (bSendClose && d->getMultiHookPtr()->IsHooked())
+    {
+        protocol_send_close(d->getMultiHookPtr(), d->getMultiHookID());
+    }
 
-    no_connections--;
+    g_no_connections--;
 
-    if (next_to_process == d) /* to avoid crashing the process loop */
-        next_to_process = next_to_process->next;
+    if (g_next_to_process == d)
+    { /* to avoid crashing the process loop */
+        g_next_to_process = g_next_to_process->getNext();
+    }
 
-    if (d == descriptor_list) /* this is the head of the list */
-        descriptor_list = descriptor_list->next;
+    if (d == g_descriptor_list)
+    { /* this is the head of the list */
+        g_descriptor_list = g_descriptor_list->getNext();
+    }
     else /* This is somewhere inside the list */
     {
         /* Locate the previous element */
-        for (tmp = descriptor_list; tmp && (tmp->next != d); tmp = tmp->next)
+        for (tmp = g_descriptor_list; tmp && (tmp->getNext() != d); tmp = tmp->getNext())
+        {
             ;
-        tmp->next = d->next;
+        }
+        tmp->setNext(d->getNext());
     }
 
     delete d;
@@ -369,30 +252,31 @@ void descriptor_close(class descriptor_data *d, int bSendClose, int bReconnect)
 
 /* Returns how much memory is in use by system. This may help spotting
    possible fragmentation of memory. */
-void system_memory(class unit_data *ch)
+void system_memory(unit_data *ch)
 {
 #ifdef LINUX
-    struct rusage rusage_data;
-    int n;
-    char Buf[1024];
+    rusage rusage_data;
+    int n = 0;
 
     n = getrusage(RUSAGE_CHILDREN, &rusage_data);
 
     if (n != 0)
+    {
         slog(LOG_ALL, 0, "System memory status error.");
+    }
     else
     {
-        sprintf(Buf,
-                "Vol. Switches       %8ld<br/>"
-                "Max RSS             %8ld<br/>"
-                "Shared memory size  %8ld<br/>"
-                "Unshared data size  %8ld<br/>"
-                "Unshared stack size %8ld<br/><br/>",
-                rusage_data.ru_nvcsw,
-                rusage_data.ru_maxrss,
-                rusage_data.ru_ixrss,
-                rusage_data.ru_isrss, rusage_data.ru_idrss);
-        send_to_char(Buf, ch);
+        auto msg = diku::format_to_str("Vol. Switches       %8ld<br/>"
+                                       "Max RSS             %8ld<br/>"
+                                       "Shared memory size  %8ld<br/>"
+                                       "Unshared data size  %8ld<br/>"
+                                       "Unshared stack size %8ld<br/><br/>",
+                                       rusage_data.ru_nvcsw,
+                                       rusage_data.ru_maxrss,
+                                       rusage_data.ru_ixrss,
+                                       rusage_data.ru_isrss,
+                                       rusage_data.ru_idrss);
+        send_to_char(msg, ch);
     }
 #endif
 }

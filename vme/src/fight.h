@@ -4,13 +4,13 @@
  $Date: 2003/11/29 03:31:16 $
  $Revision: 2.2 $
  */
+#pragma once
 
-#ifndef _MUD_FIGHT_H
-#define _MUD_FIGHT_H
+#include "essential.h"
+#include "interpreter.h"
 
-#include <string>
 #include <cstring>
-
+#include <string>
 
 struct SFightColorSet
 {
@@ -19,32 +19,27 @@ struct SFightColorSet
     char *pOthers;
 };
 
-class unit_data *raw_kill (class unit_data * ch);
-void die (class unit_data * ch);
+void die(unit_data *ch, bool bWebDeathSent = false);
 
+void update_pos(unit_data *victim);
 
+void damage(unit_data *ch,
+            unit_data *victim,
+            unit_data *medium,
+            int damage,
+            int attackcat,
+            int weapontype,
+            int hitloc,
+            int bDisplay = TRUE);
 
-void update_pos (class unit_data * victim);
-
-void damage (class unit_data * ch, class unit_data * victim,
-             class unit_data * medium,
-             int damage, int attackcat, int weapontype, int hitloc,
-             int bDisplay = TRUE);
-
-int pk_test (class unit_data * att, class unit_data * def, int message);
-int one_hit (class unit_data * att, class unit_data * def,
-             int bonus, int wpn_type, int primary = TRUE, int attack = TRUE);
-int simple_one_hit (class unit_data * att, class unit_data * def);
-int char_dual_wield (class unit_data * ch);
-void melee_violence (class unit_data * ch, int primary);
-int melee_bonus(class unit_data *att, class unit_data *def,
-                int hit_loc,
-                int *pAtt_weapon_type, class unit_data **pAtt_weapon,
-                int *pDef_armour_type, class unit_data **pDef_armour,
-                int primary = TRUE, std::string *pStat = NULL);
-int shield_bonus (class unit_data * att, class unit_data * def,
-                  class unit_data ** pDef_shield);
-void modify_hit(class unit_data *ch, int hit);
+int pk_test(unit_data *att, unit_data *def, int message);
+int one_hit(unit_data *att, unit_data *def, int bonus, int wpn_type, int primary = TRUE, int attack = TRUE);
+int simple_one_hit(unit_data *att, unit_data *def);
+int char_dual_wield(unit_data *ch);
+void melee_violence(unit_data *ch, int primary);
+void modify_hit(unit_data *ch, int hit);
 int roll_boost(int roll, int level);
-
-#endif
+void damage_object(unit_data *ch, unit_data *obj, int dam);
+void load_messages();
+int hunting(spec_arg *sarg);
+bool is_obj_slaying(unit_data *obj, ubit16 opponent_race);

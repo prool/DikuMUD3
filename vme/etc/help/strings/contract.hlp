@@ -1,16 +1,36 @@
 <div class="mw-parser-output"><h1>Contract</h1>
 <p>Usage:
 </p>
-<pre> contract &lt;character&gt;
+<pre>offer &lt;player&gt;       ask what it would cost
+contract &lt;player&gt;    pay, and have the player killed
 </pre>
 <p>Example:
 </p>
-<pre> contract mayor
+<pre>contract Mayor
 </pre>
-<p><br />
-This command is used to hire one of the mobs to do your dirty work and kill a
-fellow player. At a cost of course!
+<p>Mercenaries will kill other players for money: the Assassin who walks the
+streets of Midgaard is one (he starts out on Colosseum Road). Stand before
+one and name your victim. If you can pay, the money is taken at once, the
+mercenary says "Consider them dead", sneaks and hides its way to the victim
+wherever they are, and attacks. It keeps after the victim until they are
+dead, takes what is in the corpse, and then vanishes in a blue cloud and
+returns to where you hired it. If it loses the victim's trail, it gives up
+and returns the same way.
+</p><p>A contract costs 20 platinum pieces, and a little more the higher the
+victim's level. If you can't pay, the mercenary tells you the price;
+offer tells you the same price without paying.
+</p><p>A mercenary takes no contract on:
 </p>
+<ul><li>a player of level 20 or below: "Killing of newbies is not permitted!"</li>
+<li>an immortal, or a monster: fight your own battles</li>
+<li>yourself, or a player who is dead (a spirit), or one it can't find</li>
+<li>anyone while it is still out on another job</li></ul>
+<p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Assassins</a>
+&gt; <a cmd='#'>Help Player Killing</a>
+</pre>
 
 
 

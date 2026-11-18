@@ -1,5 +1,4 @@
-#ifndef _MUD_HOOKMUD_H
-#define _MUD_HOOKMUD_H
+#pragma once
 
 #include "hook.h"
 
@@ -8,43 +7,40 @@
 class cMultiHook : public cHook
 {
 public:
-    cMultiHook(void);
+    cMultiHook();
     void Input(int nFlags);
-    void Unhook(void);
+    void Unhook();
 
-    void Close(void);
-    int Read(void);
-    void Ping(void);
+    void Close();
+    int Read();
+    void Ping();
 
-    int succ_err; /* Number of successive errors */
+    int succ_err; ///< Number of successive errors
     ubit8 bWebsockets;
 };
 
 class cMultiMaster
 {
 public:
-    cMultiMaster(void);
+    cMultiMaster();
 
     int nCount;
     cMultiHook Multi[MAX_MULTI];
 };
 
-extern class cMultiMaster Multi;
-
-
+extern cMultiMaster g_Multi;
 
 class cMotherHook : public cHook
 {
 public:
     void Input(int nFlags);
-    void Close(void);
-    void Unhook(void);
+    void Close();
+    void Unhook();
 };
 
-extern class cMotherHook MotherHook;
-
-
-void multi_close_all(void);
+void multi_close_all();
 void init_mother(int nPort);
+void multi_clear();
+void multi_ping_all();
 
-#endif
+extern cMotherHook g_MotherHook;

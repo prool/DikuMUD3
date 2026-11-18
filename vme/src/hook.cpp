@@ -1,4 +1,3 @@
-
 /*
  $Author: All $
  $RCSfile: select.cpp,v $
@@ -7,37 +6,36 @@
  */
 
 #ifdef _WINDOWS
-#include <time.h>
-#include <winsock2.h>
-#else
-#include <unistd.h>
+    #include <time.h>
+    #include <winsock2.h>
+#endif
+
+#include "hook.h"
+#include "slog.h"
+
 #include <sys/time.h>
+#include <unistd.h>
+
+#include <cassert>
+#include <cerrno>
+#include <csignal>
+#include <cstring>
 #include <exception>
 
-#endif
-#include <sys/types.h>
-#include <assert.h>
-#include <signal.h>
-#include <string.h>
-#include <errno.h>
-#include "hook.h"
-#include "utility.h"
-
-cCaptainHook CaptainHook;
+cCaptainHook g_CaptainHook;
 
 //
 // For the MUD server:
 //     Listen on the mother port (4999) for connecting Multiplexers:
-//        CaptainHook.Hook(fdMother, &MotherHook);
+//        g_CaptainHook.Hook(fdMother, &g_MotherHook);
 //     thus Mother listening is in the cCaptainHook:cHook (I think)
 //
 //     Each connecting Mplex'er, and Mother Connection is stored here:
-//        CaptainHook.Hook (t, &Multi.Multi[i]);
+//        g_CaptainHook.Hook (t, &g_Multi.g_Multi[i]);
 //      which is a cMultiMaster::cMulti::cHook
 //
 // Also used in the Mplex'ers.
 //
-
 
 /* ------------------------------------------------------------------- */
 /*                                HOOK NATIVE                          */
@@ -48,17 +46,17 @@ cCaptainHook CaptainHook;
 // is connected or not.
 //
 
-cHookNative::cHookNative(void)
+cHookNative::cHookNative()
 {
     fd = -1;
 }
 
-cHookNative::~cHookNative(void)
+cHookNative::~cHookNative()
 {
     Unhook();
 }
 
-int cHookNative::get_fd(void)
+int cHookNative::get_fd()
 {
     return fd;
 }
@@ -68,22 +66,24 @@ void cHookNative::Hook(int f)
     fd = f;
 }
 
-int cHookNative::IsHooked(void)
+int cHookNative::IsHooked()
 {
     return fd != -1;
 }
 
-void cHookNative::Unhook(void)
+void cHookNative::Unhook()
 {
     if (!IsHooked())
+    {
         return;
+    }
 
-    int i;
-    #ifdef _WINDOWS
-        i = closesocket(fd);
-    #else
-        i = close(fd);
-    #endif
+    int i = 0;
+#ifdef _WINDOWS
+    i = closesocket(fd);
+#else
+    i = close(fd);
+#endif
 
     fd = -1;
 
@@ -97,18 +97,19 @@ void cHookNative::Unhook(void)
 /*                     NETWORK READ & WRITE                            */
 /* ------------------------------------------------------------------- */
 
-
 //  > 0 number of bytes written
-// == 0 try again later (EWOULDBLOCK) 
+// == 0 try again later (EWOULDBLOCK)
 // -1 : error (it's been unhooked)
 //
 int cHookNative::write(const void *buf, int count)
 {
-    int sofar;
-    int thisround;
+    int sofar = 0;
+    int thisround = 0;
 
     if (!IsHooked())
+    {
         return -1;
+    }
 
     sofar = 0;
 
@@ -121,8 +122,7 @@ int cHookNative::write(const void *buf, int count)
         if (thisround == 0)
         {
             /* This should never happen! */
-            slog(LOG_ALL, 0,
-                    "SYSERR: Huh??  write() returned 0???  Please report this!");
+            slog(LOG_ALL, 0, "SYSERR: Huh??  write() returned 0???  Please report this!");
             Unhook();
             return -1;
         }
@@ -136,18 +136,16 @@ int cHookNative::write(const void *buf, int count)
             }
             else
             {
-
                 /* Must be a fatal error. */
-                slog(LOG_ALL, 0,
-                        "PushWrite (%d): Write to socket, error %d", fd,
-                        WSAGetLastError());
+                slog(LOG_ALL, 0, "PushWrite (%d): Write to socket, error %d", fd, WSAGetLastError());
                 Unhook();
                 return -1;
             }
         }
 #else
-        try {
-            thisround = ::write(fd, (char *) buf + sofar, count - sofar);
+        try
+        {
+            thisround = ::write(fd, (char *)buf + sofar, count - sofar);
         }
         catch (const std::exception &ex)
         {
@@ -158,14 +156,16 @@ int cHookNative::write(const void *buf, int count)
 
         if (thisround == 0)
         {
-            slog(LOG_ALL, 0, "cHookNative (%d): Write to socket EOF", (int) fd);
+            slog(LOG_ALL, 0, "cHookNative (%d): Write to socket EOF", (int)fd);
             Unhook();
             return -1;
         }
         else if (thisround < 0)
         {
-            if (errno == EWOULDBLOCK) 
+            if (errno == EWOULDBLOCK)
+            {
                 return sofar;
+            }
 
             slog(LOG_ALL, 0, "cHookNative (%d): Write to socket, error %d", fd, errno);
             Unhook();
@@ -175,24 +175,26 @@ int cHookNative::write(const void *buf, int count)
         sofar += thisround;
 
         if (sofar >= count)
+        {
             break;
+        }
     }
 
     return sofar;
 }
 
-
-
 //  > 0 number of bytes read to buffer
-// == 0 try again later (EWOULDBLOCK) 
+// == 0 try again later (EWOULDBLOCK)
 // -1 : error (and it's been unhooked or was unhooked, fd closed)
 //
 int cHookNative::read(void *buf, int count)
 {
-    int thisround;
+    int thisround = 0;
 
     if (!IsHooked())
+    {
         return -1;
+    }
 
     for (;;)
     {
@@ -216,10 +218,14 @@ int cHookNative::read(void *buf, int count)
         {
 #ifdef _WINDOWS
             if (WSAGetLastError() == WSAEWOULDBLOCK || WSAGetLastError() == WSAEINTR)
+            {
                 return 0;
+            }
 #else
             if (errno == EWOULDBLOCK)
+            {
                 return 0;
+            }
 #endif
             slog(LOG_ALL, 0, "Read from socket %d error %d", fd, errno);
             Unhook();
@@ -230,9 +236,6 @@ int cHookNative::read(void *buf, int count)
     return -1;
 }
 
-
-
-
 /* ------------------------------------------------------------------- */
 /*                                HOOK                                 */
 /* ------------------------------------------------------------------- */
@@ -242,21 +245,21 @@ int cHookNative::read(void *buf, int count)
 // is connected or not.
 //
 
-cHook::cHook(void)
+cHook::cHook()
 {
 }
 
-cHook::~cHook(void)
+cHook::~cHook()
 {
     Unhook();
 }
 
-void cHook::Unhook(void)
+void cHook::Unhook()
 {
     cHookNative::Unhook();
 }
 
-int cHook::tfd(void)
+int cHook::tfd()
 {
     return get_fd();
 }
@@ -269,7 +272,7 @@ int cHook::tfd(void)
 void cHook::Unhook(void)
 {
     if (IsHooked())
-        CaptainHook.Unhook(this);
+        g_CaptainHook.Unhook(this);
 
     fd = -1;
 }*/
@@ -278,18 +281,21 @@ void cHook::Unhook(void)
 /*                     NETWORK READ & WRITE                            */
 /* ------------------------------------------------------------------- */
 
-void cHook::PushWrite(void)
+void cHook::PushWrite()
 {
-    int sofar, len;
-    int thisround;
+    int sofar = 0;
+    int len = 0;
+    int thisround = 0;
     ubit8 buf[1460];
 
     if (!cHook::IsHooked())
+    {
         return;
+    }
 
     while (!qTX.IsEmpty())
     {
-        len = MIN(sizeof(buf), qTX.Bytes());
+        len = MIN(sizeof(buf)-1, qTX.Bytes());
 
         qTX.CutCopy(buf, len);
 
@@ -307,8 +313,10 @@ void cHook::PushWrite(void)
             else if (thisround < 0) // Error
             {
                 // will now be closed and error logged
-                if (IsHooked()) 
+                if (IsHooked())
+                {
                     slog(LOG_ALL, 0, "PushWrite: Still hooked even though error - not possible");
+                }
                 return;
             }
 
@@ -322,16 +330,19 @@ void cHook::PushWrite(void)
             sofar += thisround;
 
             if (sofar >= len)
+            {
                 break;
+            }
         }
     }
 }
 
-
 void cHook::Write(ubit8 *pData, ubit32 nLen, int bCopy)
 {
     if (nLen <= 0)
+    {
         return;
+    }
 
     if (!IsHooked())
     {
@@ -340,24 +351,24 @@ void cHook::Write(ubit8 *pData, ubit32 nLen, int bCopy)
         return;
     }
 
-    qTX.Append(new cQueueElem(pData, nLen, bCopy));
+    cQueueElem *q = new cQueueElem(pData, nLen, bCopy);
+    qTX.Append(q);
 
     PushWrite();
 }
-
 
 // For this hook, read as much as we can from the network
 // into the Hook's Rx queue...
 // -1 on error, 0 on ok.
 //
-int cHook::ReadToQueue(void)
+int cHook::ReadToQueue()
 {
     char buf[4 * 1460 - 6];
-    int thisround;
+    int thisround = 0;
 
     for (;;)
     {
-        thisround = this->read(buf, sizeof(buf));
+        thisround = this->read(buf, sizeof(buf)-1);
 
         if (thisround > 0)
         {
@@ -371,8 +382,10 @@ int cHook::ReadToQueue(void)
         else // (thisround < 0)
         {
             // will now be closed and error logged
-            if (IsHooked()) 
+            if (IsHooked())
+            {
                 slog(LOG_ALL, 0, "ReadToQueue: Still hooked even though error - not possible");
+            }
             return -1;
         }
     }
@@ -391,51 +404,67 @@ int cHook::ReadToQueue(void)
 // Hooks in the list.
 //
 
-cCaptainHook::cCaptainHook(void)
+cCaptainHook::cCaptainHook()
 {
 #ifndef _WINDOWS
     signal(SIGPIPE, SIG_IGN); // Or else pipe fucks the whole thing up...
 #endif
-    for (int i = 0; i < 256; i++)
-        pfHook[i] = NULL;
+    for (int i = 0; i < FD_SETSIZE; i++)
+    {
+        pfHook[i] = nullptr;
+    }
 
     nTop = 0;
     nMax = 0;
 }
 
-cCaptainHook::~cCaptainHook(void)
+cCaptainHook::~cCaptainHook()
 {
     Close();
 }
 
-void cCaptainHook::Close(void)
+void cCaptainHook::Close()
 {
-    for (int i = 0; i < 256; i++)
+    for (int i = 0; i < FD_SETSIZE; i++)
+    {
         if (pfHook[i])
+        {
             pfHook[i]->Unhook();
+        }
+    }
 
     nTop = 0;
     nMax = 0;
 }
 
 // Maybe Hook(*hook, int fd, *webs)
-void cCaptainHook::Hook(int nHandle, cHook *hook)
+bool cCaptainHook::Hook(int nHandle, cHook *hook)
 {
     static int newid = 0;
 
-    assert(nHandle < (int) sizeof(pfHook)); 
-    assert(pfHook[nHandle] == NULL);
+    // pfHook is indexed by fd, and select() can't watch one past FD_SETSIZE
+    if (nHandle < 0 || nHandle >= FD_SETSIZE)
+    {
+        slog(LOG_ALL, 0, "Hook(): fd %d is out of select()'s range (0-%d), closed.", nHandle, FD_SETSIZE - 1);
+        if (nHandle >= 0)
+        {
+            close(nHandle);
+        }
+        return false;
+    }
+
+    assert(pfHook[nHandle] == nullptr);
 
     if (hook->fd != -1)
     {
-        slog(LOG_ALL, 0, "ODD Hook() called with a non -1 fd (fd == %d).", (int) hook->fd);
+        slog(LOG_ALL, 0, "ODD Hook() called with a non -1 fd (fd == %d).", (int)hook->fd);
     }
 
-    //assert(hook->fd == -1);
+    // assert(hook->fd == -1);
 
     pfHook[nHandle] = hook;
     hook->Hook(nHandle);
-    //hook->fd = nHandle;
+    // hook->fd = nHandle;
     hook->id = newid++;
 
     hook->qTX.Flush();
@@ -446,19 +475,23 @@ void cCaptainHook::Hook(int nHandle, cHook *hook)
     nTop++;
 
     if (nHandle > nMax)
+    {
         nMax = nHandle;
+    }
 
     // DEBUG("HOOKED: Fd %d, Flags %d, Max %d\n", nHandle, nFlag, nMax);
+    return true;
 }
-
 
 void cCaptainHook::Unhook(cHook *hook)
 {
     if (!hook->IsHooked())
+    {
         return;
+    }
 
     int nHandle = hook->fd;
-    int i;
+    int i = 0;
 
     assert(pfHook[nHandle] == hook);
 
@@ -476,30 +509,33 @@ void cCaptainHook::Unhook(cHook *hook)
     // pfHook[nHandle]->fd = -1; // This should get unset in Unhook on close()
     pfHook[nHandle]->id = -1;
     pfHook[nHandle]->qTX.Flush();
-    pfHook[nHandle]->qRX.Flush();    
-    pfHook[nHandle] = NULL;
+    pfHook[nHandle]->qRX.Flush();
+    pfHook[nHandle] = nullptr;
 
     nMax = 0;
     for (i = 0; i < nTop; i++)
     {
         if (nIdx[i] > nMax)
+        {
             nMax = nIdx[i];
+        }
     }
 }
 
 // If an unhook is performed during the wait, the possible select may be
 // postponed until the next call to wait().
 //
-int cCaptainHook::Wait(struct timeval *timeout)
+int cCaptainHook::Wait(timeval *timeout)
 {
-    int n;
+    int n = 0;
 
     /* The following two are used in Wait() because the Input & Write
        can cause any descriptor to become unhooked. It is then the job
        of the Unhook to update this table of descriptors accordingly */
-    int nTable[256], nId[256];
+    int nTable[FD_SETSIZE];
+    int nId[FD_SETSIZE];
 
-    int nTableTop;
+    int nTableTop = 0;
 
     memcpy(nTable, nIdx, sizeof(int) * nTop);
     nTableTop = nTop;
@@ -516,28 +552,46 @@ int cCaptainHook::Wait(struct timeval *timeout)
         FD_SET(nTable[i], &read_set);
 
         if (!pfHook[nTable[i]]->qTX.IsEmpty())
+        {
             FD_SET(nTable[i], &write_set);
+        }
     }
 
-    n = select(nMax + 1, &read_set, &write_set, NULL, timeout);
+    if (pSelectLock)
+    {
+        pSelectLock->unlock();
+    }
+    n = select(nMax + 1, &read_set, &write_set, nullptr, timeout);
+    if (pSelectLock)
+    {
+        int e = errno; // lock() mustn't hide select()'s
+        pSelectLock->lock();
+        errno = e;
+    }
 
     if (n == -1)
     {
         // Do not set to zero, it means that a timeout occurred.
         //
         if (errno == EAGAIN)
+        {
             n = 1;
+        }
         else if (errno == EINTR)
         {
-            //slog(LOG_ALL, 0, "CaptainHook: Select Interrupted.\n");
+            // slog(LOG_ALL, 0, "CaptainHook: Select Interrupted.\n");
             n = 1;
         }
         else
+        {
             slog(LOG_ALL, 0, "CaptainHook: Select error %d.\n", errno);
+        }
     }
     else if (n > 0)
     {
-        int nFlag, tmpfd, i;
+        int nFlag = 0;
+        int tmpfd = 0;
+        int i = 0;
 
         /* We need to do this the hard way, because nTable[] can be
            changed radically by any sequence of read or write */
@@ -548,10 +602,14 @@ int cCaptainHook::Wait(struct timeval *timeout)
             tmpfd = nTable[i];
 
             if (FD_ISSET(tmpfd, &read_set))
+            {
                 SET_BIT(nFlag, SELECT_READ);
+            }
 
             if (FD_ISSET(tmpfd, &write_set))
+            {
                 SET_BIT(nFlag, SELECT_WRITE);
+            }
 
             cHook *pfTmpHook = pfHook[tmpfd];
 
@@ -560,23 +618,30 @@ int cCaptainHook::Wait(struct timeval *timeout)
 
             if (nFlag && pfTmpHook)
             {
-
                 if ((pfTmpHook == pfHook[tmpfd]) && (pfTmpHook->id == nId[i]))
                 {
                     if (pfTmpHook->tfd() == -1)
+                    {
                         slog(LOG_ALL, 0, "Wait()) SELECT_READ | SELECT_EXCEPT FD is -1");
+                    }
 
                     if (nFlag & (SELECT_READ | SELECT_EXCEPT))
+                    {
                         pfTmpHook->Input(nFlag);
+                    }
                 }
 
                 if ((pfTmpHook == pfHook[tmpfd]) && (pfTmpHook->id == nId[i]))
                 {
                     if (pfTmpHook->tfd() == -1)
+                    {
                         slog(LOG_ALL, 0, "Wait()) SELECT_WRITE FD is -1");
+                    }
 
                     if (nFlag & SELECT_WRITE)
+                    {
                         pfTmpHook->PushWrite();
+                    }
                 }
             }
         }

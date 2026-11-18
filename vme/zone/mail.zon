@@ -152,7 +152,7 @@ if (cont==null)
 ex:="$letters" in cont.extra;
 if (ex==null)
 	{
-	act ("$1n says 'That persons address has problems contact an administrator.",
+	act ("$1n says, 'That person's address has a problem; contact an administrator.'",
 		A_SOMEONE,self,null,pc,TO_VICT);
 		destroy (cont);
 		goto start;
@@ -160,7 +160,7 @@ if (ex==null)
 
 if (atoi(ex.descr)>=100)
 	{
-	act ("$1n says 'Sorry $3n that persons mail box is full try and send it later.",
+	act ("$1n says, 'Sorry $3n, that person's mailbox is full; try sending it later.'",
 		A_SOMEONE,self,null,pc,TO_VICT);
 		destroy (cont);
 		goto start;
@@ -177,8 +177,10 @@ store(cont,tolower(sDest),TRUE);
   act("$1n gives $3n a letter.", A_SOMEONE, pc, null, self, TO_REST);
   act("You give a letter to $3n.", A_SOMEONE, pc, null, self, TO_CHAR);
 
-  uDest := findunit(self, sDest, FIND_UNIT_WORLD, null);
-  if ( uDest != null )
+  uDest := ghead(); // players come first in the global list; find the exact name
+  while ((uDest.type == UNIT_ST_PC) and (uDest.name != sDest))
+     uDest := uDest.gnext;
+  if (uDest.type == UNIT_ST_PC)
      act("<div class='mail'>You have a sudden urge to visit the post office.</div>",
 	       A_SOMEONE, uDest, null, null, TO_CHAR);
 
@@ -214,7 +216,7 @@ if (noletter>1)
 	       A_SOMEONE, pc, null, self, TO_REST);
 				 }
 			 else
-			  act ("$1n says 'You don't have any mail.  Sorry.'",
+			  act ("$1n says, 'You don't have any mail. Sorry.'",
 				A_SOMEONE,self,null,pc,TO_VICT);
 
 		destroy (cont);

@@ -1,75 +1,65 @@
-<br/>
-<br/>
-<br/>
-<br/>
-<br/>
-      Spell                Level          Spell                       Level<br/>
-    Acid Resistance          19         Brain                           2<br/>
-    Clenched Fist            15         Cold Resistance                 16<br/>
-    Constitution             8          Controlled Teleport             35<br/>
-    Dexterity                6          Detect Invisible                10<br/>
-    Detect Magic             1          Dispel Magic                    30<br/>
-    Dust Devil               9          Electricity Resistance          17<br/>
-    Energy Bolt              1          Gate                            35<br/>
-    Haste                    30         Heat Resistance                 15<br/>
-    Identify                 11         Improved identify               21<br/>
-    Invisibility             20         Leaving                         8<br/>
-    Lock                     14         Magic Candle                    9<br/>
-    Cone Of Shards           30         Mind Shield                     14<br/>
-    Minor Gate               27         Poison Resistance               18<br/>
-    Raise Magic              1          Quicken                         15<br/>
-    Random Teleport          22         Slow                            15<br/>
-    Storm call               12         Strength                        10<br/>
-    Summon Earth             14         Summon Air                      18<br/>
-    Summon Water             24         Summon Fire                     30<br/>
-    Summon Demon             40         Summon Devil                    50<br/>
-    Meteor Shower            70         Sun Globe                       18<br/>
-    Unlock                   27         Transport                       17<br/>
-    Wizard Eye               23<br/>
-<br/>
-<br/><br/>
-<br/>
-<br/>See Also:<br/><br/>
- Conjurer<br/><br/>
- Conjurer Skills<br/><br/>
- Conjurer Weapons<br/><br/>
-<br/>
-<br/>
-<br/>
-<br/>
-<br/>
-<br/>
-<br/>
-      Spell                Level          Spell                       Level<br/>
-    Acid Resistance          19         Brain                           2<br/>
-    Clenched Fist            15         Cold Resistance                 16<br/>
-    Constitution             8          Controlled Teleport             35<br/>
-    Dexterity                6          Detect Invisible                10<br/>
-    Detect Magic             1          Dispel Magic                    30<br/>
-    Dust Devil               9          Electricity Resistance          17<br/>
-    Energy Bolt              1          Gate                            35<br/>
-    Haste                    30         Heat Resistance                 15<br/>
-    Identify                 11         Improved identify               21<br/>
-    Invisibility             20         Leaving                         8<br/>
-    Lock                     14         Magic Candle                    9<br/>
-    Cone Of Shards           30         Mind Shield                     14<br/>
-    Minor Gate               27         Poison Resistance               18<br/>
-    Raise Magic              1          Quicken                         15<br/>
-    Random Teleport          22         Slow                            15<br/>
-    Storm call               12         Strength                        10<br/>
-    Summon Earth             14         Summon Air                      18<br/>
-    Summon Water             24         Summon Fire                     30<br/>
-    Summon Demon             40         Summon Devil                    50<br/>
-    Meteor Shower            70         Sun Globe                       18<br/>
-    Unlock                   27         Transport                       17<br/>
-    Wizard Eye               23<br/>
-<br/>
-    Group teleport          130<br/>
-<br/>
-<br/><br/>
-<br/>
-<br/>See Also:<br/><br/>
- Conjurer<br/><br/>
- Conjurer Skills<br/><br/>
-<br/>
-<br/>
+<div class="mw-parser-output"><h1>Conjurer Spells</h1>
+<p>The spells the Conjurers' guild of Midgaard teaches. Level is the guild level at which you can first practice the spell there, and Up to is the most you can learn it at the guild (see <a cmd='#'>Help Practice</a>). Each spell has its own help: help and the spell's name.
+</p>
+<pre>Name                     Level   Up to
+Detect Magic                 0   100%
+Energy Bolt                  0   100%
+Raise Magic                  0   100%
+Brain                        2   100%
+Dexterity                    6   100%
+Magic Candle                 7   100%
+Constitution                 8   100%
+Leaving                      8   80%
+Dust Devil                   9   80%
+Strength                    10   100%
+Focus                       12   100%
+Identify                    12   100%
+Clenched Fist               13   100%
+Mind Shield                 14   80%
+Summon Earth                14   80%
+Detect Invisible            15   80%
+Heat Resistance             15   80%
+Slow                        15   50%
+Cold Resistance             16   80%
+Lock                        16   80%
+Electricity Resistance      17   80%
+Poison Resistance           18   80%
+Storm Call                  18   100%
+Summon Air                  18   80%
+Acid Resistance             19   80%
+Random Teleport             22   80%
+Wizard Eye                  23   100%
+Summon Water                24   80%
+Invisibility                25   100%
+Night Globe                 25   80%
+Sun Globe                   25   80%
+Unlock                      27   80%
+Improved Identify           28   80%
+Dispel Magic                30   50%
+Haste                       30   50%
+Minor Gate                  30   100%
+Summon Fire                 30   80%
+Cone Of Shards              32   80%
+Transport                   32   100%
+Controlled Teleport         35   80%
+Gate                        35   80%
+Quicken                     35   80%
+Summon Demon                40   80%
+Summon Devil                50   80%
+Group Teleport             130   80%
+</pre>
+<p>Practising detect magic, energy bolt and raise magic needs magic 5; brain, 
+dexterity, constitution and strength need magic 20.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Conjurer Skills</a>
+&gt; <a cmd='#'>Help Conjurer Weapons</a>
+&gt; <a cmd='#'>Help Conjurer Guild</a>
+&gt; <a cmd='#'>Help Spheres</a>
+</pre>
+
+
+
+
+</div>

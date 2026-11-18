@@ -4,9 +4,10 @@
  $Date: 2002/06/09 23:27:41 $
  $Revision: 2.1 $
  */
+#pragma once
 
-#ifndef _MUD_DILPAR_H
-#define _MUD_DILPAR_H
+#include "essential.h"
+#include "dil.h"
 
 #define DIL_VERSION "v5.10"
 
@@ -14,24 +15,28 @@
 
 /* This is for the compiler */
 
-#define CODESIZE 16768     /* maximum expression size */
+#define CODESIZE 16768 /* maximum expression size */
 
-struct exptype {
-    ubit8 dsl, typ, rtyp; /* static/dynamic/lvalue, type, req type */
-    ubit8 boolean;        /* if expression contains boolean op */
-    sbit32 num;           /* static value INT or field type */
-    ubit8 *code;          /* code / static value SP */
-    ubit8 *codep;         /* code write pointer */
+struct exptype
+{
+    ubit8 dsl; ///< static/dynamic/lvalue, type, req type
+    DilVarType_e typ; ///< static/dynamic/lvalue, type, req type
+    DilVarType_e rtyp; ///< static/dynamic/lvalue, type, req type
+    ubit8 boolean;        ///< if expression contains boolean op
+    sbit32 num;           ///< static value INT or field type
+    ubit8 *code;          ///< code / static value SP
+    ubit8 *codep;         ///< code write pointer
+    sbit16 chkvar;        ///< for DilCheck: the variable read (DilCheck::ACTIVATOR.. for built-ins), -1 none
+    ubit8 chkfield;       ///< for DilCheck: read through a field (pc.name)
+    ubit8 litplus;        ///< for DilCheck: a string literal + something ("kill"+name)
 };
 
-
-struct dilref {
-    char *zname;		/* func/proc name */
-    char *name;          /* zone name */
-    ubit8 rtnt;		/* return type */
-    ubit8 argc;		/* number of arguments (min 1) */
-    ubit8 *argt;		/* argument types */
-    char **argv;		/* argument names */
+struct dilref
+{
+    char *zname; ///< func/proc name
+    char *name;  ///< zone name
+    DilVarType_e rtnt;  ///< return type
+    ubit8 argc;  ///< number of arguments (min 1)
+    DilVarType_e *argt; ///< argument types
+    char **argv; ///< argument names
 };
-
-#endif /* _MUD_DILPAR_H */

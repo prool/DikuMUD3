@@ -1,11 +1,28 @@
-<br/>
-<br/>
-<br/>
-<br/>
-Usage aid (character)<br/><br/>
-<br/>
-When a person is bleeding and about to die,<br/>
-you may perform first aid on her so she won't die. Beware that if you are<br/>
-not very skilled you may mess up!<br/>
-<br/><br/>
-<br/>
+<div class="mw-parser-output"><h1>First Aid</h1>
+<p>Skill
+Class: Healer (guild level 0), Dark Knight (guild level 3, up to 50%), Paladin (guild level 3, up to 50%), Ranger (guild level 3, up to 50%), Druid (guild level 5, up to 80%), Thief (guild level 9, up to 30%)
+Practising it needs brain 15.
+Also taught by: Mary the Lumberjack Wife, in her cabin in the forest of Haon-Dor (anyone who has brought back her cooking pot, up to 50%); Gustav, in the back room of the inn in Udgaard (anyone, up to 35%)
+</p><p>Usage:
+</p>
+<pre>aid &lt;character&gt;
+</pre>
+<p>Tends the wounds of someone who has fallen, bleeding and close to death: 
+mortally wounded, incapacitated or stunned. Each time you succeed, you win 
+them back a hit point, bringing them a step closer to waking up; keep at it 
+until they are out of danger. It does nothing for someone who is merely 
+hurt.
+</p><p>Your skill decides it, with your brain and your divine power. If you fail, nothing changes; if you 
+fumble badly, you poke in their wounds and make things worse.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Mortally Wounded</a>
+&gt; <a cmd='#'>Help Incapacitated</a>
+&gt; <a cmd='#'>Help Cure Light Wounds</a>
+</pre>
+
+
+
+
+</div>

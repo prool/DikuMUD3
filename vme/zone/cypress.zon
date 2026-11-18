@@ -25,7 +25,7 @@ reset RESET_ANYHOW
 
 title "Dusty Trail west of Midgaard"
 descr
-"   Gravel, sand and dust makes this desert like trail, which leads away
+"   Gravel, sand and dust make this desert-like trail, which leads away
 from the city of Midgaard. Further west, cypress trees are growing in small
 numbers."
 movement SECT_CITY
@@ -66,17 +66,23 @@ end
 
 				cave_entrance
 
-names {"hole", "bush", "bushes", "whitethorn"}
+names {"hole", "bush", "bushes", "whitethorn", "opening"}
 title "Amidst Whitethorn Bushes"
 descr
 "   You are amidst many vigorous whitethorn bushes, some stand nearly seven
 feet tall. The bushes prevent any further movement up the hill, but a small
 cave entrance is visible to the south."
-
+outside_descr 
+""
+// By having no outside_descr it's invisible :-)
 extra {"cave entrance", "entrance", "cave"}
 "The entrance is fairly small being some five feet tall with many small roots
 hanging around the edge of the entrance."
-// By having no outside_descr it's invisible :-)
+
+extra {}
+"The whitethorn bushes make it impossible to ascend the hill, but you
+spot a small hole in one of the bushes. Perhaps you would be able to
+squeeze your way into these bushes (enter bushes)."
 
 movement SECT_FOREST
 gmap(244,560)
@@ -90,17 +96,13 @@ end
 title "In Cypress Woods"
 descr
 "   Many old cypress trees rise tall above you and a small hill is to the
-south. Upon the top of the hill is a lushly young cypress tree surrounded
+south. Upon the top of the hill is a lush young cypress tree surrounded
 by vigorous whitethorn bushes which completely cover the hill. One small
-section of the whitethorn bushes seems to be thinner then the rest,
+section of the whitethorn bushes seems to be thinner than the rest,
 indicating that there just MIGHT be something of note in them. A small
 nearly invisible path runs north through the trees."
 
-extra {"bush", "bushes", "whitethorn"}
-"The whitethorn bushes makes it impossible to ascend the hill, but you
-spot a small hole in one of the bushes. Perhaps you would be able to
-squeeze your way into these bushes."
-extra {"hole", "opening"}
+extra {"opening"}
 "Perhaps you would fit?"
 
 movement SECT_FOREST
@@ -114,7 +116,7 @@ end
 title "In Cypress Woods"
 descr
 "   The cypress trees stand dense making it possible only to follow the path
-going east or the frail trail to the north.."
+going east or the frail trail to the north."
 
 movement SECT_FOREST
 gmap(244,491)
@@ -128,7 +130,7 @@ end
 title "In Cypress Woods"
 descr
 "   Surrounded by cypress trees the only possible exits are south and west.
-To the west the woods seems to become less dense."
+To the west the woods seem to become less dense."
 
 movement SECT_FOREST
 gmap(244,439)
@@ -139,11 +141,11 @@ end
 
 				clearing
 
-title "Clearing by small Hut"
+title "Clearing by Small Hut"
 descr
 "   A hut lies at the northern point of a small clearing which is shaped in
 an almost triangular form. Many stumps are along the edge of the clearing
-and only golden dead grass cover the ground."
+and only golden dead grass covers the ground."
 
 movement SECT_FOREST
 gmap(191,439)
@@ -188,7 +190,7 @@ end
 
 title "In Cypress Woods"
 descr
-"   Here the wood is very dense and only occasional peeks at the sky above is
+"   Here the wood is very dense and only occasional peeks at the sky above are
 possible. An apparently often used path continues north and east through the
 woods."
 
@@ -204,7 +206,7 @@ end
 title "In Cypress Woods"
 descr
 "   Six old and gnarled cypress trees almost form an archway leading east
-though the dense woods. A seemingly often used path continues north and
+through the dense woods. A seemingly often used path continues north and
 west through the woods."
 
 movement SECT_FOREST
@@ -236,7 +238,7 @@ end
 
 title "On the River in Cypress Forest"
 descr
-"   You are on the river flowing eastwards though the Cypress forest. If you
+"   You are on the river flowing eastwards through the Cypress forest. If you
 continue east you will reach the city of Midgaard while the village of
 Udgaard is upstream to the west. A quiet part of the Cypress forest is just
 north of here."
@@ -294,7 +296,7 @@ end
 title "In Cypress Woods"
 descr
 "   Thriving thicket covers the forest floor like a green carpet. A well
-used trail continues south. The cypress trees allows further movement
+used trail continues south. The cypress trees allow further movement
 east as well as west."
 
 movement SECT_FOREST
@@ -312,11 +314,8 @@ title "In Cypress Woods"
 descr
 "   Cypress trees stand dense in an eastbound curve leaving only an exit
 to the west. Through the thicket you notice a very small hole which appears
-to be the entrance to a badgers burrow.."
+to be the entrance to a badger's burrow."
 
-extra {"hole", "badgers burrow", "burrow"}
-"The hole is very small and it seems like it hasn't been used for
-a long time."
 /* A "hole" (room) is inside this room */
 
 movement SECT_FOREST
@@ -328,14 +327,17 @@ end
 
                                 burrow
 
-names {"burrow", "badgers burrow", "hole"}
-title "In Badgers Burrow"
+names {"burrow", "badger's burrow", "badgers burrow", "hole"}
+title "In a Badger's Burrow"
 descr
-"   You are miraculously small enough to be inside a badgers burrow!"
+"   You are miraculously small enough to be inside a badger's burrow!"
 
 movement SECT_INSIDE
 gmap(456, 452)
 
+extra {}
+"The hole is very small and it seems like it hasn't been used for
+a long time."
 
 in ct_9
 end
@@ -402,7 +404,7 @@ title "In Cypress Woods"
 descr
 "   Trails lead in all directions from this forest intersection. Eastwards
 the forest seems much lighter compared to here, where the cypress tree
-crowns almost forms a ceiling of green scale like leaves."
+crowns almost form a ceiling of green scale-like leaves."
 
 movement SECT_FOREST
 gmap(244,333)
@@ -418,7 +420,7 @@ end
 title "Clearing in Cypress Woods"
 descr
 "   A huge evergreen live oak is in the middle of this forest clearing.
-Two inch tall green grass and a few brightly yellow daisy flowers covers the
+Two inch tall green grass and a few bright yellow daisy flowers cover the
 ground around the oak tree. The nearest cypress tree is three yards from
 the edge of the oak, making the clearing almost ten yards in radius."
 
@@ -448,8 +450,7 @@ end
 title "Edge of Cypress Forest"
 descr
 "   Few cypress trees stand in between the beech and oak trees. A trail
-continues west at the edge of the cypress forest.  An old run down shack
-is off to the east."
+continues west at the edge of the cypress forest."
 
 movement SECT_FOREST
 gmap(297,280)
@@ -477,10 +478,11 @@ end
 
 title "Top of Hill"
 descr
-"   Standing at the very top of a small hill in the cypress forest you have
+"   Standing at the very top of a hill in the cypress forest you have
 a magnificent view. The hill is just tall enough for you to peek above the
 tree crowns of the cypress trees. Udgaard is just west of here and a
-stable is to the north."
+stable is to the north. A path leads down the hill but the view is
+obstructed by the trees."
 
 /* XXX If you plant a cone here something shall happen */
 
@@ -494,10 +496,13 @@ along the moist forest trail.";
 south to ct_18 descr
 "The cypress forest seems quite large stretching out to the south. You notice
 a clearing further south and a strange greenish light in a southeast
-direction";
+direction.";
+
 north to stable1 descr
 "You see a stable to the north";
 
+down to intro@youth descr
+"Down the hill your view is obstructed by trees.";
 
 extra {"east"}
 "The Cypress forest stretches out eastwards and in the distance you can make
@@ -522,7 +527,7 @@ extra {"tack", "saddles"}
 extra {"racks"}
 "These racks hold the saddles."
 extra {"roof"}
-"This heavy timbered roof look to be constructed of oak
+"This heavy timbered roof looks to be constructed of oak
 beams."
 extra {"door", "doors", "doorways"}
 "These doorways look to be large enough to allow the passage
@@ -556,7 +561,7 @@ extra {"bridles", "saddles"}
 sale."
 extra {"care items"}
 "Everything to make your horse happy."
-extra {"hook"}
+extra {"hooks", "hook"}
 "OOHHH, sharp."
 extra {"shelves"}
 "OOHHH, flat and made of oak."
@@ -576,7 +581,7 @@ end
 
                        stall1
 
-title "The stalls"
+title "The Stalls"
 names {"stalls"}
 descr
 "You are standing in a room with many doors.  This is the part of
@@ -596,7 +601,7 @@ end
 
                        smithy
 
-title "The Blacksmith's forge"
+title "The Blacksmith's Forge"
 names {"smithy"}
 descr
 "This room is hot and smoky, and contains a large forge with
@@ -667,9 +672,9 @@ end
 
 				ct_22
 
-title "Dead end in Cypress Forest"
+title "Dead End in Cypress Forest"
 descr
-"   The monterey cypress trees stand closely together leaving it possible
+"   The Monterey cypress trees stand closely together leaving it possible
 only to go north. Soft moss covers the forest floor concealing most sounds
 of walking animals."
 
@@ -716,7 +721,7 @@ names {"goblin skeleton", "skeleton"}
 title "a skeleton"
 descr "A skeleton has been left here."
 extra {}
-"It looks like a goblins skeleton, must have been dead for a long time.
+"It looks like a goblin's skeleton, must have been dead for a long time.
 There are some markings on the bones."
 extra {"markings","bone","bones"}
    "It looks like markings from strong claws."
@@ -733,7 +738,7 @@ names {"hand mace","mace"}
 title "a hand mace"
 descr "A good looking hand mace has been left here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_MACE, +2, +3)
+WEAPON_DEF(WPN_MACE, BONUS_GOOD, BONUS_GOOD)  // Xyzzy: +2,+3
 WEAPON_SLAYER(RACE_ORC)
 weight 20
 dilcopy quest_restrict@function (GWYN_QUEST_COMPLETE,0,0,"");
@@ -753,7 +758,6 @@ extra {"$improved identify"}
 "This is a mace of Orc Slaying."
 end
 
-%mobiles
 %mobiles
 
 
@@ -805,7 +809,7 @@ end
                             gwyn1
 
 names {"gwyn", "hermit"}
-title "gwyn"
+title "Gwyn"
 descr "Gwyn the gnome hermit is here, impatiently twiddling her thumbs."
 
 extra {}
@@ -832,7 +836,7 @@ dilcopy qstSimpleQuest@quests(GWYN_QUEST,
          "Retrieve Gwyn's yellow robe and return it.",
          {"emote sings, 'The hero $1N is born, please do not yawn'",
           "emote sings, 'Here is your mace, my lord of space!'"},
-          500, 1 * COPPER_MULT, {"goblin_slayer@cypress"});
+          500, 1 * COPPER_MULT, {"goblin_slayer@cypress"}, "");
 
 dilcopy qstItemsWanted@quests(GWYN_QUEST, {"robe_gwyn@goblin_cave"}, {""},
          {"emote starts singing again!"},

@@ -4,460 +4,267 @@
  $Date: 2003/10/09 01:12:32 $
  $Revision: 2.3 $
  */
-#include <assert.h>
-#include <ctype.h>
-#include <iostream>
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
 #include "color.h"
-#include "protocol.h"
-#include "utility.h"
+
+#include "formatter.h"
+#include "json_helper.h"
 #include "textutil.h"
 
-color_type::color_type(void)
+#include <optional>
+#include <sstream>
+
+std::string color_type::insert(char *key, char *c)
 {
-   next = NULL;
-   color = NULL;
-   keyword = NULL;
-   key_size = 0;
-   color_size = 0;
-   count = 0;
+    if (!key || !c)
+    {
+        return {};
+    }
+    return insert(std::string{key}, std::string{c});
 }
 
-color_type::color_type(char *key, char *c)
+std::string color_type::insert(std::string keyword, std::string color)
 {
-   int len = 0;
-   next = NULL;
-   len = strlen(c);
-   //color = new char[len + 1];
-
-   CREATE(color, char, len + 1);
-   if (!color)
-   {
-      slog(LOG_ALL, 0, "Error in allocating color");
-      assert(color);
-   }
-   strcpy(color, c);
-
-   len = strlen(key);
-   //keyword = new char[len + 1];
-   CREATE(keyword, char, len + 1);
-   if (!keyword)
-   {
-      slog(LOG_ALL, 0, "Error in allocating keyword");
-      assert(keyword);
-   }
-   strcpy(keyword, key);
+    if (keyword.empty() || color.empty())
+    {
+        return {};
+    }
+    auto it = m_map.insert_or_assign(std::move(keyword), std::move(color));
+    return {it.first->second + it.first->first};
 }
 
-color_type::~color_type(void)
+void color_type::change(const char *combo)
 {
-   color_type *l = this->next;
-
-   next = NULL;
-   if (keyword)
-      FREE(keyword);
-   if (color)
-      FREE(color);
-   color = NULL;
-   keyword = NULL;
-   if (l)
-      delete l;
+    if (!combo)
+    {
+        return;
+    }
+    change(std::string{combo});
 }
 
-void color_type::count_plus(char *key, char *c)
+void color_type::change(const std::string &combo)
 {
-   key_size += (strlen(key) + 1);
-   color_size += (strlen(c) + 1);
-   count++;
+    auto key{combo.substr(0, combo.find(':'))};
+    auto tok{combo.substr(combo.find(':') + 1, std::string::npos)};
+
+    (void)change(key, tok);
 }
 
-void color_type::count_minus(char *key, char *c)
+void color_type::insert(const char *combo)
 {
-   key_size -= (strlen(key) + 1);
-   color_size -= (strlen(c) + 1);
-   count--;
+    if (!combo)
+    {
+        return;
+    }
+    insert(std::string{combo});
 }
 
-char *color_type::insert(char *key, char *c)
+void color_type::insert(const std::string &combo)
 {
-   color_type *l = this->next, *b = this;
-   color_type *temp;
-   if ((!key) || (!c))
-      return (NULL);
-   temp = new color_type(key, c);
-   if (!temp)
-      return (NULL);
-   while (l)
-   {
-      if (strcmp(l->keyword, key) >= 0)
-         break;
-      else
-      {
-         b = l;
-         l = l->next;
-      }
-   }
+    auto key{combo.substr(0, combo.find(':'))};
+    auto tok{combo.substr(combo.find(':') + 1, std::string::npos)};
 
-   if (!l)
-   {
-      b->next = temp;
-      count_plus(key, c);
-   }
-   else if (strcmp(key, l->keyword) == 0)
-   {
-      temp->next = l->next;
-      b->next = temp;
-      l->next = NULL;
-      delete l;
-   }
-   else
-   {
-      temp->next = b->next;
-      b->next = temp;
-      count_plus(key, c);
-   }
-   char *c_return;
-   //c_return = new char[strlen (key) + strlen (c) + 1];
-   CREATE(c_return, char, strlen(key) + strlen(c) + 1);
-   strcpy(c_return, c);
-   strcat(c_return, key);
-   return (c_return);
-}
-
-void color_type::change(char *combo)
-{
-   char *key, *tok;
-
-   key = strtok(combo, ":");
-   if (!key)
-   {
-      return;
-   }
-   tok = strtok(0, ":");
-   if (!tok)
-   {
-      return;
-   }
-   std::string ret = change(key, tok);
-}
-
-void color_type::insert(char *combo)
-{
-
-   char *key, *tok, *ret;
-
-   key = strtok(combo, ":");
-   if (!key)
-   {
-      return;
-   }
-   tok = strtok(0, ":");
-   if (!tok)
-   {
-      return;
-   }
-   ret = insert(key, tok);
-   FREE(ret);
+    if (key.empty() || tok.empty())
+    {
+        return;
+    }
+    (void)insert(std::move(key), std::move(tok));
 }
 
 std::string color_type::change(char *key, char *c)
 {
-   color_type *l = this->next;
-   char *temp = 0;
-   //temp = new char[strlen (c) + 1];
-   CREATE(temp, char, strlen(c) + 1);
-
-   if (!temp)
-   {
-      slog(LOG_ALL, 0, "Error in allocating change color.");
-      assert(temp);
-   }
-
-   while (l)
-   {
-      if (strncmp(l->keyword, key, strlen(key)) == 0)
-      {
-         color_size -= (strlen(l->color) + 1);
-         delete (l->color);
-         strcpy(temp, c);
-         l->color = temp;
-         color_size += (strlen(temp) + 1);
-
-         char c_return[512];
-
-         sprintf(c_return, "<div class='%s'>%s = %s</div>", l->color, l->keyword, l->color);
-         return c_return;
-      }
-      else
-         l = l->next;
-   }
-
-   return "";
+    if (!key || !c)
+    {
+        return {};
+    }
+    return change(std::string{key}, std::string{c});
 }
 
-const char *color_type::get(const char *key)
+std::string color_type::change(const std::string &keyword, std::string color)
 {
-   color_type *l = this->next;
+    if (auto search = m_map.find(keyword); search != m_map.end())
+    {
+        search->second = std::move(color);
 
-   if (!key)
-      return (NULL);
-   while (l)
-   {
-      if (strncmp(key, l->keyword, strlen(key)) == 0)
-         break;
-      l = l->next;
-   }
-
-   if (l)
-      return (l->color);
-   else
-      return (NULL);
+        std::ostringstream strm;
+        strm << diku::format_to_str("<div class='%s'>%s = %s</div>", search->second, keyword, search->second);
+        return strm.str();
+    }
+    return {};
 }
 
-const char *color_type::get(const char *key, char *full_key)
+std::string color_type::get(const char *key) const
 {
-   color_type *l = this->next;
+    if (!key)
+    {
+        return {};
+    }
+    return get(std::string{key});
+}
 
-   if (!key)
-      return (NULL);
-   while (l)
-   {
-      if (strncmp(key, l->keyword, strlen(key)) == 0)
-         break;
-      l = l->next;
-   }
+std::string color_type::get(const std::string &key) const
+{
+    if (auto it = m_map.lower_bound(key); it != m_map.end())
+    {
+        auto min = std::min(key.length(), it->first.length());
+        // emulate old strncmp comparison of prefix match
+        if (min > 0 && key.compare(0, min, it->first, 0, min) == 0)
+        {
+            return it->second;
+        }
+    }
+    return {};
+}
 
-   if (l)
-   {
-      strcpy(full_key, l->keyword);
-      return (l->color);
-   }
-   else
-      return (NULL);
+std::string color_type::get(const char *key, char *full_key) const
+{
+    if (!key)
+    {
+        return {};
+    }
+
+    std::string temp_full_key;
+    auto ret = get(std::string{key}, temp_full_key);
+    if (!ret.empty() && full_key)
+    {
+        memcpy(full_key, temp_full_key.data(), temp_full_key.length() + 1);
+    }
+
+    return ret;
+}
+
+/// @todo write a test that covers the partial key match scenario
+std::string color_type::get(const std::string &key, std::string &full_key) const
+{
+    if (auto it = m_map.lower_bound(key); it != m_map.end())
+    {
+        auto min = std::min(key.length(), it->first.length());
+        // emulate old strncmp comparison of prefix match
+        if (min > 0 && key.compare(0, min, it->first, 0, min) == 0)
+        {
+            full_key = it->first;
+            return it->second;
+        }
+    }
+    return {};
 }
 
 int color_type::remove(char *key)
 {
-   color_type *temp = this, *l = this->next;
-   if (!l)
-   {
-      return (0);
-      //If blank list return nothing to remove
-   }
+    if (!key)
+    {
+        return 0;
+    }
+    return remove(std::string{key});
+}
 
-   while (l)
-   {
-      if (strcmp(key, l->keyword) == 0)
-         break;
-      else
-      {
-         temp = l;
-         l = temp->next;
-      }
-   }
-
-   if (!l)
-      return (0);
-
-   temp->next = l->next;
-   l->next = NULL;
-   count_minus(l->keyword, l->color);
-   delete l;
-   return (1);
+int color_type::remove(const std::string &key)
+{
+    return static_cast<int>(m_map.erase(key));
 }
 
 void color_type::remove_all()
 {
-   color_type *l = this->next;
-
-   next = NULL;
-
-   if (keyword)
-      FREE(keyword);
-   if (color)
-      FREE(color);
-   color = NULL;
-   keyword = NULL;
-   if (l)
-      delete l;
-
-   key_size = 0;
-   color_size = 0;
-   count = 0;
+    m_map.clear();
 }
 
-void color_type::create(char *input_temp)
+void color_type::create(const char *input_temp)
 {
-   char *delstr;
-   char *tok, *key;
-   char *input_str;
-
-   if ((!input_temp) || (input_temp[0] == '\0'))
-      return;
-
-   //input_str = new char[strlen (input_temp) + 1];
-   CREATE(input_str, char, strlen(input_temp) + 1);
-
-   delstr = input_str;
-   if (!input_str)
-      return;
-
-   while (*input_temp != '\0')
-   {
-      if ((*input_temp == '\r'))
-      {
-         input_temp++;
-         continue;
-      }
-      *input_str = *input_temp;
-      input_str++;
-      input_temp++;
-   }
-
-   *input_str = '\0';
-   input_str = delstr;
-   key = strtok(input_str, ":");
-
-   if (!key)
-   {
-      FREE(delstr);
-      return;
-   }
-   tok = strtok(0, ":");
-   if (!tok)
-   {
-      FREE(delstr);
-      return;
-   }
-
-   insert(key, tok);
-
-   while ((key = strtok(0, ":")) != NULL)
-   {
-
-      tok = strtok(0, ":");
-      if (!tok)
-         break;
-
-      insert(key, tok);
-   }
-
-   FREE(delstr);
+    if (!input_temp)
+    {
+        return;
+    }
+    create(std::string(input_temp));
 }
 
-char *color_type::key_string(void)
+void color_type::create(const std::string &input_string)
 {
-   long i = 0;
-   i = (200 * count) + key_size + color_size;
-   //char *buff = new char[i];
-   char *buff;
+    bool done = false;
+    std::string::size_type key_start = 0;
+    std::string::size_type val_start = 0;
+    while (!done)
+    {
+        auto key_end = input_string.find(':', key_start);
+        if (key_end == std::string::npos)
+        {
+            done = true;
+            continue;
+        }
+        auto key = input_string.substr(key_start, key_end - key_start);
 
-   CREATE(buff, char, i);
+        val_start = key_end + 1;
+        auto val_end = input_string.find_first_of(':', val_start);
+        auto token = input_string.substr(val_start, val_end - val_start);
+        if (token.empty())
+        {
+            done = true;
+            continue;
+        }
 
-   color_type *l = this->next;
-   if (!buff)
-   {
-      slog(LOG_ALL, 0, "Error allocating key string for colors.");
-      assert(buff);
-   }
-
-   buff[0] = '\0';
-   if (!l)
-      return (NULL);
-
-   while (l)
-   {
-      char tmp[200];
-      i = MAX(0, 25 - strlen(l->keyword));
-      sprintf(tmp, "<div class='%s'>%s%s= %s</div><br/>", l->color, l->keyword, spc(i), l->color);
-      strcat(buff, tmp);
-      l = l->next;
-   }
-
-   strcat(buff, "<br/>");
-   return (buff);
+        (void)insert(key, token);
+        if (val_end == std::string::npos)
+        {
+            done = true;
+        }
+        key_start = val_end + 1;
+    }
 }
 
-char *color_type::key_string(color_type &dft)
+std::string color_type::key_string()
 {
-   char *t = this->save_string();
-   char *d = dft.save_string(); //ptr to create string
-   color_type temp;
-   int i = 0;
-   char *f;
-   if (d)
-      i += strlen(d) + 1;
-   if (t)
-      i += strlen(t) + 2;
-   //f = new char[i];
-   CREATE(f, char, i);
+    if (m_map.empty())
+    {
+        return {};
+    }
 
-   if (!f)
-   {
-      slog(LOG_ALL, 0,
-           "Problem with the 'final' pointer when doing save_string in key_string");
-      assert(f);
-   }
-   f[0] = '\0';
-
-   if (d)
-   {
-      strcat(f, d);
-      FREE(d);
-   }
-   if (t)
-   {
-      strcat(f, ":");
-      strcat(f, t);
-      FREE(t);
-   }
-
-   temp.create(f);
-   FREE(f);
-
-   f = temp.key_string();
-   char *ftemp;
-   //ftemp = new char[strlen (f) + 1];
-   CREATE(ftemp, char, strlen(f) + 1);
-   strcpy(ftemp, f);
-   if (f)
-      FREE(f);
-   return (ftemp);
+    std::ostringstream strm;
+    for (const auto &[keyword, color] : m_map)
+    {
+        auto i = std::max(0, 25 - static_cast<int>(keyword.length()));
+        strm << diku::format_to_str("<div class='%s'>%s%s= %s</div><br/>", color, keyword, spc(i), color);
+    }
+    strm << "<br/>";
+    return strm.str();
 }
 
-char *color_type::save_string(void)
+std::string color_type::key_string(const color_type &dft) const
 {
+    auto t = save_string();
+    auto d = dft.save_string(); // ptr to create string
 
-   color_type *l = this->next;
+    auto combined_string = d + t;
 
-   if (!l)
-   {
-      return (NULL);
-   }
+    color_type temp;
+    temp.create(combined_string);
 
-   //char *buff = new char[key_size + color_size + (count * 2)];
-   char *buff;
-   CREATE(buff, char, key_size + color_size + (count * 2));
-
-   if (!buff)
-   {
-      slog(LOG_ALL, 0, "Error allocating save string for colors.");
-      assert(buff);
-   }
-   buff[0] = '\0';
-
-   while (l)
-   {
-      strcat(buff, l->keyword);
-      strcat(buff, ":");
-      strcat(buff, l->color);
-      strcat(buff, ":");
-      l = l->next;
-   }
-
-   buff[(strlen(buff))] = '\0';
-   return (buff);
+    return temp.key_string();
 }
 
+std::string color_type::save_string() const
+{
+    if (m_map.empty())
+    {
+        return {};
+    }
+
+    std::ostringstream strm;
+    for (const auto &[keyword, color] : m_map)
+    {
+        strm << keyword << ":" << color << ":";
+    }
+    return strm.str();
+}
+
+void color_type::toJSON(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer) const
+{
+    writer.StartArray();
+    for (auto &[key, value] : m_map)
+    {
+        writer.StartObject();
+        {
+            json::write_kvp("keyword", key, writer);
+            json::write_kvp("color", value, writer);
+        }
+        writer.EndObject();
+    }
+    writer.EndArray();
+}

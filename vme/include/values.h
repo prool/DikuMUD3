@@ -6,10 +6,11 @@ EmailAdd    marco2@cyberzone.net
 request     header
 version     2
 END HEADER*/
-
+// clang-format off
 #include  "vme.h"
 #ifndef _MUD_VALUES_H
 #define _MUD_VALUES_H
+
 /* *********************************************************************** *
  * File   : values.h                                  Part of Valhalla MUD *
  * Version: 2                                                           *
@@ -54,8 +55,15 @@ END HEADER*/
 #define ITEM_SKIN   26
 #define ITEM_BOARD   27
 
+
 #define POLICE_ACADEMY    "$Police Member"
 #define POLICE_BANNED     "$Police Banned"
+
+#define GUILD_KEY           "$guild"
+#define GUILD_KEY_PREPEND   "$guild/"
+#define GUILD_KEY_BANISHED  "$guilds_ban"
+#define GUILD_KEY_LEFT      "$guilds_left"
+
 
 #define GUILD_UDG_FIGHTER     "Udgaard Fighter"
 #define GUILD_UDG_FIGHTER_ATL "jones@fightersguild","lancelot@fightersguild","robin@fightersguild" //  Abi, Wpn, Ski
@@ -63,31 +71,31 @@ END HEADER*/
 
 #define GUILD_KNIGHT      "Midgaard Dark Knight"
 #define GUILD_KNIGHT_ATL  "matthew@knight", "aramand@knight", "hilary@knight", "soroth@knight" //  Abi, Wpn, Spl, Ski
-#define GUILD_KNIGHT_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER}
+#define GUILD_KNIGHT_EXCL {GUILD_PALADIN, GUILD_UDG_MAGE, GUILD_SORCERER}
 
 #define GUILD_PALADIN     "Midgaard Paladin"
-#define GUILD_PALADIN_ATL  "joan@paladin_guild", "edmund@paladin_guild", "alex@paladin_guild", "corbin@paladin_guild" //  Abi, Wpn, Spl, Ski
-#define GUILD_PALADIN_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_KNIGHT, GUILD_ASSASSIN, GUILD_UDG_THIEF}
+#define GUILD_PALADIN_ATL  "edmund@paladin_guild", "joan@paladin_guild", "alex@paladin_guild", "corbin@paladin_guild" //  Wpn, Abi, Spl, Ski
+#define GUILD_PALADIN_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_KNIGHT, GUILD_ASSASSIN, GUILD_UDG_THIEF, GUILD_NECROMANCER}
 
 #define GUILD_NYM_RANGER  "Nymgaard Ranger"
 #define GUILD_RANGER_ATL  "mountain_man@ranger", "justifier@ranger", "guardian@ranger", "pathfinder@ranger" //  Abi, Wpn, Spl, Ski
-#define GUILD_KNIGHT_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER}
+#define GUILD_RANGER_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_NECROMANCER, GUILD_KNIGHT}
 
 #define GUILD_UDG_THIEF   "Udgaard Thief"
 #define GUILD_THIEF_ATL   "bisse@thievesguild","pirate@thievesguild","gryma@thievesguild" //  Abi, Wpn, Ski
-#define GUILD_THIEF_EXCL  {}
+#define GUILD_THIEF_EXCL  {GUILD_PALADIN}
 
 #define GUILD_ASSASSIN     "Khorsabad Assassin"
 #define GUILD_ASSASSIN_ATL "ability_trainer@assassin", "weapon_trainer@assassin", "spell_trainer@assassin", "skill_trainer@assassin" //  Abi, Wpn, Spl, Ski
-#define GUILD_ASSASSIN_EXCL  {}
+#define GUILD_ASSASSIN_EXCL  {GUILD_PALADIN, GUILD_UDG_CLERIC, GUILD_NYM_DRUID}
 
 #define GUILD_UDG_CLERIC  "Udgaard Healer"
 #define GUILD_CLERIC_ATL  "tack@clericguild", "tick@clericguild", "isabella@clericguild", "bartholomew@clericguild" //  Abi, Wpn, Spl, Ski
-#define GUILD_CLERIC_EXCL  {GUILD_UDG_MAGE, GUILD_SORCERER}
+#define GUILD_CLERIC_EXCL  {GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_NECROMANCER}
 
 #define GUILD_NYM_DRUID   "Nymgaard Druid"
 #define GUILD_DRUID_ATL   "oak@druid", "elm@druid", "maple@druid", "willow@druid" //  Abi, Wpn, Spl, Ski
-#define GUILD_DRUID_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER}
+#define GUILD_DRUID_EXCL {GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_NECROMANCER}
 
 #define GUILD_MYSTIC      "obsolete"
 #define GUILD_MYSTIC_ATL  "", "", "", "" //  Abi, Wpn, Spl, Ski
@@ -112,7 +120,6 @@ END HEADER*/
 #define GUILD_SL   {GUILD_UDG_FIGHTER, GUILD_KNIGHT, GUILD_PALADIN, GUILD_NYM_RANGER,   \
 	                GUILD_UDG_THIEF, GUILD_ASSASSIN, GUILD_UDG_CLERIC, GUILD_NYM_DRUID, \
 	                GUILD_MYSTIC, GUILD_NECROMANCER, GUILD_UDG_MAGE, GUILD_SORCERER, GUILD_BARBARIAN}
-#define GUILD_INIT_SL  {"F", "DK", "P",  "R", "T", "A", "H", "D", "M", "N", "C", "S", "B"}
 
 
 //
@@ -135,30 +142,43 @@ END HEADER*/
 #define PROFESSION_CONJURER    10
 #define PROFESSION_SORCERER    11
 #define PROFESSION_BARBARIAN   12
+#define PROFESSION_COUNT       13
 #define PROFESSION_MAX         13 /* 12+1 */
 
+
+#define PROFESSION_KEY      "$profession"
+
 #define PROFESSION_STRINGS "Fighter", "Knight", "Paladin", "Ranger", "Thief", "Assassin", \
-                           "Priest", "Druid", "Obsolete - Do Not Select","Necromancer", "Conjurer", "Sorcerer", \
+                           "Priest", "Druid", "Obsolete","Necromancer", "Conjurer", "Sorcerer", \
 						   "Barbarian"
+
+
+
+
+//
+// The bonus scale that builders use to assign weapon quality, magic bonus, shields, armours,
+// skills, attributes,etc.
+//
+#define BONUS_ARTIFACT        7
+#define BONUS_SUPERIOR        6
+#define BONUS_EXCELLENT_PLUS  5
+#define BONUS_EXCELLENT       4
+#define BONUS_GOOD_PLUS       3
+#define BONUS_GOOD            2
+#define BONUS_AVERAGE_PLUS    1
+#define BONUS_AVERAGE         0
+#define BONUS_AVERAGE_MINUS  -1
+#define BONUS_BAD            -2
+#define BONUS_BAD_MINUS      -3
+#define BONUS_TERRIBLE       -4
+#define BONUS_TERRIBLE_MINUS -5
+#define BONUS_JUNK_ALMOST    -6
+#define BONUS_JUNK           -7
+
 
 
 #define QUEST_WW              "Wight warrens quest"
 #define QUEST_WELMAR          "King Welmar Quest"
-
-#define MIN_HUMANOID_PC      0
-#define RACE_HUMAN           0     /* PC race */
-#define RACE_ELF             1     /* PC race */
-#define RACE_DWARF           2     /* PC race */
-#define RACE_HALFLING        3     /* PC race */
-#define RACE_GNOME           4     /* PC race */
-#define RACE_HALF_ORC        5
-#define RACE_HALF_OGRE       6
-#define RACE_HALF_ELF        7
-#define RACE_BROWNIE         8
-#define RACE_GROLL           9
-#define RACE_DARK_ELF       10
-#define MAX_HUMANOID_PC     100
-
 
 
 /*Insert any new definitions here... */
@@ -220,12 +240,14 @@ END HEADER*/
 #define WPN_LANCE        49
 
 
+#define WPN_BITE         WPN_BITE_MEDIUM
+#define WPN_STING        WPN_STING_MEDIUM
+#define WPN_CRUSH        WPN_CRUSH_MEDIUM
+
+// These are humanoid martial arts attacks
 #define WPN_FIST         34
 #define WPN_KICK         35
-#define WPN_BITE         36
-#define WPN_STING        37
 #define WPN_CLAW         38
-#define WPN_CRUSH        39
 #define WPN_KNEE         55
 #define WPN_ELBOW        56
 #define WPN_KNUCKLES     99  // metal on your knuckles
@@ -234,6 +256,35 @@ END HEADER*/
 #define WPN_CROSSBOW     43
 #define WPN_SLING        44
 #define WPN_WHIP         40
+
+
+#define WPN_KICK_TINY     102
+#define WPN_KICK_SMALL    WPN_KICK  // This is also the humanoid kick practiced, naming issue
+#define WPN_KICK_MEDIUM   104
+#define WPN_KICK_LARGE    105
+#define WPN_KICK_HUGE     106
+#define WPN_BITE_TINY     107
+#define WPN_BITE_SMALL    108
+#define WPN_BITE_MEDIUM   109
+#define WPN_BITE_LARGE    110
+#define WPN_BITE_HUGE     111
+#define WPN_STING_TINY    112
+#define WPN_STING_SMALL   113
+#define WPN_STING_MEDIUM  114
+#define WPN_STING_LARGE   115
+#define WPN_STING_HUGE    116
+#define WPN_CLAW_TINY     117
+#define WPN_CLAW_SMALL    WPN_CLAW  // This is also the humanoid claw practiced (assassins), naming issue
+#define WPN_CLAW_MEDIUM   119
+#define WPN_CLAW_LARGE    120
+#define WPN_CLAW_HUGE     121
+#define WPN_CRUSH_TINY    122
+#define WPN_CRUSH_SMALL   123
+#define WPN_CRUSH_MEDIUM  124
+#define WPN_CRUSH_LARGE   125
+#define WPN_CRUSH_HUGE    126
+
+#define LAST_WEAPON       127
 
 // MISSING WEAPONS ?
 
@@ -291,58 +342,57 @@ END HEADER*/
 #define WPN_STAFF WPN_QUARTERSTAFF
 
 
-#define LAST_WEAPON       101
 
 // #define WPN_HAND_HAMMER  72  
-///#define WPN_KATANA       13
-///#define WPN_KOPESH       15
-///#define WPN_WAKIZASHI    41
-/// #define WPN_FIGHTING_STAFF 45 /* Two handed */
-/// #define WPN_SABER        46
-/// #define WPN_CUTLASS      47
-/// #define WPN_MACHETE      48
-///#define WPN_SHOCK_LANCE  50
-/// #define WPN_PIKE         51
-///#define WPN_GREAT_AXE    52
-///#define WPN_FAUCHARD     57
-///#define WPN_SAPPARA      58
-///#define WPN_POLE_CLEAVER 59
-///#define WPN_CROWBILL     60
-/// #define WPN_ESTOC        61
-///#define WPN_BILL_GUISARME 62
-///#define WPN_GUISARME     63
-///#define WPN_NAGINATA     64
-///#define WPN_SPETUM       65
-///#define WPN_LUCERN_HAMMER 66
-///#define WPN_BASTARD_SWORD2 67 /* SPECIAL USE FLAMETONGUE AND AVENGER */
-///#define WPN_BASTARD_SWORD1 68   /* DITTO */
-/// #define WPN_PARTISAN       69
-///#define WPN_PILUM          70
-///#define WPN_JEDDART_AXE    71
-///#define WPN_COMMON_MAUL    74
-///#define WPN_POLE_AXE       75
-///#define WPN_ADZE           76
-///#define WPN_STAFF          77
-///#define WPN_BACULUS        78
-///#define WPN_FISH_SPINE     79
-///#define WPN_GAFF           80
-/// #define WPN_FLAMBERGE      81
-/// #define WPN_BEC_DE_CORBIN  82
-/// #define WPN_VOULGE         83
-///#define WPN_WAR_AXE        84
-///#define WPN_MILITARY_FORK  86
-/// #define WPN_ICE_PICK       87
-/// #define WPN_DIRK           88
-/// #define WPN_SHAMSHIR       89
-/// #define WPN_FAUCHARD_FORK  90
-///#define WPN_CUDGEL         92
-///#define WPN_RANSEUR        93
-///#define WPN_FOOT_LANCE     94
-/// #define WPN_BILL_HOOK      95
-///#define WPN_TALWAR         96
-/// #define WPN_CLEAVER        98
-/// #define WPN_LOCHABER_AXE  100
-/// #define WPN_GLAIVE        101
+//#define WPN_KATANA       13
+//#define WPN_KOPESH       15
+//#define WPN_WAKIZASHI    41
+// #define WPN_FIGHTING_STAFF 45 /* Two handed */
+// #define WPN_SABER        46
+// #define WPN_CUTLASS      47
+// #define WPN_MACHETE      48
+//#define WPN_SHOCK_LANCE  50
+// #define WPN_PIKE         51
+//#define WPN_GREAT_AXE    52
+//#define WPN_FAUCHARD     57
+//#define WPN_SAPPARA      58
+//#define WPN_POLE_CLEAVER 59
+//#define WPN_CROWBILL     60
+// #define WPN_ESTOC        61
+//#define WPN_BILL_GUISARME 62
+//#define WPN_GUISARME     63
+//#define WPN_NAGINATA     64
+//#define WPN_SPETUM       65
+//#define WPN_LUCERN_HAMMER 66
+//#define WPN_BASTARD_SWORD2 67 /* SPECIAL USE FLAMETONGUE AND AVENGER */
+//#define WPN_BASTARD_SWORD1 68   /* DITTO */
+// #define WPN_PARTISAN       69
+//#define WPN_PILUM          70
+//#define WPN_JEDDART_AXE    71
+//#define WPN_COMMON_MAUL    74
+//#define WPN_POLE_AXE       75
+//#define WPN_ADZE           76
+//#define WPN_STAFF          77
+//#define WPN_BACULUS        78
+//#define WPN_FISH_SPINE     79
+//#define WPN_GAFF           80
+// #define WPN_FLAMBERGE      81
+// #define WPN_BEC_DE_CORBIN  82
+// #define WPN_VOULGE         83
+//#define WPN_WAR_AXE        84
+//#define WPN_MILITARY_FORK  86
+// #define WPN_ICE_PICK       87
+// #define WPN_DIRK           88
+// #define WPN_SHAMSHIR       89
+// #define WPN_FAUCHARD_FORK  90
+//#define WPN_CUDGEL         92
+//#define WPN_RANSEUR        93
+//#define WPN_FOOT_LANCE     94
+// #define WPN_BILL_HOOK      95
+//#define WPN_TALWAR         96
+// #define WPN_CLEAVER        98
+// #define WPN_LOCHABER_AXE  100
+// #define WPN_GLAIVE        101
 /*check vme.h for max number of weapons.*/
 /* keep in mind if you need more ask the vme coders.*/
 
@@ -681,6 +731,20 @@ END HEADER*/
 
 /* keep in mind if you need more ask the vme coders.*/
 
+#define MIN_HUMANOID_PC      0
+#define RACE_HUMAN           0     /* PC race */
+#define RACE_ELF             1     /* PC race */
+#define RACE_DWARF           2     /* PC race */
+#define RACE_HALFLING        3     /* PC race */
+#define RACE_GNOME           4     /* PC race */
+#define RACE_HALF_ORC        5
+#define RACE_HALF_OGRE       6
+#define RACE_HALF_ELF        7
+#define RACE_BROWNIE         8
+#define RACE_GROLL           9
+#define RACE_DARK_ELF       10
+#define MAX_HUMANOID_PC     100
+
 /*
 	*	Monster Races:
 	*
@@ -705,6 +769,8 @@ END HEADER*/
 #define RACE_GIANT_MOB           132
 #define RACE_DRIDER              133
 #define MAX_HUMANOID_NPC         200
+
+
 /*Ants, beetles, butterflies,lobsters, shrimp, crabs,scorpions, spiders, ticks*/
 #define RACE_ARTHROPODA_MIN      220
 
@@ -916,10 +982,12 @@ END HEADER*/
 #define RACE_DRAGON_LAVA         1158
 #define RACE_DRAGON_SHADOW       1159
 #define RACE_DRAGON_LIZARD       1160
+#define RACE_WYRM                1161
 #define RACE_DRAGON_MAX          1199  /* For use with special object */
 
 
 
+#define RACE_UNDEAD_MIN          1200 /* For use with special object */
 #define RACE_SPIRIT_MIN          1200 /* For use with special object */
 #define RACE_UNDEAD              1201
 #define RACE_SPIRIT              1202
@@ -928,6 +996,11 @@ END HEADER*/
 #define RACE_ZOMBIE              1205
 #define RACE_GHOUL               1206
 #define RACE_SKELETON            1207
+
+#define RACE_VAMPIRE             1208
+#define RACE_BANSHEE             1209
+#define RACE_DEATH_GHAST         1210
+
 #define RACE_SPIRIT_MAX          1249  /* For use with special object */
 
 #define RACE_LICH_MIN            1250 /* For use with special object */
@@ -938,6 +1011,8 @@ END HEADER*/
 #define RACE_LICH_LIGHT          1255
 #define RACE_LICH_WATER          1256
 #define RACE_LICH_MAX            1299 /* For use with special object */
+#define RACE_UNDEAD_MAX          1299 /* For use with special object */
+
 
 #define RACE_ELEMENTAL_MIN       1300 /* For use with special object */
 #define RACE_ELEMENTAL_AIR       1301
@@ -958,29 +1033,33 @@ END HEADER*/
 #define RACE_SNAKE_DEMON         1365
 #define RACE_DEMON_MAX           1399 /* For use with special object */
 
+// Oh no, terrible mess down below. Really all "humanoids" ought to be together,
+// all lizards together,  etc. Probably for those it would make sense to have a 
+// MIN/MAX for regular & fantasy when applicable
 
 #define RACE_HOMARID             2400
 #define RACE_MERMAID             2401
-#define RACE_PIXIE               2402
-#define RACE_VAMPIRE             2403
-#define RACE_WYRM                2404
+#define RACE_MERMAN              2423
 #define RACE_MINOTAUR            2405
 
+
 #define RACE_PEGASUS             2408
-#define RACE_BANSHEE             2409
-#define RACE_SAND_CRAWLER        2410
 #define RACE_DRYAD               2411
 #define RACE_NAIAD               2412
+#define RACE_YETI                2419
+
+
+#define RACE_WEREWOLF            2420
+
+#define RACE_SHADOW_BEAST        2416
+#define RACE_SHADOW_DEVIL        2433
+
+#define RACE_PIXIE               2402
+#define RACE_SAND_CRAWLER        2410
 #define RACE_STONE_RENDER        2413
 #define RACE_UR_VILE             2414
-#define RACE_DEATH_GHAST         2415
-#define RACE_SHADOW_BEAST        2416
-
 #define RACE_YOGOLOTH            2418
-#define RACE_YETI                2419
-#define RACE_WEREWOLF            2420
 #define RACE_CREEPER             2421  /* cross between a worm, a lizard, and a roach. */
-#define RACE_MERMAN              2423
 #define RACE_STATUE              2424
 #define RACE_GOLEM               2425
 #define RACE_SLIME               2426
@@ -990,7 +1069,6 @@ END HEADER*/
 #define RACE_GARGOYLE            2430
 #define RACE_MUTANT              2431
 #define RACE_CAVE_FISHER         2432
-#define RACE_SHADOW_DEVIL        2433
 #define RACE_NIXIE               2434
 #define RACE_NYMPH               2435
 #define RACE_SATYR               2436
@@ -1024,7 +1102,7 @@ END HEADER*/
 #define ID_CONDEMN               92
 #define ID_BERSERK			     93
 #define ID_RAGE                  94
-#define ID_BLANK6                95
+#define ID_FRENZY                95  /* frenzy_rounds@skills: the barbarian's growing strength */
 #define ID_BLANK7                96
 #define ID_BLANK8                97
 #define ID_BLANK9                98
@@ -1216,14 +1294,22 @@ extra {PLAYER_R, NAME}{DAMAGE,PERCENT} \
 ACTION
 
 
-#define DIL_GINT_EFFDEX     0  // return the CHAR's effective_dex()
-#define DIL_GINT_REQXP      1  // return the required_xp(i) for level i using the INT parameter i
-#define DIL_GINT_LEVELXP    2  // return the level_xp(i) (XP needed for level i->i+1)
-#define DIL_GINT_DESCRIPTOR 3  // returns 0 if PC has no descriptor. 1 for all else
-#define DIL_GINT_CRIMENO    4  // returns the next crime_no
-#define DIL_GINT_MANAREG    5  // returns the amount of mana PC/NPC should regenerate
-#define DIL_GINT_HITREG     6  // returns the amount of hp PC/NPC should regenerate
-#define DIL_GINT_MOVEREG    7  // returns the amount of endurance PC/NPC should regenerate
+#define DIL_GINT_EFFDEX      0  // return the CHAR's effective_dex()
+#define DIL_GINT_REQXP       1  // return the required_xp(i) for level i using the INT parameter i
+#define DIL_GINT_LEVELXP     2  // return the level_xp(i) (XP needed for level i->i+1)
+#define DIL_GINT_DESCRIPTOR  3  // returns 0 if PC has no descriptor. 1 for all else
+#define DIL_GINT_CRIMENO     4  // returns the next crime_no
+#define DIL_GINT_MANAREG     5  // returns the amount of mana PC/NPC should regenerate
+#define DIL_GINT_HITREG      6  // returns the amount of hp PC/NPC should regenerate
+#define DIL_GINT_MOVEREG     7  // returns the amount of endurance PC/NPC should regenerate
+#define DIL_GINT_BONUS_A     8  // Translate BONUS_XXX to skill levels (up to 20 bonus)
+#define DIL_GINT_BONUS_B     9  // Transalte BONUS_XXX to ability levels (up to 10 bonus)
+#define DIL_GINT_REALYEAR   10  // The real year
+#define DIL_GINT_REALMONTH  11  // month
+#define DIL_GINT_REALDAY    12  // day
+#define DIL_GINT_PRESSURE   13  // weather pressure (mb) in the unit's zone (the DIL's own zone if null)
+#define DIL_GINT_PRESSURECHG 14 // how much that pressure changed at the last weather update
 
 #endif /* _MUD_VALUES_H */
 
+// clang-format on

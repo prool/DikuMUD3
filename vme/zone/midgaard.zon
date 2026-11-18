@@ -8,6 +8,7 @@ version     34
 END HEADER */
 
 #include <macros.h>
+#include <housing.h>
 
 #define _POLICE_SCHOOL /* not a real guild, can have 2 simultaneously */
 #define QUEST_CITIZEN_MIDGAARD "Citizen of Midgaard"
@@ -48,8 +49,8 @@ G     |     I-#-----#-#-#-----#-S     |          Baker's Shop       J07
 H   R |   S   |   O   | G O   |   S   | R        Butcher's Shop     J17
     | |   |   |   |   |   |   |   |   | |        Boat Shop          L06
 I @-#-W---#---#---#---#---#---#---#---W-#-@      Fish Shop          L08
-    | |   |   |   |   |   |   |   |   | |        Armour's Shop      Q09
-J   R |   S   S   S   |   T   |   S   | R        Mortican's Shop    S05
+    | |   |   |   |   |   |   |   |   | |        Armourer's Shop    Q09
+J   R |   S   S   S   |   T   |   S   | R        Mortician's Shop   S05
       |               |       |       |          Blacksmith's Shop  S09
 K     |               #-I   O-#       |          Carpenter's Shop   T05
       |               |       |       |          Weaponsmith's Shop T08
@@ -65,7 +66,7 @@ N     W       #       #               W        Inns
   1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
                                                Guilds
       |               |               |          Paladins           F09
-O     W---#---#---#---#---#---#---#---W          Sorcerors          Y03
+O     W---#---#---#---#---#---#---#---W          Sorcerers          Y03
       |       |       |       |       |          Healers            U06
 P     |       #       #       #       |          Thieves            G06
       |       |       |       |       |          Mage               H12
@@ -95,6 +96,85 @@ Zone by Papi and Quifael </pre>"
 %dil
 
 
+dilbegin guardroutine(guardloc : string, dayguard : integer);
+external
+   DailySchedule@quests(sched : stringlist, sarg2 : string, pace : integer);
+var
+   onduty : string;
+   offduty : string;
+   sl : stringlist;
+   i : integer;
+code
+{
+   // Each block runs once per shift, also when the guard is loaded mid-shift
+   if (dayguard)
+   {
+      onduty := "@5-18";    // Wake up at 5, go back at 6pm
+      offduty := "@18-5";
+   }
+   else
+   {
+      onduty := "@17-6";    // Wake up at 17, go home at 6
+      offduty := "@6-17";
+   }
+
+   // The break after work is one of the three bars, picked at random
+   sl := {
+      "@onduty",
+         "::ready::",
+         "::descr::A $1N is here heading to work.",
+         "yawn",
+         "say Time to get going guys!",
+         "::walkto::$2t",
+         "::descr::A $1N is here guarding the gate.",
+      "@offduty",
+         "::walkto::grunting_inn@midgaard",
+         "::descr::A $1N is here on $1s evening break.",
+         "buy beer",
+         "drink beer",
+         "stretch",
+         "::descr::A $1N is here heading home.",
+         "::walkto::guard_dorm@midgaard",
+         "yawn",
+         "::descr::A $1N is here resting.",
+         "sleep",
+      "@offduty",
+         "::walkto::grub_inn@midgaard",
+         "::descr::A $1N is here on $1s evening break.",
+         "buy firebreather",
+         "drink firebreather",
+         "::descr::A $1N is here heading home.",
+         "::walkto::guard_dorm@midgaard",
+         "::descr::A $1N is here resting.",
+         "yawn",
+         "sleep",
+      "@offduty",
+         "::walkto::park_cafe@midgaard",
+         "::descr::A $1N is here on $1s evening break.",
+         "buy coffee",
+         "drink coffee",
+         "::descr::A $1N is here heading home.",
+         "::walkto::guard_dorm@midgaard",
+         "::descr::A $1N is here resting.",
+         "yawn",
+         "sleep"
+   };
+
+   i := 0;
+   while (i < length(sl))
+   {
+      if (sl.[i] == "@onduty")
+         sl.[i] := onduty;
+      else if (sl.[i] == "@offduty")
+         sl.[i] := offduty;
+      i := i + 1;
+   }
+
+   DailySchedule@quests(sl, guardloc, 5);
+}
+dilend
+
+
 // Call this function for CHAR 'self' to cuff targ
 //  cuffs must be the unitptr to the handcuffs to be used.
 //
@@ -105,7 +185,7 @@ var
 code
 {
    act("You cuff $3n.", A_SOMEONE, deputy, null, targ, TO_CHAR);
-   act("$1n surprises you and put $2n around your wrists.", A_SOMEONE, deputy, cuffs, targ, TO_VICT);
+   act("$1n surprises you and puts $2n around your wrists.", A_SOMEONE, deputy, cuffs, targ, TO_VICT);
    act("$1n puts $2n around $3N's wrists.", A_SOMEONE, deputy, cuffs, targ, TO_NOTVICT);
 
    follow(targ, deputy);
@@ -135,6 +215,7 @@ var
    roomorg : string;
    roomto  : string;
    tf      : integer;
+   descorg : string;
 
 code
 {
@@ -145,12 +226,15 @@ code
       quit;
    }
 
-   roomorg := self.outside.nameidx + "@" + self.outside.zoneidx;
+   roomorg := self.outside.symname;
+   descorg := self.outside_descr;
    roomto  := sroomto;
 
    :torescue:
    priority;
+   self.outside_descr := sact("$1n is hurrying along.", A_ALWAYS, self, null, null, TO_CHAR);
    tf:=walk_room@function(roomto, 5);
+   self.outside_descr := sact("$1n is on the lookout.", A_ALWAYS, self, null, null, TO_CHAR);
 
    // Stay a little
    act("$1n alertly scans $1s surroundings.",A_ALWAYS, self, null, null, TO_ALL);
@@ -166,8 +250,10 @@ code
       goto nowwhat;
 
    :gohome:
+   self.outside_descr := sact("$1n is trodding along.", A_ALWAYS, self, null, null, TO_CHAR);
    priority;
    tf:=walk_room@function(roomorg, 8);
+   self.outside_descr := descorg;
    nopriority;
    return;
 }
@@ -187,7 +273,7 @@ code
    if (self.outside.type == UNIT_ST_ROOM)
    {
       if (not isset(self.flags, UNIT_FL_BURIED))
-        act("A "+self.name+" rots away." , A_SOMEONE, self, null, null, TO_ROOM);
+        act("$1n rots away." , A_SOMEONE, self, null, null, TO_ROOM);
       destroy(self);
    }
 
@@ -216,6 +302,7 @@ var
    obj : unitptr;
    intg : integer;
    inits: integer; // Boolean (added by S)
+   where : string;
 
 code
 {
@@ -254,187 +341,195 @@ code
 
    move := {"fear","cringe","cringe"};
 
-   :start:
-   :collect:
+:start:
+:collect:
    pause;
    foreach (UNIT_ST_OBJ, trash)
    {
-      secure(trash, collect);
       if (not findsymbolic(self, "tbag@midgaard", FIND_UNIT_IN_ME)) 
          goto s_break;
 
       if (self.outside.flags & UNIT_FL_NO_BURY) continue;
       if (trash.flags & UNIT_FL_BURIED) continue;
       if (not isset (trash.manipulate, MANIPULATE_TAKE)) continue;
-      if (can_carry (self, trash, 1) == TRUE) continue; // Can't carry
       if (not visible(self,trash)) continue;
+      if (can_carry (self, trash, 1) > 0) continue; // Can't carry
+      if ("treasure" == trash.zoneidx) continue;
+      if ((trash.objecttype == ITEM_CONTAINER) or( trash.objecttype == ITEM_BOAT))
+         continue;
+      if ((trash.nameidx + trash.zoneidx == "corpsebasis") and (trash.value[2] == 0))
+      {
+         if (isset (self.outside.flags, UNIT_FL_NO_BURY)) continue;
+         secure(trash, collect);
+         pause;
+         unsecure(trash);
+         if (trash.inside != null)
+         {
+            msg := rnd(0, (length(msgs)-1));
+            exec("say "+msgs.[msg], self);
+            exec("get all from corpse", self);
+            exec("bury "+trash.name, self);
+            exec("put all in bag", self);
+            continue;
+         }
 
- if ("treasure" == trash.zoneidx) continue;
-  if ((trash.objecttype == ITEM_CONTAINER) or( trash.objecttype == ITEM_BOAT))
-   continue;
- if ((trash.nameidx + trash.zoneidx == "corpsebasis")
-  and (trash.value[2] == 0))
-  {
-  pause;
-  if(isset (self.outside.flags, UNIT_FL_NO_BURY)) continue;
-  if (trash.inside != null)
-  {
-  msg := rnd(0, (length(msgs)-1));
-  exec("say "+msgs.[msg], self);
-  exec("get all from corpse", self);
-  exec("bury "+trash.name, self);
-  exec("put all in bag", self);
-  continue;
-  }
-  if ((trash.nameidx + trash.zoneidx == "corpsebasis")
-   and (trash.value[2] == 0) and (trash.inside == null)) goto npc;
-  else
-  {
-  :npc:
-  msg := rnd(0, (length(msgs)-1));
-  exec("say "+msgs.[msg], self);
-  exec("bury "+trash.name, self);
-  continue;
-  }
- }
- if ((trash.nameidx + trash.zoneidx == "corpsebasis")
-  and (trash.value[2] == 0) and (trash.inside == null))
-  {
-  pause;
-  msg := rnd(0, (length(msgs)-1));
-  exec("say "+msgs.[msg], self);
-  exec("bury "+trash.name, self);
-  continue;
-  }
- if ((trash.nameidx + trash.zoneidx == "corpsebasis")
-  and (trash.value[2] == 1) and (trash.inside != null))
-  {
-  if ("$owner notified" in trash.extra) continue;
-  else
-   {
-   sl := getwords(trash.name);
-   s := sl.[2];
-   pause;pause;
-   exec ("tell "+s+" Your corpse is at "     +self.outside.title
-    +", please pick it up.", self);
-   addextra (trash.extra, {"$owner notified"}, "");
-   continue;
-   }
-  }
- if ((trash.nameidx + trash.zoneidx == "corpsebasis")
- and (trash.value[2] == 1) and (trash.inside == null))
-  {
-  pause;
-  exec("bury "+trash.name, self);
-  continue;
-  }
- if ((trash.nameidx+"@"+trash.zoneidx == "slime@basis"))
-  {
-  pause;
-  exec("say Ewww, slime!", self);
-  msg2 := rnd(0, (length(move)-1));
-  exec(move.[msg2], self);
-  pause;
-  exec("emote utters the words, 'fadiz univisa!'..", self);
-  act("$2n de-materializes before your very eyes.",
-   A_ALWAYS, self, trash, null, TO_ALL);
-  destroy(trash);
-  continue;
-  }
- if ((trash.nameidx+"@"+trash.zoneidx == "head@death"))
-  {
-  pause;
-  exec("say looks like someone lost their head.", self);
-  exec("chuckle", self);
-  pause;
-  exec("emote utters the words, 'fadiz univisa!'..", self);
-  act("$2n de-materializes before your very eyes.",
-   A_ALWAYS, self, trash, null, TO_ALL);
-  destroy(trash);
-  continue;
-  }
-  if ((trash.objecttype == ITEM_FOOD) or (trash.objecttype == ITEM_DRINKCON))
-  {
-  pause;
-  exec("get "+trash.name, self);
-  if (trash.value[3] > 0)
-   {
-   exec("say This "+trash.name+" is unfit for consumption!", self);
-   act("$1n heaves the $2n into the distance.",
-    A_ALWAYS, self, trash, null, TO_ALL);
-   destroy(trash);
-   goto no_food;
-   }
-   dilcopy("rotaway@midgaard()",trash);
-  act("$1n donates $2n to a worthy cause.",
-   A_ALWAYS, self, trash, null, TO_ALL);
-   link(trash, findroom("jandump@midgaard"));
+         if ((trash.nameidx + trash.zoneidx == "corpsebasis") and (trash.value[2] == 0) and (trash.inside == null)) 
+            goto npc;
+         else
+         {
+            :npc:
+            msg := rnd(0, (length(msgs)-1));
+            exec("say "+msgs.[msg], self);
+            exec("bury "+trash.name, self);
+            continue;
+         }
+      }
+      if ((trash.nameidx + trash.zoneidx == "corpsebasis") and (trash.value[2] == 0) and (trash.inside == null))
+      {
+         secure(trash, collect);
+         pause;
+         unsecure(trash);
+         msg := rnd(0, (length(msgs)-1));
+         exec("say "+msgs.[msg], self);
+         exec("bury "+trash.name, self);
+         continue;
+      }
+      if ((trash.nameidx + trash.zoneidx == "corpsebasis") and (trash.value[2] == 1) and (trash.inside != null))
+      {
+         if ("$owner notified" in trash.extra) 
+            continue;
+         else
+         {
+            sl := getwords(trash.name);
+            s := sl.[2];
+            addextra(trash.extra, {"$owner notified"}, ""); // before the pauses: they clear trash
+            where := self.outside.title; // the janitor may walk on during the pauses
+            pause;pause;
+            exec ("tell "+s+" Your corpse is at "     +where +", please pick it up.", self);
+            continue;
+         }
+      }
 
-  :no_food:
-  pause;
-  continue;
-  }
- else
-  {
+      if ((trash.nameidx + trash.zoneidx == "corpsebasis") and (trash.value[2] == 1) and (trash.inside == null))
+      {
+         secure(trash, collect);
+         pause;
+         unsecure(trash);
+         exec("bury "+trash.name, self);
+         continue;
+      }
+      if ((trash.nameidx+"@"+trash.zoneidx == "slime@basis"))
+      {
+         secure(trash, collect);
+         pause;
+         exec("say Ewww, slime!", self);
+         msg2 := rnd(0, (length(move)-1));
+         exec(move.[msg2], self);
+         pause;
+         exec("emote utters the words, 'fadiz univisa!'", self);
+         act("$2n de-materializes before your very eyes.", A_ALWAYS, self, trash, null, TO_ALL);
+         unsecure(trash);
+         destroy(trash);
+         continue;
+      }
+      if ((trash.nameidx+"@"+trash.zoneidx == "head@death"))
+      {
+         secure(trash, collect);
+         pause;
+         exec("say Looks like someone lost their head.", self);
+         exec("chuckle", self);
+         pause;
+         exec("emote utters the words, 'fadiz univisa!'", self);
+         act("$2n de-materializes before your very eyes.", A_ALWAYS, self, trash, null, TO_ALL);
+         unsecure(trash);
+         destroy(trash);
+         continue;
+      }
 
-  exec("get "+trash.name, self);
-  if ("bag" in trash.names)
-   {
-/*   dilcopy("rotaway@midgaard()",trash);
-   log("should be dilcopying 2");
-*/
-   exec("put "+ trash.name +" in 2.bag",self);
-   pause;
-   continue;
-   }
-  else
-   {
-  /* dilcopy("rotaway@midgaard()",trash);
-   log("should be dilcopying 3");
-  */
-   exec("put "+ trash.name +" in bag",self);
-   pause;
-   continue;
-   }
-  }
- pause;pause;
- }
-goto start;
+      if ((trash.objecttype == ITEM_FOOD) or (trash.objecttype == ITEM_DRINKCON))
+      {
+         secure(trash, collect);
+         pause;
+         exec("get "+trash.name, self);
+         if (trash.value[3] > 0)
+         {
+            exec("say This "+trash.name+" is unfit for consumption!", self);
+            act("$1n heaves $2n into the distance.", A_ALWAYS, self, trash, null, TO_ALL);
+            unsecure(trash);
+            destroy(trash);
+            goto no_food;
+         }
+
+         unsecure(trash);
+         dilcopy("rotaway@midgaard()",trash);
+         act("$1n donates $2n to a worthy cause.", A_ALWAYS, self, trash, null, TO_ALL);
+         link(trash, findroom("jandump@midgaard"));
+
+         :no_food:
+         pause;
+         continue;
+      }
+      else
+      {
+         secure(trash, collect);
+         exec("get "+trash.name, self);
+         if ("bag" in trash.names)
+         {
+            //   dilcopy("rotaway@midgaard()",trash);
+            // log("should be dilcopying 2");
+            unsecure(trash);
+            exec("put "+ trash.name +" in 2.bag",self);
+            pause;
+            continue;
+         }
+         else
+         {
+            // dilcopy("rotaway@midgaard()",trash);
+            // log("should be dilcopying 3");
+            unsecure(trash);
+            exec("put "+ trash.name +" in bag",self);
+            pause;
+            continue;
+         }
+      }
+      pause;pause;
+   } // Foreach
+
+   goto start;
+
 :s_break:
-addextra (self.extra, {"$block wander"}, "");
-exec("say Where did my trash bag get to?", self);
-pause;
-exec("boggle self", self);
-pause;pause;pause;pause;
-exec("say Well, good time for a break I guess.", self);
-pause;
-exec("rest", self);
-pause;pause;pause;pause;pause;
-exec("emote clears his throat in preparation for a song.", self);
-pause;
+   addextra (self.extra, {"$block wander"}, "");
+   exec("say Where did my trash bag get to?", self);
+   pause;
+   exec("boggle self", self);
+   pause;pause;pause;pause;
+   exec("say Well, good time for a break I guess.", self);
+   pause;
+   exec("rest", self);
+   pause;pause;pause;pause;pause;
+   exec("emote clears his throat in preparation for a song.", self);
+   pause;
 
-intg := 0;
-while (intg < length(sing1))
-{
-exec("emote sings, '"+sing1.[intg]+"'", self);pause;
-intg := intg+1;
-}
+   intg := 0;
+   while (intg < length(sing1))
+   {
+      exec("emote sings, '"+sing1.[intg]+"'", self);pause;
+      intg := intg+1;
+   }
 
-
-pause;pause;pause;pause;pause;pause;
-exec("say I'd better get back to work before I get in trouble.", self);
-pause;pause;
-exec("stand", self);
-pause;pause;
-link(load("tbag@midgaard"),self);
-exec("emote gets a trash bag from his back pocket.", self);
-pause;
-exec("say Rule number one: always carry a spare.", self);
-exec("snicker", self);
-pause;pause;pause;pause;
-subextra (self.extra,"$block wander");
-goto start;
-
+   pause;pause;pause;pause;pause;pause;
+   exec("say I'd better get back to work before I get in trouble.", self);
+   pause;pause;
+   exec("stand", self);
+   pause;pause;
+   link(load("tbag@midgaard"),self);
+   exec("emote gets a trash bag from his back pocket.", self);
+   pause;
+   exec("say Rule number one: always carry a spare.", self);
+   exec("snicker", self);
+   pause;pause;pause;pause;
+   subextra (self.extra,"$block wander");
+   goto start;
 }
 dilend
 
@@ -455,6 +550,8 @@ var
    pc      : unitptr;
    answer  : string;
    mn      : string;
+   fails   : integer;
+   charges : integer;
 
 code
 {
@@ -480,7 +577,7 @@ if( not visible( self, pc ) )
       goto lost_pc;
    }
 
-dilcopy ("busy@function(Please wait I am busy with other work right now.",
+dilcopy ("busy@function(Please wait I am busy with other work right now.)",
 self)
 ;
 
@@ -503,8 +600,8 @@ if ((thing.objecttype!=ITEM_WAND) and (thing.objecttype!=ITEM_STAFF))
 
 if ("$norecharge" in thing.extra)
    {
-      exec ("say I can't recharge this " + thing.title +
-            "," + pc.name +". It is beyond my ability.", self);
+      exec ("say I can't recharge this " + thing.name +
+            ", " + pc.name +". It is beyond my ability.", self);
       goto give_back;
    }
 
@@ -558,12 +655,22 @@ goto how_much;
 
    if (transfermoney(pc, self, tcost))
    {
-      exec(", touches " + thing.name + " softly and begins to chant...", self);
+      exec("emote touches " + thing.name + " softly and begins to chant...", self);
+      fails := 0;
 :repair_it:
+      charges := thing.value[1];
       if(thing.objecttype==ITEM_WAND)
         result := cast_spell(SPL_CHARGE_WAND, self, self, thing, "");
       else
         result := cast_spell(SPL_CHARGE_STAFF, self, self, thing, "");
+      // a cast that adds no charge counts as failed; give up after 20 of them
+      if (thing.value[1] <= charges)
+        fails := fails + 1;
+      if (fails >= 20)
+      {
+        result := transfermoney(self, pc, tcost);  // refund: the item won't take a charge
+        goto broken_thing;
+      }
       if (thing.value[1] < thing.value[4]) goto repair_it;
       heartbeat:=PULSE_SEC*1;
       pause;
@@ -634,7 +741,7 @@ code
       goto lost_pc;
    }
 
-   dilcopy ("busy@function(Please wait I am busy with other work right now.", self);
+   dilcopy ("busy@function(Please wait I am busy with other work right now.)", self);
 
    pause;
 
@@ -679,140 +786,274 @@ code
 }
 dilend /* wand_charge */
 
+dilbegin deengrave();
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
+var
+    pc     : unitptr;
+ 	ting   : unitptr;
+ 	pris   : integer;
+ 	i      : integer;
+ 	text   : string;
+ 	olddescr   : extraptr;
+	cash   : string;
+	engrv   : string;
+        engrvstr   :  stringlist;
+        newtitle   :  stringlist;
+        newdescr   :  stringlist;
+code
+{
+    heartbeat := PULSE_SEC*4;
+
+:start:
+    wait(SFB_DONE,command("give")and(self == target));
+    if(not visible(self,medium))goto start;
+    if(not visible(self,activator))
+    {
+        exec("sigh",self);
+        exec("say How can I deal with someone I can't see?", self );
+        exec("drop "+medium.name,self);
+        goto start;
+    }
+    pc := activator;
+    ting := medium;
+    secure(pc,nopc);
+    secure(ting,ingenting);
+    dilcopy("busy@function(Please wait; I am working right now.)",self);
+
+    if((ting.type != UNIT_ST_OBJ)or(ting.objecttype == ITEM_LIGHT)
+        or(ting.objecttype == ITEM_SCROLL)or(ting.objecttype == ITEM_FOOD)
+        or(ting.objecttype == ITEM_BOOK)or(ting.objecttype == ITEM_SPELL)
+        or(MAT_CLOTH_STR in ting.extra)or(MAT_FIRE_STR in ting.extra)or
+        ((ting.objecttype == ITEM_ARMOR)and(ting.value[0]==0)))
+    {
+        exec("say Sorry, it is beyond my ability to remove the engraving from this.",self);
+:giveback:
+        unsecure(ting);
+        link(ting, pc);
+        act("$3n gives $2n to $1n.",A_SOMEONE,pc,ting,self,TO_REST);
+        act("$3n gives $2n to you.",A_SOMEONE,pc,ting,self,TO_CHAR);
+        i:=dildestroy("busy@function",self);
+        unsecure (pc);
+        goto start;
+    }
+
+    if(not("engraving" in ting.extra))
+    {
+        exec("say Hmm... this item doesn't have an engraving, "+pc.name+
+        ".",self);
+        goto giveback;
+    }
+
+    pause;
+    if (IsInGuild@guilds(pc, GUILD_UDG_THIEF)){ // thieves guild discount
+    	exec("wink " + pc.name,self);
+    	pris := (5*SILVER_MULT)+((ting.rent)*3);
+    }else{
+    	pris := (5*PLATINUM_MULT)+((ting.rent)*3);
+    }
+    cash := moneystring(pris,TRUE);
+    exec("say Removing this engraving will cost you "+cash+".",self);
+    pause;
+    if(not transfermoney(pc,self,pris))
+    {
+        exec("say ...which you don't have apparently.",self);
+        exec("say Come back when you are richer, "+pc.name+".",self);
+        goto giveback;
+    }
+    engrvstr := split(ting.extra.["engraving"].descr, "It says ");
+    newtitle := split(ting.title, " (engraved: " + engrvstr.[1] + ")");
+
+    if (length(newtitle) == 2){
+	    ting.title := newtitle.[0] + newtitle.[1];
+    }
+    else{
+    	    ting.title := newtitle.[0];
+    }
+    subextra(ting.extra, "engraving");
+    olddescr := "" in ting.extra;
+    engrv := "<br/>" + engrvstr.[1] + " is engraved on it.";
+    newdescr := split(olddescr.descr, engrv);
+    if (length(newdescr) == 2){
+	    olddescr.descr := newdescr.[0] + newdescr.[1];
+    }
+    else{
+    	    olddescr.descr := newdescr.[0];
+    }
+
+    exec("say There, hope you like it, " + pc.name + "!", self);
+    destroy(self.inside);
+    goto giveback;
+
+
+:nopc:
+    exec("shrug ",self);
+    exec("drop "+ting.name,self);
+    i:=dildestroy("busy@function",self);
+    unsecure(pc);
+    unsecure(ting);
+    goto start;
+
+:ingenting:
+    exec("say Huh? Where did that thing go?",self);
+    I:=dildestroy("busy@function",self);
+    unsecure(ting);
+    unsecure(pc);
+    goto start;
+
+}
+dilend
 
 dilbegin engrave();
 var
- 	pc     : unitptr;
+    pc     : unitptr;
  	ting   : unitptr;
  	pris   : integer;
  	i      : integer;
  	text   : string;
  	blah   : extraptr;
 	cash   : string;
+	maxlength : integer;
+	templist : stringlist;
 code
 {
-heartbeat := PULSE_SEC*4;
-   	:start:
-wait(SFB_DONE,command("give")and(self == target));
-if(not visible(self,medium))goto start;
-if(not visible(self,activator))
-{
-exec("sigh",self);
-exec("say How can I deal with someone I can't see?", self );
-exec("drop"+medium.name,self);
-goto start;
-}
-pc := activator;
-ting := medium;
-secure(pc,nopc);
-secure(ting,ingenting);
-dilcopy("busy@function(Please wait; I am working right now.)",self);
+    heartbeat := PULSE_SEC*4;
 
-if((ting.type != UNIT_ST_OBJ)or(ting.objecttype == ITEM_LIGHT)
-or(ting.objecttype == ITEM_SCROLL)or(ting.objecttype == ITEM_FOOD)
-or(ting.objecttype == ITEM_BOOK)or(ting.objecttype == ITEM_SPELL)
-or(MAT_CLOTH in ting.extra)or(MAT_FIRE in ting.extra)or
-((ting.objecttype == ITEM_ARMOR)and(ting.value[0]==0)))
-{
-exec("say Sorry, it is beyond my ability to engrave this.",self);
-    	:giveback:
-unsecure(ting);
-link(ting, pc);
-act("$3n gives $2n to $1n.",A_SOMEONE,pc,ting,self,TO_REST);
-act("$3n gives $2n to you.",A_SOMEONE,pc,ting,self,TO_CHAR);
-i:=dildestroy("busy@function",self);
-unsecure (pc);
-goto start;
-}
+:start:
+    wait(SFB_DONE,command("give")and(self == target));
+    if(not visible(self,medium))goto start;
+    if(not visible(self,activator))
+    {
+        exec("sigh",self);
+        exec("say How can I deal with someone I can't see?", self );
+        exec("drop "+medium.name,self);
+        goto start;
+    }
+    pc := activator;
+    ting := medium;
+    secure(pc,nopc);
+    secure(ting,ingenting);
+    dilcopy("busy@function(Please wait; I am working right now.)",self);
 
-if("engraving" in ting.extra)
-{
-exec("say Hmm... this item appears to be engraved already, "+pc.name+
-".",self);
-goto giveback;
-}
+    if((ting.type != UNIT_ST_OBJ)or(ting.objecttype == ITEM_LIGHT)
+        or(ting.objecttype == ITEM_SCROLL)or(ting.objecttype == ITEM_FOOD)
+        or(ting.objecttype == ITEM_BOOK)or(ting.objecttype == ITEM_SPELL)
+        or(MAT_CLOTH_STR in ting.extra)or(MAT_FIRE_STR in ting.extra)or
+        ((ting.objecttype == ITEM_ARMOR)and(ting.value[0]==0)))
+    {
+        exec("say Sorry, it is beyond my ability to engrave this.",self);
+:giveback:
+        unsecure(ting);
+        link(ting, pc);
+        act("$3n gives $2n to $1n.",A_SOMEONE,pc,ting,self,TO_REST);
+        act("$3n gives $2n to you.",A_SOMEONE,pc,ting,self,TO_CHAR);
+        i:=dildestroy("busy@function",self);
+        unsecure (pc);
+        goto start;
+    }
 
-if("$no_engrave" in ting.extra)
-{
-exec("emote examines "+ting.title+"carefully...",self);
-exec("say This item cannot be engraved. I am sorry, "+pc.name+
-".",self);
-goto giveback;
-}
+    if("engraving" in ting.extra)
+    {
+        exec("say Hmm... this item appears to be engraved already, "+pc.name+
+        ".",self);
+        goto giveback;
+    }
 
-           :brief:
-exec("say What do you want engraved on this "+ting.name+", "+pc.name+
-"?",self);
-exec("say Just say the line, and remember, maximum 10 letters!",self);
-           :brieftext:
-wait(SFB_DONE, command("say")and(activator == pc));
-text := argument;
-if(length(text) > 10)
-{
-exec("say I am sorry, but this is too long!",self);
-exec("say Try another one, 10 letters maximum.",self);
-goto brieftext;
-}
+    if("$no_engrave" in ting.extra)
+    {
+        exec("emote examines "+ting.title+" carefully...",self);
+        exec("say This item cannot be engraved. I am sorry, "+pc.name+
+        ".",self);
+        goto giveback;
+    }
 
-exec("say An engraving saying: '"+text+"', yes?",self);
+:brief:
+    exec("say What do you want engraved on this "+ting.name+", "+pc.name+"?",self);
+    exec("say Just say the line, and remember, maximum 20 letters!",self);
 
-wait(SFB_DONE,(command("say") or command("nod")or
-command("shake"))and(activator == pc));
+:brieftext:
+    wait(SFB_DONE, command("say")and(activator == pc));
+    text := argument;
+    maxlength := 20;
+    if("&amp;" in text){ // These all exist to allow engraving to work for special characters without eating up the maximum length. Also increasing Max length of engravings to 20
+        templist := split(text,"&amp;");
+    	maxlength := maxlength + ((length(templist)-1)*4);
+    }
+    if("&quot;" in text){
+        templist := split(text,"&quot;");
+    	maxlength := maxlength + ((length(templist)-1)*5);
+    }
+    if("&lt;" in text){
+        templist := split(text,"&lt;");
+    	maxlength := maxlength + ((length(templist)-1)*3);
+    }
+    if("&gt;" in text){
+        templist := split(text,"&gt;");
+    	maxlength := maxlength + ((length(templist)-1)*3);
+    }
+    if(length(text) > maxlength)
+    {
+        exec("say I am sorry, but this is too long!",self);
+        exec("say Try another one, 20 letters maximum.",self);
+        goto brieftext;
+    }
 
-if((command("say")and((" " + argument)in "no"))
-or command("shake"))
-{
-exec("say Oh, what is it then?",self);
-goto brieftext;
-}
+    exec("say An engraving saying: '"+text+"', yes?",self);
 
-pause;
-pris := (5*GOLD_MULT)+((ting.rent)*3);
-cash := moneystring(pris,TRUE);
-exec("say This engraving will cost you "+cash+".",self);
-if(not transfermoney(pc,self,pris))
-{
-exec("say ...which you don't have apparently.",self);
-exec("say Come back when you are richer, "+pc.name+".",self);
-goto giveback;
-}
+    wait(SFB_DONE,(command("say") or command("nod") or command("shake"))and(activator == pc));
 
-ting.title := ting.title+" (engraved: '" + text + "')";
-blah := "" in ting.extra;
-if(blah)
-{
-blah.descr := blah.descr + "<br/>'" + text + "' is engraved on it.";
-addextra( ting.extra, {"engraving"}, "It says '" + text + "'" );
-}
-else
-{
-addextra(ting.extra,{"dummy"},"You see nothing special.<br/>'"+text+
-"' is engraved on it.");
-blah := "dummy" in ting.extra;
-substring( blah.names, "dummy" );
-/* There was no general description... make a new one :) */
+    if((command("say")and(argument == "no")) or command("shake"))
+    {
+        exec("say Oh, what is it then?",self);
+        goto brieftext;
+    }
 
-}
-pause;
-exec("say There, hope you like it, " + pc.name + "!", self);
-destroy(self.inside);
-goto giveback;
+    pause;
+    pris := (5*GOLD_MULT)+((ting.rent)*3);
+    cash := moneystring(pris,TRUE);
+    exec("say This engraving will cost you "+cash+".",self);
+    if(not transfermoney(pc,self,pris))
+    {
+        exec("say ...which you don't have apparently.",self);
+        exec("say Come back when you are richer, "+pc.name+".",self);
+        goto giveback;
+    }
+
+    ting.title := ting.title+" (engraved: '" + text + "')";
+    blah := "" in ting.extra;
+    if(blah)
+    {
+        blah.descr := blah.descr + "<br/>'" + text + "' is engraved on it.";
+        addextra( ting.extra, {"engraving"}, "It says '" + text + "'" );
+    }
+    else
+    {
+        addextra(ting.extra,{"dummy"},"You see nothing special.<br/>'"+text+
+        "' is engraved on it.");
+        blah := "dummy" in ting.extra;
+        substring( blah.names, "dummy" );
+        /* There was no general description... make a new one :) */
+    }
+    pause;
+    exec("say There, hope you like it, " + pc.name + "!", self);
+    destroy(self.inside);
+    goto giveback;
 
 
-           :nopc:
-exec("shrug ",self);
-exec("drop "+ting.name,self);
-i:=dildestroy("busy@function",self);
-unsecure(pc);
-unsecure(ting);
-goto start;
+:nopc:
+    exec("shrug ",self);
+    exec("drop "+ting.name,self);
+    i:=dildestroy("busy@function",self);
+    unsecure(pc);
+    unsecure(ting);
+    goto start;
 
-           :ingenting:
-exec("say Huh? Where did that ting go?",self);
-I:=dildestroy("busy@function",self);
-unsecure(ting);
-unsecure(pc);
-goto start;
+:ingenting:
+    exec("say Huh? Where did that thing go?",self);
+    I:=dildestroy("busy@function",self);
+    unsecure(ting);
+    unsecure(pc);
+    goto start;
 
 }
 dilend
@@ -842,7 +1083,7 @@ code
 
    if (not (visible(self, activator)))
    {
-      exec("say I can't resize it when I can't see you!.",self);
+      exec("say I can't resize it when I can't see you!",self);
       exec("drop "+medium.name, self);
       goto start;
    }
@@ -851,7 +1092,7 @@ code
    secure (pc,lostpc);
    tgt := medium;
    secure (tgt,lostitem);
-   dilcopy ("busy@function(Please wait I am busy with other work right now.",
+   dilcopy ("busy@function(Please wait I am busy with other work right now.)",
             self);
 
    if (not (tgt.type&UNIT_ST_OBJ))
@@ -859,7 +1100,7 @@ code
       exec ("say I can't resize that, "+pc.name+".",self);
       :giveit:
       link (tgt, pc);
-      act ("$2n gives $3n to $1n",
+      act ("$2n gives $3n to $1n.",
 	   A_SOMEONE,pc,self,tgt,TO_REST);
       act ("$2n gives $3n to you.",
 	   A_SOMEONE,pc,self,tgt,TO_CHAR);
@@ -871,7 +1112,7 @@ code
 
    if ("$resize" in tgt.extra)
    {
-      exec ("say It cant be resize any more, "+pc.name+".",self);
+      exec ("say It can't be resized any more, "+pc.name+".",self);
       goto giveit;
    }
 
@@ -889,7 +1130,7 @@ code
       if ((tgt.value[0]!=arm_type) and
           (arm_type2!=tgt.value[0]))
       {
-         exec ("say I can't resize that I am only a "+a_name+".",self);
+         exec ("say I can't resize that, I am only a "+a_name+".",self);
          goto giveit;
       }
    }
@@ -924,19 +1165,19 @@ code
          goto giveit;
       }
 
-      exec ("say There you go, thats the best I can do.",self);
+      exec ("say There you go, that's the best I can do.",self);
       goto giveit;
    }
    else
      goto no_money;
 
    :no:
-   exec ("say Very well then come back when you want me to.",self);
+   exec ("say Very well then, come back when you want me to.",self);
    goto giveit;
 
    :no_need:
    exec ("say It already fits you. I should charge you for "+
-         "waisting my time!",self);
+         "wasting my time!",self);
    goto giveit;
 
    :no_money:
@@ -1005,13 +1246,19 @@ var
    jd : unitptr;
    id : string;
    juris : string; 
+   jzone : string;
    k : string;
    gold : integer;
    g : string;
 code
 {
    heartbeat := PULSE_SEC * SECS_PER_MUD_HOUR;
-   juris := self.outside.zoneidx;
+   // The record is kept under the jurisdiction (get_juris@justice: Udgaard, or
+   // Midgaard everywhere else); the jail itself may be in another town.
+   jzone := self.outside.zoneidx;
+   juris := "midgaard";
+   if (jzone == "udgaard")
+      juris := "udgaard";
    sname := self.outside.symname; // Get the jail symname
 
    jd := findsymbolic("database@justice");
@@ -1042,7 +1289,7 @@ code
       g := moneystring(gold,1); 
       jd.extra.[id].descr := "A reward of " + g + " has been offered for the head of "+self.name;
       set_char_flags@justice(self, "wanted");
-      log("Jailbreak: "+self.name+" has escaped from the "+ juris +" jail."); 
+      log("Jailbreak: "+self.name+" has escaped from the "+ jzone +" jail."); 
       quit;
    }
 
@@ -1083,9 +1330,9 @@ code
    act("Your term is over! You are thrown out of the jail and sent home.",
        A_ALWAYS, self, null, null, TO_CHAR);
    getfrom_safe(self);
-   link(self, findroom("accuse_room@" + juris));
+   link(self, findroom("accuse_room@" + jzone));
    rem_db_entry@justice(self, "$reward", juris);
-   set_char_flags@justice(self, "arrest");
+   set_char_flags@justice(self, "normal");  // the term is served: no longer an outlaw
    quit;
 }
 dilend
@@ -1093,43 +1340,67 @@ dilend
 
 dilbegin fnpri(FN_PRI_RESCUE-1) guard_arrest(office : string, prisoner : unitptr);
 external
-   unitptr unit_room@function(u : unitptr);
-   integer walk_room@function (s:string,i:integer);
+    unitptr unit_room@function(u : unitptr);
+    integer walk_room@function(s:string, i:integer);
 var
-   tf:integer;
-   u : unitptr;
-   i : integer;
-   wasin : string;
+    tf:integer;
+    u : unitptr;
+    i : integer;
+    wasin : string;
+    prevtit : string
 code
 {
-   on_activation((self.position <= POSITION_SLEEPING) or
-                 (self.position == POSITION_FIGHTING), skip);
+    on_activation((self.position < POSITION_SLEEPING) or (self.position == POSITION_FIGHTING), skip);
 
-   u := unit_room@function(self);
-   wasin := u.nameidx + "@" + u.zoneidx;
+    u := unit_room@function(self);
+    wasin := u.symname;
 
-   heartbeat := PULSE_SEC * 10;
+    heartbeat := PULSE_SEC * 10;
 
-   secure(prisoner, losthim);
+    if (prisoner == null)
+    {
+        log("prisoner is NULL ?!");
+    }
 
-   i := 0;
+    secure(prisoner, losthim);
 
-   :loop:
+    i := 0;
 
-   priority;
-   tf:=walk_room@function(office,4);
+    prevtit := self.outside_descr;
+    self.outside_descr := sact("$1n has handcuffed $3n and is dragging $3m along.", A_ALWAYS, self, null, prisoner, TO_CHAR);
+    priority;
+    log(self.symname + " walking prisoner "+prisoner.symname+" to office.");
 
-   if (i == 0)
-     exec("say Got another prisoner, Captain, Sir!", self);
-   else if (i == 4)
-     exec("cough", self);
+:loop:
+    tf := walk_room@function(office, 4);
 
-   i := i + 1;
-   goto loop;
+    // This is no longer needed, secure() handles it correctly now:
+    if (prisoner == null) 
+    {
+        log(self.symname + " impossible - prisoner is now null *exploding brain*");  // Sanity only
+        goto losthim;
+    }
 
-   :losthim:
-   tf:=walk_room@function(wasin,4);
-   return;
+    log(self.symname + " at the captain with "+prisoner.symname+" waiting for the prisoner to get kicked in jail.");
+
+    if (i == 0)
+    {
+        exec("say Got another prisoner, Captain, Sir!", self);
+        self.outside_descr := sact("$1n is waiting for the Captain to jail $3n.", A_ALWAYS, self, null, prisoner, TO_CHAR);
+    }
+    else if (i == 4)
+        exec("cough", self);
+
+    i := i + 1;
+    goto loop;
+
+:losthim:
+    log(self.symname + " lost prisoner, starting walking back.");
+    self.outside_descr := prevtit;
+    tf := walk_room@function(wasin,4);
+    log(self.symname + " lost prisoner, finished walking back, now returning.");
+    nopriority;
+    return;
 }
 dilend
 
@@ -1140,52 +1411,51 @@ dilend
 
 dilbegin fnpri(FN_PRI_RESCUE-1) arrest_check(office : string);
 external
-   guard_arrest(office : string, prisoner : unitptr);
-   cuff_target(deputy : unitptr, targ : unitptr, cuffs : unitptr);
-   integer check_outlaw@justice(char : unitptr, juris : string);
-   string get_juris@justice();
+    guard_arrest(office : string, prisoner : unitptr);
+    cuff_target(deputy : unitptr, targ : unitptr, cuffs : unitptr);
+    integer check_outlaw@justice(char : unitptr, juris : string);
+    string get_juris@justice();
 var
-  u : unitptr;
-  outlaw_status : integer;
-  juris : string;
+    u : unitptr;
+    outlaw_status : integer;
+    juris : string;
 code
 {
-   on_activation((self.position <= POSITION_SLEEPING) or
-                 (self.position == POSITION_FIGHTING), skip);
+    on_activation((self.position <= POSITION_SLEEPING) or (self.position == POSITION_FIGHTING), skip);
 
-   :loop:
-   wait(SFB_CMD, activator.charflags & CHAR_OUTLAW);
-   juris := get_juris@justice();
-   if (activator == self)
-      goto loop;
-   outlaw_status := check_outlaw@justice(activator, juris);
- if (outlaw_status == 0)
-      goto loop; 
+:loop:
+    wait(SFB_CMD, activator.charflags & CHAR_OUTLAW);
+    if (activator == self)
+        goto loop;
+    juris := get_juris@justice();
+    outlaw_status := check_outlaw@justice(activator, juris);
+    if (outlaw_status == 0)
+        goto loop; 
 
-  u := equipment(activator,  WEAR_WRIST_R);
+    u := equipment(activator,  WEAR_WRIST_R);
 
-   if (u)
-     if ((u.nameidx == "cuffs") and (u.zoneidx == "midgaard"))
-       goto loop;
+    if (u)
+        if ((u.nameidx == "cuffs") and (u.zoneidx == "midgaard"))
+            goto loop;
 
-   if (outlaw_status == 1)  //if (activator.charflags & CHAR_PROTECTED)
-   {
-      u := load("cuffs@midgaard");
+    if (outlaw_status == 1)  //if (activator.charflags & CHAR_PROTECTED)
+    {
+        u := load("cuffs@midgaard");
 
-      cuff_target(self, activator, u);
+        cuff_target(self, activator, u);
 
-      guard_arrest@midgaard(office, activator);
-   }
-   else
-   {
-      unset(activator.charflags, CHAR_SELF_DEFENCE);
-      // If we have several chars with the same name, this causes havoc
-      //     exec("kill "+activator.name, self);
-      set_fighting(self, activator);
-   }
+        guard_arrest@midgaard(office, activator);
+    }
+    else
+    {
+        unset(activator.charflags, CHAR_SELF_DEFENCE);
+        // If we have several chars with the same name, this causes havoc
+        //     exec("kill "+activator.name, self);
+        set_fighting(self, activator);
+    }
 
-   goto loop;
-  }
+    goto loop;
+}
 dilend
 
 
@@ -1227,7 +1497,7 @@ code
       u := nextu;
    }
 
-   act("You get your posessions back.", A_SOMEONE, prisoner, null, null, TO_CHAR);
+   act("You get your possessions back.", A_SOMEONE, prisoner, null, null, TO_CHAR);
 
    if (safe.inside == null)
       destroy(safe);
@@ -1373,9 +1643,10 @@ dilend
 
 
 // Make sure the handcuffs blocks execution of other DILs.
-// So it's one worse priority than "cuffed2"
+// So it's one worse priority (-1) than "cuffed2" (-2).
+//  meaning cuffed2 will run, and cuffed will block.
 //
-dilbegin fnpri(FN_PRI_RESCUE) aware unique cuffed(depname : string);
+dilbegin fnpri(FN_PRI_RESCUE-1) aware unique cuffed(depname : string);
 var
    cuffs  : unitptr;
    deputy : unitptr;
@@ -1400,7 +1671,7 @@ code
    if (cuffs.equip != WEAR_WRIST_R)
      goto broken;
    priority;
-   wait(SFB_TICK, activator == self);
+   wait(SFB_TICK|SFB_CMD, activator == self);
    goto loop;
 
    :broken:
@@ -1411,14 +1682,15 @@ dilend
 
 
 
-dilbegin fnpri(FN_PRI_RESCUE-1) aware unique cuffed2(depname : string);
+dilbegin fnpri(FN_PRI_RESCUE-2) aware unique cuffed2(depname : string);
+external
+   set_char_flags@justice(char : unitptr, setting : string);
 var
-   i      : integer;
-   u      : unitptr;
+   i         : integer;
+   u         : unitptr;
+   nextbreak : integer;
 code
 {
-   interrupt(SFB_COM, activator == self, broken);
-
    :loop:
    wait(SFB_CMD, TRUE);
 
@@ -1449,6 +1721,11 @@ code
    }
    else if (activator == self)
    {
+      if (command("break"))
+      {
+        block;
+        goto breakcuffs;
+      }
       if (command("look") or command("say") or
           command("ask") or command("tell"))
         goto loop;
@@ -1460,6 +1737,51 @@ code
       }
    }
    goto loop;
+
+   /* break: one try a minute, a strength roll (one in five at strength 100); the
+      deputy slaps a prisoner who fails, and one who breaks free is wanted dead */
+   :breakcuffs:
+   if (realtime < nextbreak)
+   {
+      act("Your wrists are still sore from the last try.",
+          A_ALWAYS, self, null, null, TO_CHAR);
+      goto loop;
+   }
+   nextbreak := realtime + 60;
+   act("You strain against the hand cuffs with all your strength...",
+       A_ALWAYS, self, null, null, TO_CHAR);
+   act("$1n strains against $1s hand cuffs.",
+       A_SOMEONE, self, null, null, TO_REST);
+
+   if (rnd(1, 100) > self.abilities[ABIL_STR] / 5)
+   {
+      act(depname + " slaps you hard for trying to break the cuffs!",
+          A_ALWAYS, self, null, null, TO_CHAR);
+      act(depname + " slaps $1n hard for trying to break the cuffs.",
+          A_SOMEONE, self, null, null, TO_REST);
+      i := self.max_hp / 20;
+      if (i < 1)
+         i := 1;
+      self.hp := self.hp - i;
+      if (self.hp < 1)
+         self.hp := 1;
+      self.endurance := self.endurance - self.max_endurance / 10;
+      if (self.endurance < 0)
+         self.endurance := 0;
+      goto loop;
+   }
+
+   act("The hand cuffs snap! You are free, and now a wanted outlaw.",
+       A_ALWAYS, self, null, null, TO_CHAR);
+   act("$1n snaps $1s hand cuffs and breaks free!",
+       A_SOMEONE, self, null, null, TO_REST);
+   set_char_flags@justice(self, "wanted");
+   follow(self, null);
+   u := equipment(self, WEAR_WRIST_R);
+   i := dildestroy("cuffed@midgaard", self);
+   if (u)
+      destroy(u);
+   quit;
 
    :broken:
    i := dildestroy("cuffed@midgaard", self);
@@ -1486,39 +1808,39 @@ code
    {
       if (i != self)
       {
-	 if (i.type == UNIT_ST_OBJ)
-	 {
-	    if ((i.objecttype == ITEM_CONTAINER) and isaff(i, ID_CORPSE))
-	    {
-	       act("$1n savagely devour $2n.",
-		   A_SOMEONE, self, i, null, TO_ROOM);
+         if (i.type == UNIT_ST_OBJ)
+         {
+            if ((i.objecttype == ITEM_CONTAINER) and isaff(i, ID_CORPSE))
+            {
+               act("$1n savagely devours $2n.",
+               A_SOMEONE, self, i, null, TO_ROOM);
 
-	       while (i.inside)
-		 link(i.inside, i.outside);
+               while (i.inside)
+               link(i.inside, i.outside);
 
-	       destroy(i);
-	       goto loop;
-	    }
-	 }
-	 else if (rnd(0,1000) == 0)  /* Make it RARE */
-	 {
-	    on rnd(1,3) goto c1, c2, c3;
+               destroy(i);
+               goto loop;
+            }
+         }
+         else if (rnd(0,1000) == 0)  /* Make it RARE */
+         {
+            on rnd(1,3) goto c1, c2, c3;
 
-	    :c1:
-	    exec("fart", self);
-	    goto loop;
+            :c1:
+            exec("fart", self);
+            goto loop;
 
-	    :c2:
-	    exec("drool", self);
-	    goto loop;
+            :c2:
+            exec("drool", self);
+            goto loop;
 
-	    :c3:
-	    act("$1n wets on $3n.",
-		A_SOMEONE, self, null, i, TO_NOTVICT);
-	    act("$1n wets on you! Eeewww!",
-		A_SOMEONE, self, null, i, TO_VICT);
-	    goto loop;
-	 }
+            :c3:
+            act("$1n wets on $3n.",
+            A_SOMEONE, self, null, i, TO_NOTVICT);
+            act("$1n wets on you! Eeewww!",
+            A_SOMEONE, self, null, i, TO_VICT);
+            goto loop;
+         }
       }
    }
 }
@@ -1558,7 +1880,7 @@ code
 
    heartbeat := PULSE_SEC * 15;
 
-   act("The nightshade berries has a bitter taste.",
+   act("The nightshade berries have a bitter taste.",
        A_ALWAYS, self, null, null, TO_CHAR);
    pause;
 
@@ -1583,6 +1905,15 @@ code
 }
 dilend
 
+// Librarian Quest: 1 if the item's name contains s, as the librarian's old code checked
+// (the item list alone would take any book as "book of knowledge").
+dilbegin integer libNameCheck(u : unitptr, i : integer, s : string);
+code
+{
+   return (s in u.name);
+}
+dilend
+
 %rooms
 
 // Space lent to Dariya
@@ -1594,8 +1925,7 @@ descr
 ground, or placed on some of the numerous tables in the room. The
 janitors deposit all of the goodies they find in this room. If someone
 has lost a precious item, surely this would be the place to check for
-it. There is a small room in the back, where those in need can get a
-free meal."
+it."
 
 east to royal_av1@midgaard descr "Royal Avenue lies to the east of this room.";
 movement SECT_CITY
@@ -1632,16 +1962,15 @@ code
 	item := target;
 	pc := activator;
 
-	if(target.outside == self)
-		{
-		if(((item.objecttype == ITEM_FOOD) or (item.objecttype ==
-ITEM_DRINKCON)) and (pc.level > 20))
-			{
+	if (target.outside == self)
+   {
+		if(((item.objecttype == ITEM_FOOD) or (item.objecttype == ITEM_DRINKCON)) and (pc.level > 20))
+      {
 			act("Your can't bring yourself to take from the needy.",
 				A_ALWAYS, pc, null, null, TO_CHAR);
 			exec("drop "+item.name, pc);
-			}
-		}
+      }
+   }
 	goto start;
 }
 dilend
@@ -1657,7 +1986,7 @@ title "Randall's Shop of Wand and Stave Recharging"
 descr
 "The shop is filled with small wands and staves everywhere.  Many of them
 appear to be burned out or broken.  The building is quite sturdy and looks to
-be in good repair, despite a few charred spots on the walls.  a <a cmd='read #'>sign</a> on the
+be in good repair, despite a few charred spots on the walls.  A <a cmd='read #'>sign</a> on the
 back wall catches your attention."
 extra {"sign"}
 "Wands and Staves recharged!  Simply give the staff or wand to Randall and
@@ -1689,7 +2018,7 @@ extra {"tack", "saddles"}
 extra {"racks"}
 "These racks hold the saddles."
 extra {"roof"}
-"This heavy timbered roof look to be constructed of oak
+"This heavy timbered roof looks to be constructed of oak
 beams."
 extra {"door", "doors", "doorways"}
 "These doorways look to be large enough to allow the passage
@@ -1723,7 +2052,7 @@ extra {"bridles", "saddles"}
 "These were made by Myrna the leather worker."
 extra {"care items"}
 "Everything to make your horse happy."
-extra {"hook"}
+extra {"hooks", "hook"}
 "OOHHH, sharp."
 extra {"shelves"}
 "OOHHH, flat and made of oak."
@@ -1740,7 +2069,7 @@ end
 
                        stall2
 
-title "The stalls"
+title "The Stalls"
 names {"stalls"}
 descr
 "You are standing in a room with many doors.  This is the part of
@@ -1768,7 +2097,7 @@ end
 names {"wall road"}
 title "Wall Road"
 descr
-"   You are on a long road running north-south along the east side of the
+"   You are on a long road running north-south along the western
 city wall.  To your north, the West Bridge of Midgaard spans the river, and
 to your east, the Southern Promenade leads along the river bank."
 movement SECT_CITY
@@ -1792,8 +2121,7 @@ gmap(165,849)
 north to wall_rd1;
 east to glad_rd1;
 south to wall_rd3;
-down to midsewers/sewerexit2 keyword {"manhole"} open
-{EX_OPEN_CLOSE, EX_CLOSED};
+down to midsewers/sewerexit2 keyword {"manhole"} open {EX_OPEN_CLOSE, EX_CLOSED};
 ALWAYS_LIGHT
 end
 
@@ -1814,7 +2142,7 @@ south to sorcerer/ent_tower open {EX_OPEN_CLOSE, EX_CLOSED}
 /* There are doors like this at wall_rd6, wall_rd11 og wall_rd14.
  * They lead into the wall, and to a potential new area.
  */
-extra {"door", "wood"} "It looks solid and appears to be securely locked."
+extra {"door", "wood"} "It looks solid and heavy."
 ALWAYS_LIGHT
 end
 
@@ -1842,7 +2170,7 @@ title "Wall Road"
 descr
 "   You are on a long road running east-west along the southern city wall.
 A road flanked by slender beeches leads north from here, and a street sign by
-the neares beech says `Park Road'."
+the nearest beech says `Park Road'."
 movement SECT_CITY
 gmap(588,1094)
 north to park_rd5;
@@ -1967,7 +2295,7 @@ end
 names {"wall road"}
 title "Wall Road"
 descr
-"   You are on a long road running east-west along the eastern city wall.
+"   You are on a long road running east-west along the northern city wall.
 A narrow street paved with cobblestones leads south.  A street sign nearby
 says `Tailor Street'."
 movement SECT_CITY
@@ -1984,7 +2312,7 @@ end
 names {"wall road"}
 title "Wall Road"
 descr
-"   You are on a long road running east-west along the eastern city wall.
+"   You are on a long road running east-west along the northern city wall.
 A narrow street paved with cobblestones leads south.  A street sign nearby
 says `Baker Street'."
 movement SECT_CITY
@@ -2105,7 +2433,7 @@ names {"baker street"}
 title "Baker Street"
 descr
 "   You are outside a shady-looking tavern.  The sign above the darkened
-windows say `The Grubby Inn'.  The tavern door is to the west, and a small
+windows says `The Grubby Inn'.  The tavern door is to the west, and a small
 alley leads east to Cathedral Square.  Baker Street continues north and
 south."
 movement SECT_CITY
@@ -2174,7 +2502,7 @@ descr
 "   You are in the southeast corner of Cathedral Square.  The great grey
 tower looms above you.  You can go north and west around the church, and a
 small alley to Tailor Street leads east from here. To the south you see a
-pair of grand gates leading into college arcanum."
+pair of grand gates leading into College Arcanum."
 movement SECT_CITY
 gmap(530,403)
 north to cth_square3;
@@ -2325,8 +2653,8 @@ descr
 "This is the massive oaken west bridge of Midgaard.  It is well
 worn from the ages, and spans twenty feet across a great dry moat.
 Two immense chains run to the end of this bridge, issuing from holes on the
-front of each gate tower.  To the  east are the eastern gates of
-Midgaard, while a path to the west leads through the Cypress forest."
+front of each gate tower.  To the east are the western gates of
+Midgaard, while a path to the west leads through the Cypress Forest."
 extra {"oaken bridge", "west bridge", "bridge"}
 "This gigantic bridge looks to be as strong as the walls of Midgaard,
 and was constructed from huge trees of Haon dor."
@@ -2336,8 +2664,8 @@ speaking for a moat of course."
 extra {"immense chain", "chains"}
 "These chains were forged by the dwarves of the arctic wasteland,
 and were well worth the cost spent to manufacture them."
-extra {"eastern gatehouse", "gate tower", "gatehouse"}
-"These massive structures stand guard over the gates of Midgaard"
+extra {"western gatehouse", "gate tower", "gatehouse"}
+"These massive structures stand guard over the gates of Midgaard."
 extra {"path"}
 "This path leads into the Cypress Forest."
 
@@ -2357,7 +2685,7 @@ descr
 "Looking upwards in this massive gatehouse, there are murder holes in
 the ceiling.  Arrow loops line the walls, while the walls themselves
 are constructed of gargantuan stone blocks.  There are doorways in the
-northern and southern walls, leading into their resective gate towers.
+northern and southern walls, leading into their respective gate towers.
 The gatehouse is adorned with two portcullises, and a set of oaken doors.
 To the west is the drawbridge, and eastward enters into
 Midgaard proper."
@@ -2366,7 +2694,7 @@ extra {"massive gatehouse", "gate tower","gatehouse"}
 Midgaard."
 extra {"murder holes", "holes"}
 "In the event that attackers breach the gates, boiling oil can be
-pourn down on them from above."
+poured down on them from above."
 extra {"arrow loops", "loops"}
 "From these narrow slots in the walls, can be fired arrows at any attackers
 who might be able to breach the gates."
@@ -2376,7 +2704,7 @@ extra {"walls"}
 "These walls were built from stone quarried south of Midgaard."
 extra {"portcullises"}
 "These massive iron gates can be dropped from above to trap intruders
-within the gate house"
+within the gate house."
 extra {"oaken doors"}
 "These oaken doors are banded with iron, and were constructed from the
 trees of Haon dor."
@@ -2404,13 +2732,13 @@ descr
 "Two large murder holes are cut into the ceiling of the eastern gatehouse.
 Arrow loops line the walls,  and the gargantuan stone blocks of the structure are quite impressive.  There are doorways in the northern and southern walls, leading into
 the two gate towers.  The gatehouse is adorned with two portcullises, and a set of oaken doors.
-The drawbridge spans the moat the east, the gate opens into Midgaard proper to the west."
+The drawbridge spans the moat to the east, the gate opens into Midgaard proper to the west."
 extra {"massive gatehouse", "gatehouse"}
 "This gatehouse was built to protect the entrance to the city of
 Midgaard."
 extra {"murder holes", "holes", "roof"}
 "In the event that attackers breach the gates, boiling oil can be
-pourn down on them from above."
+poured down on them from above."
 extra {"arrow loops", "loops"}
 "From these narrow slots in the walls, can be fired arrows at any attackers
 who might be able to breach the gates."
@@ -2461,8 +2789,8 @@ looks to be some sort of excretion."
 extra {"immense chains", "chains"}
 "These chains were forged by the dwarves of the arctic wasteland,
 and were well worth the cost spent to manufacture them."
-extra {"northern gatehouse", "gatehouse"}
-"These massive structures stand guard over the gates of Midgaard"
+extra {"eastern gatehouse", "gatehouse"}
+"These massive structures stand guard over the gates of Midgaard."
 extra {"kings road", "road"}
 "This highway was constructed to allow the movement of large armies."
 
@@ -2517,13 +2845,13 @@ loops.  There are doorways in the
 eastern and western walls, leading into the two gate towers.
 The gatehouse is adorned with two portcullises, and a set of oaken doors.
 Passage to the south over the drawbridge is possible, or travel northward into
-Midgaard proper can be undertook."
+Midgaard proper can be undertaken."
 extra {"massive gatehouse", "gatehouse"}
 "This gatehouse was built to protect the entrance to the city of
 Midgaard."
 extra {"murder holes", "holes"}
 "In the event that attackers breach the gates, boiling oil can be
-pourn down on them from above."
+poured down on them from above."
 extra {"arrow loops", "loops"}
 "From these narrow slots in the walls, can be fired arrows at any attackers
 who might be able to breach the gates."
@@ -2533,7 +2861,7 @@ extra {"walls"}
 "These walls were built from stone quarried south of Midgaard."
 extra {"portcullises"}
 "These massive iron gates can be dropped from above to trap intruders within
-the gate house"
+the gate house."
 extra {"oaken doors", "doors"}
 "These oaken doors are banded with iron, and were constructed from the
 trees of Haon dor."
@@ -2573,8 +2901,8 @@ speaking for a moat of course."
 extra {"immense chain", "chains"}
 "These chains were forged by the dwarves of the arctic wasteland,
 and were well worth the cost spent to manufacture them."
-extra {"northern gatehouse", "gate tower", "gatehouse", "towers"}
-"These massive structures stand guard over the gates of Midgaard"
+extra {"southern gatehouse", "gate tower", "gatehouse", "towers"}
+"These massive structures stand guard over the gates of Midgaard."
 extra {"path"}
 "This path leads into the forest."
 
@@ -2593,7 +2921,7 @@ end
 names {"inside", "south gate"}
 title "Inside the South Gate of Midgaard"
 descr
-"   Two small towers have been built into the city wall to the west and
+"   Two small towers have been built into the city wall to the south and
 connected with a footbridge across a heavy wooden gate.  Palace Road leads
 north into the city and Wall Road leads east and west along the city wall."
 movement SECT_CITY
@@ -2632,14 +2960,14 @@ extra {"oaken bridge", "north bridge", "bridge"}
 and was constructed from huge trees of Haon dor."
 extra {"dry moat","trash", "moat"}
 "Into the moat has been thrown a wide variety of items ranging from
-swords to wrent suits of plate mail."
+swords to rent suits of plate mail."
 extra {"immense chain", "chains"}
 "These chains were forged by the dwarves of the arctic wasteland,
 and were well worth the cost spent to manufacture them."
 extra {"northern gatehouse", "gate tower", "gatehouse", "tower"}
-"These massive structures stand guard over the gates of Midgaard"
+"These massive structures stand guard over the gates of Midgaard."
 extra {"path"}
-"This path leads into the Cypress Forest."
+"This path leads into the Moor."
 
 
 movement SECT_CITY
@@ -2667,7 +2995,7 @@ extra {"massive gatehouse", "gate tower", "gatehouse", "tower"}
 Midgaard."
 extra {"murder holes", "holes"}
 "In the event that attackers breach the gates, boiling oil can be
-pourn down on them from above."
+poured down on them from above."
 extra {"arrow loops", "loops"}
 "From these narrow slots in the walls, can be fired arrows at any attackers
 who might be able to breach the gates."
@@ -2702,7 +3030,7 @@ end
 names {"inside", "north gate"}
 title "Inside the North Gate of Midgaard"
 descr
-"   Two small towers have been built into the city wall to the west and
+"   Two small towers have been built into the city wall to the north and
 connected with a footbridge across a heavy wooden gate.  Cathedral Road leads
 south into the city and Wall Road leads east and west along the city wall."
 movement SECT_CITY
@@ -2736,7 +3064,7 @@ names {"market square"}
 title "The Market Square"
 descr
 "   A huge ancient oak tree stands majestically in the middle of this place.
-The Cathedral Square and the great Cathedral of Midgaard is north of here, and
+The Cathedral Square and the great Cathedral of Midgaard are north of here, and
 the very broad Royal Avenue leads south through the city.  Main Street leads
 east and west."
 movement SECT_CITY
@@ -2745,7 +3073,7 @@ north to cth_square1 descr
 "The great Cathedral of Midgaard towers proudly beyond Cathedral Square.  The
 two massive southern towers reach ambitiously for the sky.";
 south to royal_av1 descr
-"A long row of well-grown oak trees line each side of Royal Avenue.";
+"A long row of well-grown chestnut trees lines each side of Royal Avenue.";
 west to main_st3;
 east to main_st4;
 ALWAYS_LIGHT
@@ -2811,7 +3139,7 @@ title "Main Street"
 descr
 "   You are on a broad street leading east-west through the City of Midgaard.
 To your north, a solid building made from many stones of various shapes and
-sizes bear a sign reading Cityguard Office.  To your south, a tall, grey
+sizes bears a sign reading Cityguard Office.  To your south, a tall, grey
 tower, with a dark and heavy-looking oak door, rises above your head."
 movement SECT_CITY
 gmap(580,504)
@@ -2938,9 +3266,9 @@ end
 title "On the River in Midgaard"
 descr
 "   You are on the river in Midgaard just by the boat bridge. What better
-place could you find for a landing. The river flows eastwards out of
-Midgaard. Upstream, under the city wall, you can reach the cypress
-forest."
+place could you find for a landing? The river flows eastwards out of
+Midgaard. Upstream, under the city wall, you can reach the Cypress
+Forest."
 
 ALWAYS_LIGHT
 movement SECT_WATER_SWIM
@@ -3040,7 +3368,7 @@ descr
 "   You are on a broad avenue leading north-south through the city.  It is
 flanked by numerous tall chestnut trees, and the road is paved with many
 carefully hewn flagstones.  The Northern Promenade leads east, and a small
-road leads west towards to the wharves.  South, a large stone bridge spans
+road leads west towards the wharves.  South, a large stone bridge spans
 the river."
 movement SECT_CITY
 gmap(480,591)
@@ -3079,11 +3407,13 @@ title "Royal Avenue"
 descr
 "   You are on a broad avenue leading north-south through the city.  It is
 flanked by numerous tall chestnut trees, and the road is paved with many
-carefully hewn flagstones."
+carefully hewn flagstones. To the west, Chestnut Close leads between fine
+houses."
 movement SECT_CITY
 gmap(480,721)
 north to royal_av3;
 south to royal_av5;
+west to chestnut1@mhouses descr "Chestnut Close leads west between fine houses.";
 ALWAYS_LIGHT
 end
 
@@ -3148,7 +3478,7 @@ names {"west bridge"}
 title "On the West Bridge"
 descr
 "   You are on a stone bridge crossing the river.  The bridge is built near
-the western city wall and the river flows west through an opening in the wall
+the western city wall and the river flows in through an opening in the wall
 about ten feet below."
 movement SECT_CITY
 gmap(165,634)
@@ -3164,7 +3494,7 @@ names {"east bridge"}
 title "On the East Bridge"
 descr
 "   You are on a stone bridge crossing the river.  The bridge is built near
-the eastern city wall and the river flows west through an opening in the wall
+the eastern city wall and the river flows east through an opening in the wall
 about ten feet below."
 movement SECT_CITY
 gmap(702,634)
@@ -3364,11 +3694,13 @@ names {"park road"}
 title "Park Road"
 descr
 "   You are on a road flanked by slender beeches.  The road leads north to
-the river and south to the city park."
+the river and south to the city park. To the east, Beech Row leads between
+handsome houses."
 movement SECT_CITY
 gmap(588,749)  
 north to s_prom5;
 south to park1;
+east to beech1@mhouses descr "Beech Row leads east between handsome houses.";
 // flags {UNIT_FL_NO_MOB}
 ALWAYS_LIGHT
 end
@@ -3380,7 +3712,7 @@ names {"park road"}
 title "Park Road"
 descr
 "   You are on a road flanked by slender beeches.  The road leads north to
-to the city park and south through the city.  To your east is a rather large
+the city park and south through the city.  To your east is a rather large
 building with a sign saying `Bank' on the front, and westwards is a small
 boutique with a pair of scales on a sign saying `Jeweller's'."
 movement SECT_CITY
@@ -3506,7 +3838,7 @@ names {"palace road"}
 title "Palace Road"
 descr
 "   You are on a road paved with reddish brown flagstones.  A thick hawthorn
-hedge to the northwest, and the road leads north and west along the hedge."
+hedge is to the northwest, and the road leads north and west along the hedge."
 extra {"hedge", "hawthorn"}
 "Its thorns look very pointy and the hedge itself appears quite impenetrable."
 movement SECT_CITY
@@ -3521,7 +3853,7 @@ end
 names {"palace road"}
 title "Palace Road"
 descr
-"   You by a T-junction on the south side of a thick hawthorn hedge.  The road
+"   You are by a T-junction on the south side of a thick hawthorn hedge.  The road
 is paved with reddish brown flagstones and leads east and west along the
 hedge and south, away from the hedge."
 extra {"hedge", "hawthorn"}
@@ -3643,11 +3975,14 @@ names {"penny lane"}
 title "Penny Lane"
 descr
 "   You are at the west end of Penny Lane.  Royal Avenue is to the west and
-Penny Lane continues east."
+Penny Lane continues east.  Fine houses stand on either side of the lane."
 movement SECT_CITY
 gmap(509,849)
 east to penny_lane2;
 west to royal_av5;
+north to plot1@mhouses descr "A polished oak door leads into a house.";
+south to plot2@mhouses descr "A polished oak door leads into a house.";
+dilcopy house_gate@housing();
 ALWAYS_LIGHT
 end
 
@@ -3658,11 +3993,15 @@ names {"penny lane"}
 title "Penny Lane"
 descr
 "   You are at the east end of Penny Lane.  The gate to the city park is to
-the east and Penny Lane continues west."
+the east and Penny Lane continues west.  Fine houses stand on either side
+of the lane."
 movement SECT_CITY
 gmap(531,849)
 east to park3;
 west to penny_lane1;
+north to plot3@mhouses descr "A polished oak door leads into a house.";
+south to plot4@mhouses descr "A polished oak door leads into a house.";
+dilcopy house_gate@housing();
 flags {UNIT_FL_NO_MOB}
 ALWAYS_LIGHT
 end
@@ -3705,7 +4044,7 @@ names {"gladiator road"}
 title "Gladiator Road"
 descr
 "   You are on a road leading east-west through the city.  To the west is
-Colosseum Square and a rather large oval building.."
+Colosseum Square and a rather large oval building."
 movement SECT_CITY
 gmap(424,849)
 east to glad_rd4;
@@ -3736,7 +4075,7 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the northwest corner of a large square paved with gravel.  To
-your southeast is an enourmous oval building with many arches.  You can go
+your southeast is an enormous oval building with many arches.  You can go
 south and east around the Colosseum. The armour shop is to the west."
 movement SECT_CITY
 gmap(337,820)
@@ -3753,7 +4092,7 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the north end of a large square paved with gravel.  To your
-south is an enourmous oval building with many arches.  You can go east and
+south is an enormous oval building with many arches.  You can go east and
 west around the Colosseum.  Colosseum Road leads north from here."
 movement SECT_CITY
 gmap(365,820)
@@ -3770,8 +4109,8 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the northeast corner of a large square paved with gravel.  To
-your southwest is an enourmous oval building with many arches.  You can go
-south and west around the Colosseum.  The fighter's guild is to the east."
+your southwest is an enormous oval building with many arches.  You can go
+south and west around the Colosseum.  The fighters' guild is to the east."
 movement SECT_CITY
 gmap(394,820)
 east to entrance@fightersguild;
@@ -3787,7 +4126,7 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the east end of a large square paved with gravel.  To your
-west is an enourmous oval building with many arches.  You can go north and
+west is an enormous oval building with many arches.  You can go north and
 south around the Colosseum.  Gladiator Road leads east from here."
 movement SECT_CITY
 gmap(394,849)
@@ -3804,7 +4143,7 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the southeast corner of a large square paved with gravel.
-To your northwest is an enourmous oval building with many arches.  You can go
+To your northwest is an enormous oval building with many arches.  You can go
 north and west around the Colosseum.  A blacksmith's shop is to the east and
 a weaponsmith's shop is to the south."
 movement SECT_CITY
@@ -3823,7 +4162,7 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the south end of a large square paved with gravel.  To your
-north is the entrance to an enourmous oval building with many arches.  You
+north is the entrance to an enormous oval building with many arches.  You
 can go east and west around the Colosseum.  Colosseum Road leads south from
 here."
 movement SECT_CITY
@@ -3842,7 +4181,7 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the southwest corner of a large square paved with gravel.
-To your northeast is an enourmous oval building with many arches.  You can go
+To your northeast is an enormous oval building with many arches.  You can go
 north and east around the Colosseum.  The Mortician's is to the west and the
 Carpenter's is to the south."
 movement SECT_CITY
@@ -3861,7 +4200,7 @@ names {"colosseum square"}
 title "Colosseum Square"
 descr
 "   You are in the west end of a large square paved with gravel.  To your
-east is an enourmous oval building with many arches.  You can go north and
+east is an enormous oval building with many arches.  You can go north and
 south around the Colosseum.  Gladiator Road leads west from here."
 movement SECT_CITY
 gmap(337,849)
@@ -3881,7 +4220,7 @@ end
 names {"cathedral entrance"}
 title "Cathedral Entrance"
 descr
-"   You are in a high-ceiling entrance room.  The walls are white as chalk
+"   You are in a high-ceilinged entrance room.  The walls are white as chalk
 and the reddish floor is paved with carefully lain flagstones.  A pair of
 huge bronze doors lead south to the square outside and an arched doorway
 leads north into the central church."
@@ -3901,7 +4240,7 @@ end
 names {"cathedral nave"}
 title "Cathedral Nave"
 descr
-"   You are in centre of the church.  The arched ceiling high above you
+"   You are in the centre of the church.  The arched ceiling high above you
 features many colourful mosaics.  Memorial plaques are set in the white walls
 between the numerous tall mosaic windows and a large number of pews stand on
 the reddish stone floor."
@@ -3925,7 +4264,7 @@ descr
 huge ivory candles stand on the red altar cloth, burning brightly.  In the
 eastern wall is a heavy wooden door.  You can go south to the nave and north
 to the inner sanctum."
-extra {"altar"} "It looks very expensive"
+extra {"altar"} "It looks very expensive."
 extra {"candle", "candles"} "There is nothing special about the candles."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS, UNIT_FL_SACRED}
 movement SECT_INSIDE
@@ -3947,7 +4286,7 @@ descr
 windows make the light sparkle in a kaleidoscopic shower.  The floor is
 covered by a soft red carpet, and in the centre stands a large
 three-legged golden bowl in which a small flame is burning steadily.  A door
-leading to the small humble midgaard donation room is to the west."
+leading to the small humble Midgaard donation room is to the west."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS, UNIT_FL_SACRED}
 movement SECT_INSIDE
 gmap(480,254)
@@ -3985,8 +4324,9 @@ end
 
 /*--------------------------------------------------------------------------
                         cth_crypt is moved to goj clan
+                        2022: Crypt restored - need it for corpses.
  -------------------------------------------------------------------------*/
-/*                              cth_crypt
+                              crypt
 
 names {"cathedral crypt"}
 title "Cathedral Crypt"
@@ -3995,10 +4335,9 @@ descr
 low-ceilinged room with old pillars supporting the crumbling arches."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
-up to cth_n_stairs1;
-ALWAYS_LIGHT
+gmap(509,283)
+up to cth_w_aisle;
 end
-*/
 
                               cth_n_stairs1
 
@@ -4006,7 +4345,7 @@ names {"north cathedral stairs"}
 title "A Narrow Stairway"
 descr
 "   You are on a narrow flight of stone stairs in the northern tower of the
-Cathedral.  The stairs lead up, and there is a heavy wooden door is to the
+Cathedral.  The stairs lead up, and there is a heavy wooden door to the
 west."
 up to cth_n_stairs2;
 west to cth_altar open {EX_OPEN_CLOSE, EX_CLOSED, EX_LOCKED}
@@ -4158,6 +4497,7 @@ movement SECT_INSIDE
 gmap(452,311)
 east to cth_nave;
 up to cth_sw_stairs1;
+down to crypt;
 ALWAYS_LIGHT
 end
 
@@ -4220,7 +4560,7 @@ names {"jail"}
 title "The Jail"
 descr
 "   You are in a dark and humid jail.  The dark stone walls are hard and cold
-to the touch.  A heavy steel door is to the east."
+to the touch.  A heavy iron grating is to the east."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS, UNIT_FL_NO_TELEPORT}
 movement SECT_INSIDE
 gmap(559,484)
@@ -4290,7 +4630,7 @@ end
 title "The Yard"
 descr
 "   You are in the centre of a small square cobblestone yard surrounded
-by white chalked walls. To your west is the guard dormatory, to the north
+by white chalked walls. To your west is the guard dormitory, to the north
 lies the gym, the lecture room is to your east and the entrance is south."
 extra {"yard", "walls"}
 "The yard is clean, the closeness of the walls lets in but a little light
@@ -4311,7 +4651,7 @@ title "The Cityguard Office"
 descr
 "   You are in a tidy office.  A big desk made from dark wood is standing in
 the centre of the room beside a strong safe.  In the corner is a wooden table
-and a few chairs.  The street is to the south, and in the north wall is a
+and a few chairs.  The street is to the south, and in the west wall is a
 heavy iron grating through which you can see the jail."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS, UNIT_FL_NO_TELEPORT,
 UNIT_FL_SACRED}
@@ -4367,7 +4707,7 @@ end
 
                              th_citizen
 
-title "The Hall of the Citizens."
+title "The Hall of the Citizens"
 descr
 "   You are in a large empty hall.  It appears to be quite unused, as most
 of the citizens are either out working or getting drunk, maimed, or killed,
@@ -4389,8 +4729,8 @@ title "The Town Library"
 descr
 "   You are in a large room separated in two by a wooden bar.  On the other
 side are numerous bookshelves holding lots and lots of old dusty volumes, and
-between the bar and the shelves is a massive desk and a large uncomfortable-
-looking chair."
+between the bar and the shelves is a massive desk and a large
+uncomfortable-looking chair."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
 gmap(351,475)
@@ -4447,7 +4787,7 @@ end
 names {"reception"}
 title "The Reception"
 descr
-"   You by the counter in the reception room.  A staircase leads down to the
+"   You are by the counter in the reception room.  A staircase leads down to the
 Grunting Boar Inn.  There is a small <a cmd='read #'>sign</a> on the counter."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
@@ -4546,7 +4886,7 @@ extra {"plate","words", "sign"}
 "It says :-<pre>
                         The Midgaard Academy of Magic
 
-                            In Memorial Rofomagus</pre>"
+                            In Memoriam Rofomagus</pre>"
 ALWAYS_LIGHT
 end
 
@@ -4556,8 +4896,8 @@ end
 names {"magic school dormitory"}
 title "Magic School Dormitory"
 descr
-"   You are in a large low-ceiling room with many simple bunk beds.  Most
-of the beds are unmade and appear to be left in great hurry.  A spiral
+"   You are in a large low-ceilinged room with many simple bunk beds.  Most
+of the beds are unmade and appear to be left in a great hurry.  A spiral
 staircase in the northeast corner of the room leads downwards."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
@@ -4808,7 +5148,7 @@ names {"park"}
 title "The Park"
 descr
 "   You are on a gravel path leading through a peaceful park. To the south
-you hear the faint trinkling of water. The grass is fresh and green, and
+you hear the faint trickling of water. The grass is fresh and green, and
 many young and healthy-looking trees grow on each side of the path."
 
 movement SECT_FIELD
@@ -4858,7 +5198,7 @@ end
 names {"park", "pond"}
 title "Park Pond"
 descr
-"  Trees provide a shaded back drop to this quiet little pond.  Its water
+"  Trees provide a shaded backdrop to this quiet little pond.  Its water
 looks fresh and clear and many colourful flowers grow on the bank. The
 pond seems to be home to a gaggle of geese and a flock of ducks that
 waddle around waiting to be fed. In the center of the pond water sprays
@@ -4881,9 +5221,9 @@ title "On A Rainbow"
 names {"rainbow"}
 descr
 "You are standing on a rainbow and the colors seem to encompass you into
-thier folds. You have a feeling of pure peace over come you as you look
-out over the world throught the calming colors of the rainbow. You may
-follow the rainbow down to midgaard or up further into the sky."
+their folds. You have a feeling of pure peace overcome you as you look
+out over the world through the calming colors of the rainbow. You may
+follow the rainbow down to Midgaard or up further into the sky."
 movement SECT_HILLS
 down to park_pond;
 up to rainbow_2;
@@ -4896,9 +5236,9 @@ title "On A Rainbow"
 names {"rainbow"}
 descr
 "You are standing on a rainbow and the colors seem to encompass you into
-thier folds. You have a feeling of pure peace over come you as you look
-out over the world throught the calming colors of the rainbow. You may
-climb to the skys or slide down the rainbow to the solid ground below."
+their folds. You have a feeling of pure peace overcome you as you look
+out over the world through the calming colors of the rainbow. You may
+climb to the skies or slide down the rainbow to the solid ground below."
 movement SECT_HILLS
 down to rainbow_1;
 up to rainbow_3;
@@ -4911,10 +5251,9 @@ title "On A Rainbow"
 names {"rainbow"}
 descr
 "You are standing at the crown of a large rainbow, colors seem to
-encompass you into thier folds. You have a feeling of pure peace over come
+encompass you into their folds. You have a feeling of pure peace overcome
 you as you look out over the world through the calming colors of the
-rainbow.  The rainbow curves a bit to the west here and a crystal bridge
-spans to the east."
+rainbow.  The rainbow curves a bit to the west here."
  movement SECT_HILLS
 west to rainbow_4;
 down to rainbow_2;
@@ -4928,9 +5267,9 @@ title "On A Rainbow"
 names {"rainbow"}
 descr
 "You are standing on a rainbow and the colors seem to encompass
-you into thier folds. You have a feeling of pure peace over come you as
-you look out over the world throught the calming colors of the rainbow.
-You may go east to the crown of the rainbow of continue downwards."
+you into their folds. You have a feeling of pure peace overcome you as
+you look out over the world through the calming colors of the rainbow.
+You may go east to the crown of the rainbow or continue downwards."
 movement SECT_HILLS
 east to rainbow_3;
 down to rainbow_5;
@@ -4942,9 +5281,9 @@ title "On A Rainbow"
 names {"rainbow"}
 descr
 "You are standing on a rainbow and the colors seem to encompass you into
-thier folds. You have a feeling of pure peace over come you as you look
-out over the world throught the calming colors of the rainbow. You may
-climb to the skys or slide down the rainbow to the solid ground below."
+their folds. You have a feeling of pure peace overcome you as you look
+out over the world through the calming colors of the rainbow. You may
+climb to the skies or slide down the rainbow to the solid ground below."
 movement SECT_HILLS
 down to bifrost_bridge@asgaard;
 up to rainbow_4;
@@ -4962,7 +5301,7 @@ end
 names {"grubby", "inn"}
 title "The Grubby Inn"
 descr
-"   You are in a large, low-ceiling room with many old chairs and tables.
+"   You are in a large, low-ceilinged room with many old chairs and tables.
 The walls are dark from many years of smoke, most of which must still be here,
 judging by the air quality.  A counter is to the south and beside it is a
 private-looking door.  A staircase leads up, and a faded  <a cmd='read #'>sign</a> hangs
@@ -5039,8 +5378,8 @@ grub_cellar3
 names {"grubby", "cellar"}
 title "The Grubby Inn Cellar"
 descr
-"   You are in a large dusty room below the Grubby Inn.  The ceiling is arch-
-shaped but almost hidden by many years of cobwebs. A huge barrel lies face
+"   You are in a large dusty room below the Grubby Inn.  The ceiling is
+arch-shaped but almost hidden by many years of cobwebs. A huge barrel lies face
 against you by the east wall."
 extra {"barrel"}
 "It seems empty, judging by the sound it makes when you knock on it."
@@ -5075,13 +5414,14 @@ end
                              thief_guild
 
 names {"thief", "guild"}
-title "The Thieves' Guild"
+title "The Abandoned Original Thieves' Guild"
 descr
-"   You are in a large low-ceiling and dimly-lit room.  Dark, heavy drapes
-cover most of the walls, giving the room an eerie atmosphere."
+"   You are in a large low-ceilinged and dimly-lit room.  Dark, heavy drapes
+cover most of the walls, giving the room an eerie atmosphere. A small ladder leads up through a hatch in the roof."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
-/*up to grub_barrel;*/
+gmap(653,562)
+up to engraver_back descr "A small hatch leads upwards into a small shop.";
 /* XXX */
 /* Michael: Perhaps a secret entrance to the sewers? or to Haon Dor? */
 /* Mads   : Til sewers var en meget god ide.  N�r de bliver lavet. */
@@ -5197,7 +5537,7 @@ food and human sweat."
 
 extra {"three inches of dust", "dust"}
 "The dust is dark gray and heavy.  It covers everything in the room evenly,
-and it is as deep the top of your boot."
+and it is as deep as the top of your boot."
 
 extra {"broken furniture", "broken pieces", "furniture", "pieces"}
 "The wood has long since rotted and decayed, leaving moldy broken pieces
@@ -5212,6 +5552,7 @@ flags {UNIT_FL_INDOORS, UNIT_FL_NO_WEATHER, UNIT_FL_NO_TELEPORT,
 UNIT_FL_NO_MOB}
 movement SECT_INSIDE
 
+gmap(580,534)
 south to bag_room@academy;
 north to main_st4 open {EX_OPEN_CLOSE, EX_CLOSED, EX_LOCKED}
       keyword {"oak door", "door"} difficulty 80;
@@ -5250,19 +5591,19 @@ names {"engraver's workshop","workshop"}
 title "At Veejay's Engraving Workshop"
 descr
 "A characteristic smell of warm leather, metal and sound of people
-working fills this small shop. A single window offers a view of the
+working fills this small shop. A single window offers a view of
 Tailor Street and the Post Office just opposite the workshop. A dwarf and a
-gnome, both hard at work, can be seen through a half-open door at the back
-of the store.<br/>
+gnome are both hard at work at the back of the shop. A large tapestry lines the
+far wall of the shop detailing the steps of the engraving process. <br/>
 A <a cmd='read #'>sign</a> hanging in the window offers some info on the workmanship prices.<br/>
 A small note is fastened underneath the sign."
 extra {"sign in the window","sign","window"}
 "<pre>The sign proclaims:
 
 		------------------------------------------
-			Veejays Engraving Services
+			Veejay's Engraving Services
 
-<div class='cpr'> 	Engraving (max.10 letters)	:	min. 5 GP</div><div class='cw'>
+<div class='cpr'> 	Engraving (max.20 letters)	:	min. 5 GP</div><div class='cw'>
 
    Note that the engraving cost increases sharply for magical items.
    The engraving is permanent and cannot be removed or remade.
@@ -5275,7 +5616,7 @@ extra {"sign in the window","sign","window"}
 
 A small note at the bottom of the sign demands your immediate attention.
 
-&f</div></pre>"
+</div></pre>"
 extra {"note fastened to the sign","note"}
 "<pre>The note reads:
 
@@ -5294,13 +5635,51 @@ extra {"note fastened to the sign","note"}
 </div></pre>"
 extra {"dwarf and the gnome in the workshop","dwarf","gnome","workshop"}
 "They both appear very busy and hard at work. Better not bother them or
-your job will take even longer.<br/>"
+your job will take even longer. They occasionally stare at the tapestry
+on the far wall intently.<br/>"
+extra {"tapestry"}
+"The tapestry depicts the steps of the engraving process on various materials.
+It shifts as you examine it."
 movement SECT_INSIDE
 gmap(653,562)
 flags {UNIT_FL_NO_WEATHER,UNIT_FL_INDOORS}
 ALWAYS_LIGHT
 west to tailor_st3@midgaard open {EX_OPEN_CLOSE}
-descr "The Tailor Street is just outside the door.";
+descr "Tailor Street is just outside the door.";
+east to engraver_back open {EX_OPEN_CLOSE, EX_CLOSED, EX_HIDDEN}
+        keyword {"door", "wall","tapestry"} difficulty 45;
+end
+
+	engraver_back
+names {"deengraver's emporium","emporium"}
+title "At Reejay's Engraving Removal Emporium"
+descr
+"A characteristic smell of warm leather, metal and the pungent smells of dye 
+removers, leather softeners, and the sound of tools scraping on metal fills 
+this hidden back room. The soundproofing and ventilation in here must be 
+excellent! A small hatch sits in the corner covered with scraps of leather 
+and other detritus.
+ <br/>
+A <a cmd='read #'>sign</a> hangs from the wall providing some info on price.<br/>"
+extra {"sign"}
+"<pre>The sign proclaims:
+
+		------------------------------------------
+			Reejay's Deengraving Services
+
+<div class='cpr'> 	Removal of engravings	:   min. 5 PP  </div><div class='cw'>
+
+   Give the item in question to Reejay to have the engraving on it removed.
+		------------------------------------------
+
+</div></pre>"
+movement SECT_INSIDE
+flags {UNIT_FL_NO_WEATHER,UNIT_FL_INDOORS}
+ALWAYS_LIGHT
+gmap(653,562)
+west to engraver_shop@midgaard open {EX_OPEN_CLOSE, EX_CLOSED} keyword {"door"}
+descr "A door in the west wall leads into Veejay's Engraving Workshop.";
+down to thief_guild descr "There is a hatch here in the floor that is rusted open, leading down into the darkness.";
 end
 
                            armour_shop
@@ -5363,10 +5742,10 @@ end
 
 title "Storage Office"
 descr
-"You have entered the famous safety deposit room of the midgaard bank.
-hundreds of small drawers line the  walls in neat rows.  The room glitters
-with the polished bronze and steal that make up the Thief proof deposit boxes.
-The marble floors shine like nothing you have ever seen and the profesional
+"You have entered the famous safety deposit room of the Midgaard bank.
+Hundreds of small drawers line the  walls in neat rows.  The room glitters
+with the polished bronze and steel that make up the thief-proof deposit boxes.
+The marble floors shine like nothing you have ever seen and the professional
 way the room is kept makes you feel safe with putting your most prized 
 possessions here for safe keeping."
 
@@ -5398,9 +5777,9 @@ end
 names {"bank"}
 title "The Bank"
 descr
-"   You are in a high-ceiling room with white-chalked walls.  A pair of tall
-windows with bars are set in the west wall, and wall-like mahogany counter,
-complete with teller window, seperates the room in two.  A small passage
+"   You are in a high-ceilinged room with white-chalked walls.  A pair of tall
+windows with bars are set in the west wall, and a wall-like mahogany counter,
+complete with teller window, separates the room in two.  A small passage
 leads around the tellers to the east.  The door is to the
 west, and a <a cmd='read #'>sign</a> hangs on the wall between the windows."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
@@ -5472,7 +5851,10 @@ extra {"sign", "wall"}
     Use `evaluate &lt;item&gt;' to make the smith evaluate the quality of a
     weapon, armour or shield.
 
-    Use  `give &lt;item&gt; Sam to have an item resized.</pre>"
+    Use `give &lt;item&gt; Sam' to have an item resized.
+
+    Iron ore for locks taken here: `give ore Sam'.
+    Use `list' and `buy pick' for a miner's pick.</pre>"
 
 extra {"$metal room"}
 "this room is for armor sizing"
@@ -5511,7 +5893,7 @@ title "The Carpenter's"
 descr
 "   You are in a nice, light workshop.  The room is rather large and contains
 many wooden shelves with different tools used for carpentry.  The floor is
-littered with sawdust and woodshaving.  A <a cmd='read #'>sign</a> hangs on the wall."
+littered with sawdust and wood shavings.  A <a cmd='read #'>sign</a> hangs on the wall."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
 gmap(337,899)
@@ -5519,13 +5901,10 @@ north to col_sq7;
 extra {"sign"}
 "It says :-<pre>
 
-                  OUT OF ORDER
+        Beds and chests for your house on Hearth Lane.
 
-    Use `list' to see what is in store,
-        `buy &lt;item&gt;' to buy an item,
-        `sell &lt;item&gt;' to sell an item,
-        `request &lt;item&gt;' to ask the price of an item and
-        `value &lt;item&gt;' to make the carpenter evaluate an item.</pre>"
+    Use `list' to see what Calvin makes and
+        `buy &lt;item&gt;' to have it carried to your house.</pre>"
 ALWAYS_LIGHT
 end
 
@@ -5536,7 +5915,7 @@ names {"fishmonger"}
 title "The Fishmonger's"
 descr
 "   You are in a small, smelly room.  The stone floor is covered by a thick
-layer of sawdust, and numerous caskets with fish are standing along the walls.
+layer of sawdust, and numerous casks with fish are standing along the walls.
 A fishing net is suspended below the ceiling to add to the atmosphere, and a
 sign hangs below the net."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
@@ -5613,8 +5992,8 @@ flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
 gmap(566,957)
 east to park_rd2;
-extra {"oil","lamps"}
-"They are made from polished gold and looks as if they are securely fastened
+extra {"oil lamps", "lamps", "lamp", "oil"}
+"They are made from polished gold and look as if they are securely fastened
 to the smooth stone walls."
 extra {"desk"}
 "Your face is reflected in its surface."
@@ -5625,8 +6004,8 @@ extra {"sign"}
         `buy &lt;item&gt;' to buy an item,
         `sell &lt;item&gt;' to sell an item,
         `request &lt;item&gt;' to ask the price of an item and
-        `value &lt;item&gt;' to make the jeweller evaluate an item.
-        `give &lt;item&gt; Janet to have an item resized.</pre>"
+        `value &lt;item&gt;' to make the jeweller evaluate an item and
+        `give &lt;item&gt; Janet' to have an item resized.</pre>"
 
 ALWAYS_LIGHT
 extra {"$metal room"} ""
@@ -5648,6 +6027,7 @@ large and somewhat worn oaken table.
 A wooden <a cmd='read #'>sign</a> hangs above the fireplace."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
+gmap(674,474)
 south to main_st6;
 extra {"fireplace"}
 "It is a rather large fireplace made from heavy granite rocks."
@@ -5663,9 +6043,9 @@ extra {"sign"}
     Use `list' to see what is in store,
         `buy &lt;item&gt;' to buy an item,
         `sell &lt;item&gt;' to sell an item,
-        `request &lt;item&gt;' to ask the price of an item
+        `request &lt;item&gt;' to ask the price of an item,
         `value &lt;item&gt;' to make the leather worker evaluate an item and
-        `give &lt;item&gt; Myrna to have an item resized.</pre>"
+        `give &lt;item&gt; Myrna' to have an item resized.</pre>"
 ALWAYS_LIGHT
 
 extra {"$leather room"}
@@ -5677,7 +6057,7 @@ end
 names {"magic shop"}
 title "The Magic Shop"
 descr
-"   You are in a low-ceiling room with many shelves filled with jars and
+"   You are in a low-ceilinged room with many shelves filled with jars and
 bottles of all shapes and sizes.  The scent of foreign herbs and spices
 puzzles your nose.  A <a cmd='read #'>sign</a> stands on a desk in the middle of the room."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
@@ -5727,7 +6107,7 @@ names {"park cafe", "cafe"}
 title "Park Cafe"
 descr
 "   You are in a small, light cafe.  The small number of chairs and tables
-are all made from white-painted metal shaped in an somewhat fragile-looking
+are all made from white-painted metal shaped in a somewhat fragile-looking
 but very elegant way.  The exit is to the east."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
@@ -5750,7 +6130,7 @@ end
 names {"pet shop"}
 title "The Pet Shop"
 descr
-"   You are in a large, high-ceiling room.  The air is smelly and filled
+"   You are in a large, high-ceilinged room.  The air is smelly and filled
 with the sounds of birds squeaking, dogs barking, and cats meowing.  Numerous
 cages standing on the floor and hanging from the ceiling contain many
 different animals.  A <a cmd='read #'>sign</a> hangs on the wall."
@@ -5764,7 +6144,7 @@ extra {"sign"}
     Use `list' to see what is in store,
         `buy &lt;pet&gt;' to buy a pet,
         `sell &lt;pet&gt;' to sell a pet,
-        `request &lt;item&gt;' to ask the price of a pet and
+        `request &lt;pet&gt;' to ask the price of a pet and
         `value &lt;pet&gt;' to make the pet shop boy evaluate a pet.</pre>"
 ALWAYS_LIGHT
 end
@@ -5775,9 +6155,9 @@ end
 names {"post office"}
 title "The Post Office"
 descr
-"   You are in a small, low-ceiling room.  Light shines in through a pair
+"   You are in a small, low-ceilinged room.  Light shines in through a pair
 of tall windows in the east wall.  A high wooden counter separates the room
-in t`wo.  A <a cmd='read #'>sign</a> hangs on the wall."
+in two.  A <a cmd='read #'>sign</a> hangs on the wall."
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS}
 movement SECT_INSIDE
 gmap(596,562)
@@ -5815,7 +6195,7 @@ extra {"sign"}
         `sell &lt;item&gt;' to sell something,
         `request &lt;item&gt;' to ask the price of something,
         `value &lt;item&gt;' to make the tailor evaluate something and
-        `give &lt;item&gt; Tom to have your item resized.</pre>"
+        `give &lt;item&gt; Tom' to have your item resized.</pre>"
 ALWAYS_LIGHT
 
 extra {"$clothes room"}
@@ -5836,7 +6216,7 @@ movement SECT_INSIDE
 gmap(394,900)
 north to col_sq5;
 extra {"forge"} "The forge looks very hot indeed."
-extra {"anvil"} "The anvils appears very used."
+extra {"anvil"} "The anvil appears very used."
 extra {"bellows"}
 "The bellows are used for heating the forge by blowing air into the fire."
 extra {"sign"}
@@ -5921,6 +6301,23 @@ dilcopy engrave@midgaard();
 
 end
 
+reejay
+names {"Reejay","deengraver"}
+title "Reejay the deengraver"
+descr "Reejay the deengraver sits at his table, hard at work."
+extra {}
+"A black-haired and dark-skinned woman, apparently not native to the city of
+Midgaard. She is the best in her field and can remove an engraving for
+an unreasonable price."
+M_SHOP_KEEPER(47,SEX_FEMALE,RACE_HUMAN)
+money 3 IRON_PIECE
+flags {UNIT_FL_NO_TELEPORT}
+weight -199
+dilcopy deengrave@midgaard();
+
+end
+
+
                                  baker
 
 names {"baker", "Barnie"}
@@ -5945,10 +6342,10 @@ dilcopy shopkeepernew@function(
  "$1n says, 'I've got no such food.'",
  "$1n says, 'Why you haven't even got it, $3n?'",
  "$1n says, 'I don't trade in such things.'",
- "$1n says, 'This tasty $2n is too expensive for you, $3n.'",
- "$1n says, 'Here you are, some delicious $2n.'",
- "$1n says, 'I might be able to sell this $2n.'",
- "$1n says, 'I don't have that many right now, maybe of you come back later.'"},
+ "$1n says, 'This tasty $2N is too expensive for you, $3n.'",
+ "$1n says, 'Here you are, some delicious $2N.'",
+ "$1n says, 'I might be able to sell this $2N.'",
+ "$1n says, 'I don't have that many right now, maybe if you come back later.'"},
 {ITEM_FOOD}, 110, 10, 2*PLATINUM_MULT, TRUE);
 dilcopy evaluate@function(64);
 
@@ -5981,12 +6378,11 @@ dilcopy shopkeepernew@function(
 {
  "$1n says, 'I've got no such fish, landlubber!'",
  "$1n says, 'You are really trying to sell me something you don't have, $3n?'",
- "$1n says, 'Would you like to buy some fish?",
+ "$1n says, 'Would you like to buy some fish?'",
  "$1n says, '$3n, you can't afford $2n'",
- "$1n says, 'Enjoy the $2n.",
- "$1n says, 'I might be able to sell this.",
- "$1n says, 'I don't have that many $2n in my stock right now.",
- "$1n says, '."
+ "$1n says, 'Enjoy $2n.'",
+ "$1n says, 'I might be able to sell this.'",
+ "$1n says, 'I don't have that many $2N in my stock right now.'"
 }, {ITEM_FOOD}, 130, 10,2*PLATINUM_MULT, TRUE);
 end
 
@@ -6020,9 +6416,9 @@ dilcopy shopkeepernew@function(
  "$1n says, '$3n are you trying to cheat me? You don't even have it!!'",
  "$1n says, 'Would you like to buy some beef or not?'",
  "$1n says, '$3n, you can't afford $2n'",
- "$1n says, 'Here you $3n, some $2n'",
+ "$1n says, 'Here you are, $3n, some $2n.'",
  "$1n says, 'Did you kill this yourself, $3n? Cleaned is it? Well, I'll buy it then.'",
- "$1n says, 'Seems like i have to prepare some more meat, i don't have that many right now.'"
+ "$1n says, 'Seems like I have to prepare some more meat, I don't have that many right now.'"
 }, {ITEM_FOOD}, 110, 10,2*PLATINUM_MULT, TRUE);
 end
 
@@ -6048,7 +6444,7 @@ dilcopy evaluate@function(64);
 dilcopy opening_hours@function({4,23}, {"list", "buy", "sell", "value", "request"}, 
                                 "say Sorry we're closed", 
                                 {"wake","stand","say We're open for business"},
-                                {"rest", "say Lucky the next shipment arrives tonight, i don't have that many in my stock."});
+                                {"rest", "say Lucky the next shipment arrives tonight, I don't have that many in my stock."});
 
 dilcopy shopkeepernew@function(
    {"torch@midgaard 10 40","lantern@midgaard 5 20","bag@midgaard 5 20",
@@ -6061,7 +6457,7 @@ dilcopy shopkeepernew@function(
  "$1n says, 'I don't trade with things such as $2n'",
  "$1n says, '$3n, you can't afford $2n'",
  "$1n says, 'Here you are.'",
- "$1n says, 'Thank you $3n, this is a nice $2n.'",
+ "$1n says, 'Thank you $3n, this is a nice $2N.'",
  "$1n says, ''"},
  {ITEM_LIGHT, ITEM_OTHER, ITEM_CONTAINER, ITEM_NOTE, ITEM_DRINKCON, ITEM_KEY, ITEM_PEN}, 120, 80,2*PLATINUM_MULT, TRUE);
 
@@ -6095,8 +6491,8 @@ dilcopy shopkeepernew@function(
  "$1n says, 'I don't trade with things such as $2n'",
  "$1n says, '$3n, you can't afford $2n'",
  "$1n says, 'Here you are.'",
- "$1n says, 'Thank you $3n, this is a nice $2n.'",
- "$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+ "$1n says, 'Thank you $3n, this is a nice $2N.'",
+ "$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
  {ITEM_FOOD}, 110, 10,2*PLATINUM_MULT, TRUE);
 end
 
@@ -6138,8 +6534,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_WEAPON, ITEM_FIREWEAPON}, 110,60,286720, TRUE);
 end
 
@@ -6184,8 +6580,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_ARMOR, ITEM_SHIELD}, 110,60,286720, TRUE);
 end
 
@@ -6194,9 +6590,9 @@ end
 
 names {"tailor","Tom"}
 title "Tom"
-descr "Tom the Tailor is sitting on the table, sewing busily."
+descr "Tom the Tailor is sitting on the table, sewing busily. Maybe he can teach you how to resize clothes?"
 extra {}
-"He looks as an honest, hard-working artisan."
+"He looks like an honest, hard-working artisan."
 
 M_SHOP_KEEPER(53, SEX_MALE, RACE_HUMAN)
 money 10 IRON_PIECE, 3 COPPER_PIECE
@@ -6222,8 +6618,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
  {ITEM_WORN}, 110, 60, 286720, TRUE);
 
 dilcopy resize_func@midgaard (ITEM_ARMOR,ITEM_WORN,ITEM_WORN,
@@ -6231,7 +6627,7 @@ dilcopy resize_func@midgaard (ITEM_ARMOR,ITEM_WORN,ITEM_WORN,
 
 
 special SFUN_TEACH_INIT
-"skills;;
+"skills;;;
 $1n tells you, 'I have never heard of such a skill.';
 $1n tells you, 'I do not know how to teach this skill.';
 $1n tells you, 'You haven't got %s for me.';
@@ -6253,8 +6649,8 @@ title "Myrna the Leather Worker"
 descr "Myrna the Leather Worker is sitting by the table, sewing a leather
 cap."
 extra {}
-"She looks as an honest, hard-working artisan who only just earns enough to
-keep herself going."
+"She looks like an honest, hard-working artisan who only just earns enough to
+keep herself going. Maybe she can teach you how to resize."
 
 M_SHOP_KEEPER(44, SEX_FEMALE, RACE_HUMAN)
 money 10 IRON_PIECE, 2 COPPER_PIECE
@@ -6288,14 +6684,14 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_ARMOR}, 110,60,286720, TRUE);
 
 dilcopy resize_func@midgaard (ITEM_ARMOR, ITEM_WORN, ITEM_WORN,
 ARM_LEATHER,ARM_HLEATHER,3*IRON_MULT,"leather worker");
 special SFUN_TEACH_INIT
-"skills;;
+"skills;;;
 $1n tells you, 'I have never heard of such a skill.';
 $1n tells you, 'I do not know how to teach this skill.';
 $1n tells you, 'You haven't got %s for me.';
@@ -6345,8 +6741,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_SCROLL, ITEM_WAND, ITEM_POTION, ITEM_STAFF}, 110,60,286720, TRUE);
 
 end
@@ -6355,7 +6751,7 @@ end
 
                               jeweller
 
-names {"jeweler", "Janet"}
+names {"jeweller", "jeweler", "Janet"}
 title "Janet"
 descr "Janet the Jeweler is standing behind the desk."
 extra {} "She has a content although watchful look on her face."
@@ -6384,8 +6780,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_TREASURE}, 110, 60, 286720, TRUE);
 
 dilcopy resize_func@midgaard (ITEM_TREASURE,ITEM_OTHER,ITEM_WORN,
@@ -6425,8 +6821,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_BOAT}, 110, 60, 286720, TRUE);
 end
 
@@ -6436,10 +6832,12 @@ end
 names {"carpenter", "Calvin"}
 title "Calvin"
 descr
-"Calvin the Carpenter is here, planing boards for a coffin."
+"Calvin the Carpenter is here, planing boards for a bed."
 extra {}
-"He seems quite busy."
+"He seems quite busy. He makes beds and chests for the houses on Hearth Lane in
+Udgaard: 'list' shows them."
 M_HUMAN_WARRIOR_SWORD(15, SEX_MALE)
+dilcopy furniture@housing();
 
 end
 
@@ -6449,7 +6847,7 @@ end
 names {"mortician", "Marty"}
 title "Marty"
 descr "Marty the Mortician is standing here, smirking softly."
-extra {} "He is a pale man dressed in black clothes, fit for funeral."
+extra {} "He is a pale man dressed in black clothes, fit for a funeral."
 flags {UNIT_FL_NO_TELEPORT}
 M_SHOP_KEEPER(57, SEX_MALE, RACE_HUMAN)
 money 10 IRON_PIECE, 2 COPPER_PIECE
@@ -6469,8 +6867,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 
 end
@@ -6480,7 +6878,7 @@ end
 
 names {"pet shop boy","boy"}
 title "the pet shop boy"
-descr "A Pet Shop boy is here, humming gently."
+descr "A pet shop boy is here, humming gently."
 extra {} "He is young and close-cropped and looks quite happy."
 M_AVG_HUMAN(7, SEX_MALE)
 money 10 IRON_PIECE, 2 COPPER_PIECE
@@ -6490,11 +6888,11 @@ end
 				mid_clerk
 
 names {"clerk"}
-title "Storage Clerk"
+title "the storage clerk"
 descr "The storage clerk stands here waiting to serve you."
 extra {}
 "The storage clerk is wearing a leather apron which is quite stained.
-He looks at you with as half cocked eye as if awaiting your request."
+He looks at you with a half-cocked eye as if awaiting your request."
 M_HUMAN_WARRIOR_SWORD(38,SEX_MALE)
 romflags {CHAR_PROTECTED}
 flags {UNIT_FL_NO_TELEPORT}
@@ -6505,7 +6903,7 @@ end
 
                              banker
 
-names {"Smith"}
+names {"Smith", "banker"}
 title "Smith"
 descr "Smith the Banker is here, sitting behind the counter."
 extra {} "He has a very serious look on his face."
@@ -6548,15 +6946,17 @@ descr "The venerable Sam Blacksmith is here."
 extra {}
 "The smith is so old and experienced, that he can judge the quality of your
 armour and weapons merely by glancing at it.  He looks as if he has retired
-from being an active smith, though."
+from being an active smith, though. Maybe he can teach you how to resize."
 flags {UNIT_FL_NO_TELEPORT}
 M_SHOP_KEEPER(47, SEX_MALE, RACE_HUMAN)
 money 10 IRON_PIECE, 2 COPPER_PIECE
+dilcopy house_material@housing("iron_ore@housing", HOUSE_ORE, "Iron for a Lock", "load of ore", "loads of ore");
+dilcopy house_picks@housing();
 dilcopy evaluate@function(64);
 dilcopy resize_func@midgaard (ITEM_ARMOR, ITEM_WEAPON, ITEM_SHIELD,ARM_CHAIN,
                               ARM_PLATE,COPPER_MULT,"smith");
 special SFUN_TEACH_INIT
-"skills;;
+"skills;;;
 $1n tells you, 'I have never heard of such a skill.';
 $1n tells you, 'I do not know how to teach this skill.';
 $1n tells you, 'You haven't got %s for me.';
@@ -6600,8 +7000,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 
 end
@@ -6613,7 +7013,7 @@ names {"Filthy"}
 title "Filthy"
 descr "Filthy is standing here, eager to serve you a special drink."
 extra {}
-"Filthy looks real, erhm, dirty.  He likes to keep his costumers happy, as
+"Filthy looks real, erhm, dirty.  He likes to keep his customers happy, as
 long as they don't want him to take a bath."
 
 M_SHOP_KEEPER(53, SEX_MALE, RACE_HUMAN)
@@ -6635,8 +7035,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 end
 
@@ -6681,8 +7081,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 end
 
@@ -6711,8 +7111,8 @@ dilcopy shopkeepernew@function(
 "$1n says, 'I don't trade with things such as $2n'",
 "$1n says, '$3n, you can't afford $2n'",
 "$1n says, 'Here you are.'",
-"$1n says, 'Thank you $3n, this is a nice $2n.'",
-"$1n says, 'That shipment better arrive tonight, i don't have that many in my stock.'"},
+"$1n says, 'Thank you $3n, this is a nice $2N.'",
+"$1n says, 'That shipment better arrive tonight, I don't have that many in my stock.'"},
 {ITEM_CONTAINER}, 110, 60, 286720, TRUE);
 end
 
@@ -6740,8 +7140,6 @@ dilcopy teach_q_block@function(POLICE_ACADEMY, "say Deputies only!");
 #define _SPELL
 #include "guilddef.h"
 #undef _SPELL
-
-
 end
 
 
@@ -6796,7 +7194,7 @@ dilcopy guard_door@function(WEST,
 "$1n stops you.",
 "$1n prevents $3n from accessing the grating.");
 dilcopy guard_unit@function("safe@midgaard","$1n stops you.","$1n prevents $3n from accessing the safe.");
-dilcopy guard_unit@function("desk@midgaard","$1n stops you","$1n prevents $3n from accessing the desk.");
+dilcopy guard_unit@function("desk@midgaard","$1n stops you.","$1n prevents $3n from accessing the desk.");
 dilcopy deputy_check@function();
 
 dilbegin deputy_join();
@@ -6828,7 +7226,7 @@ code
        isset(u.charflags, CHAR_OUTLAW))
    {
       exec("say You have a criminal record, we can not accept you as a "+
-	   "deputy "+u.name+".",self);
+	   "deputy, "+u.name+".",self);
       goto loop;
    }
 
@@ -6843,6 +7241,7 @@ code
    pause;
    exec("handshake "+u.name, self);
    addextra(u.quests, {POLICE_ACADEMY}, "");
+   goto loop;
 }
 dilend
 
@@ -6879,7 +7278,7 @@ Jeweller/Banker */
 names {"cityguard","guard"}
 title "the Cityguard"
 descr "A cityguard is here."
-extra {} "A fairly big, content looking cityguard."
+extra {} "A fairly big, content-looking cityguard."
 exp 0
 romflags {CHAR_PROTECTED}
 M_HUMAN_WARRIOR_POLE(62, SEX_MALE)   /* He shall use a polearm */
@@ -6914,47 +7313,32 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
+
+
 /*                                                                     */
 /* Route for a patroling guard to visit all shops and important places */
 /*                                                                     */
 dilbegin patrol1();
 external
- integer walk_room@function (s:string,i:integer);
+   integer walk_room@function (s:string,i:integer);
+   integer walk_route@function(places : stringlist, spd : integer);
 
 var
 tf:integer;
 code
 {
-   on_activation((self.position <= POSITION_SLEEPING) or
+   on_activation((self.position < POSITION_SLEEPING) or
 		 (self.position == POSITION_FIGHTING), skip);
 
    :start:
-   tf:=walk_room@function("cth_sanctum@midgaard",4);
-   tf:=walk_room@function("grub_inn@midgaard",4);
-   tf:=walk_room@function("baker_shop@midgaard",4);
-   tf:=walk_room@function("pet_shop@midgaard",4);
-   tf:=walk_room@function("ironmon_shop@midgaard",4);
-   tf:=walk_room@function("boat_shop@midgaard",4);
-   tf:=walk_room@function("warehouse@midgaard",4);
-   tf:=walk_room@function("fish_shop@midgaard",4);
-   tf:=walk_room@function("mortician_shop@midgaard",4);
-   tf:=walk_room@function("carp_shop@midgaard",4);
-   tf:=walk_room@function("entrance@arena",4);
-   tf:=walk_room@function("weapon_shop@midgaard",4);
-   tf:=walk_room@function("bsmith_shop@midgaard",4);
-   tf:=walk_room@function("armour_shop@midgaard",4);
-   tf:=walk_room@function("jewel_shop@midgaard",4);
-   tf:=walk_room@function("bank@midgaard",4);
-   tf:=walk_room@function("park_cafe@midgaard",4);
-   tf:=walk_room@function("postoffice@midgaard",4);
-   tf:=walk_room@function("butcher_shop@midgaard",4);
-   tf:=walk_room@function("leather_shop@midgaard",4);
-   tf:=walk_room@function("tailor_shop@midgaard",4);
-   tf:=walk_room@function("accuse_room@midgaard",4);
-   tf:=walk_room@function("grunting_inn@midgaard",4);
-   tf:=walk_room@function("greeng_shop@midgaard",4);
-   tf:=walk_room@function("th_library@midgaard",4);
-   tf:=walk_room@function("mag_hall@midgaard",4);
+   tf := walk_route@function({"cth_sanctum@midgaard", "grub_inn@midgaard",
+            "baker_shop@midgaard", "pet_shop@midgaard", "ironmon_shop@midgaard",
+            "boat_shop@midgaard", "warehouse@midgaard", "fish_shop@midgaard",
+            "mortician_shop@midgaard", "carp_shop@midgaard", "entrance@arena",
+            "weapon_shop@midgaard", "bsmith_shop@midgaard", "armour_shop@midgaard",
+            "jewel_shop@midgaard", "bank@midgaard", "park_cafe@midgaard", "postoffice@midgaard",
+            "butcher_shop@midgaard", "leather_shop@midgaard", "tailor_shop@midgaard", "accuse_room@midgaard",
+            "grunting_inn@midgaard", "greeng_shop@midgaard", "th_library@midgaard", "mag_hall@midgaard"}, 5);
    goto start;
 }
 dilend
@@ -7001,90 +7385,14 @@ money 8 IRON_PIECE
 exp 0
 position POSITION_SLEEPING
 default POSITION_SITTING
+
 dilcopy blow_whistle@justice();
 dilcopy whistlisten@justice({"midgaard"});
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilbegin guard1();
-external
- integer walk_room@function (s:string,i:integer);
-
-var
-tf:integer;
-  i   : integer;
-code
-{
-   on_activation((self.position == POSITION_FIGHTING), skip);
-
-  :start:
-  heartbeat := WAIT_SEC*5;
-	pause;
-  if(mudhour == 5)
-  {
-   exec("wake", self);
-   pause;
-   exec("yawn", self);
-   pause;
-   exec("say Time to get going guys!", self);
-   pause;
-   tf:=walk_room@function("in_ngate@midgaard",4);
-  }
-
-  if(mudhour == 18)
-  {
-   i := rnd(1,3);
-   if (i == 1) goto bar1;
-   if (i == 2) goto bar2;
-   if (i == 3) goto bar3;
-   else goto start;
-
-   :bar1:
-   pause;
-   tf:=walk_room@function("grunting_inn@midgaard",4);
-   pause;
-   exec("buy beer", self);
-   pause;
-   exec("drink beer", self);
-   pause;
-   tf:=walk_room@function("guard_dorm@midgaard",4);
-   exec("yawn", self);
-   pause;
-   exec("sleep", self);
-   goto start;
-
-   :bar2:
-   pause;
-   tf:=walk_room@function("grub_inn@midgaard",4);
-   pause;
-   exec("buy firebreather", self);
-   pause;
-   exec("drink firebreather", self);
-   pause;
-   tf:=walk_room@function("guard_dorm@midgaard",4);
-   exec("yawn", self);
-   pause;
-   exec("sleep", self);
-   goto start;
-
-
-   :bar3:
-   pause;
-   tf:=walk_room@function("park_cafe@midgaard",4);
-   pause;
-   exec("buy coffee", self);
-   pause;
-   exec("drink coffee", self);
-   pause;
-   tf:=walk_room@function("guard_dorm@midgaard",4);
-   exec("yawn", self);
-   pause;
-   exec("sleep", self);
-   goto start;
-  }
-}
-dilend
 dilcopy protect_lawful@justice();
 
+dilcopy guardroutine("in_ngate@midgaard", 1);
 end
 
                            ngate_nguard
@@ -7107,85 +7415,8 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilbegin guard2();
-external
- integer walk_room@function (s:string,i:integer);
 
-var
-tf:integer;
-  i   : integer;
-code
-{
-   on_activation((self.position == POSITION_FIGHTING), skip);
-
-  :start:
-  heartbeat := WAIT_SEC*5;
-	pause;
-  if(mudhour == 17)
-  {
-   exec("wake", self);
-   pause;
-   exec("yawn", self);
-   pause;
-   exec("say Time to get going guys!", self);
-   pause;
-   tf:=walk_room@function("in_ngate@midgaard",4);
-  }
-
-  if(mudhour == 6)
-  {
-   i := rnd(1,3);
-   if (i == 1) goto bar1;
-   if (i == 2) goto bar2;
-   if (i == 3) goto bar3;
-   else goto start;
-
-   :bar1:
-   pause;
-   tf:=walk_room@function("grunting_inn@midgaard",4);
-   pause;
-   exec("buy beer", self);
-   pause;
-   exec("drink beer", self);
-   pause;
-   tf:=walk_room@function("guard_dorm@midgaard",4);
-   exec("yawn", self);
-   pause;
-   exec("sleep", self);
-   goto start;
-
-   :bar2:
-   pause;
-   tf:=walk_room@function("grub_inn@midgaard",4);
-   pause;
-   exec("buy firebreather", self);
-   pause;
-   exec("drink firebreather", self);
-   pause;
-   tf:=walk_room@function("guard_dorm@midgaard",4);
-   exec("yawn", self);
-   pause;
-   exec("sleep", self);
-   goto start;
-
-
-   :bar3:
-   pause;
-   tf:=walk_room@function("park_cafe@midgaard",4);
-   pause;
-   exec("buy coffee", self);
-   pause;
-   exec("drink coffee", self);
-   pause;
-   tf:=walk_room@function("guard_dorm@midgaard",4);
-   exec("yawn", self);
-   pause;
-   exec("sleep", self);
-   goto start;
-  }
-}
-dilend
-
+dilcopy guardroutine("in_ngate@midgaard", 0);
 end
 
                            egate_dguard
@@ -7209,8 +7440,7 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilcopy guard1();
-
+dilcopy guardroutine("in_egate@midgaard", 1);
 end
 
                            egate_nguard
@@ -7233,8 +7463,7 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilcopy guard2();
-
+dilcopy guardroutine("in_egate@midgaard", 0);
 end
 
                            wgate_dguard
@@ -7257,8 +7486,7 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilcopy guard1();
-
+dilcopy guardroutine("in_wgate@midgaard", 1);
 end
 
                            wgate_nguard
@@ -7281,9 +7509,7 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilcopy guard2();
-
-
+dilcopy guardroutine("in_wgate@midgaard", 0);
 end
 
                            sgate_dguard
@@ -7306,8 +7532,7 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilcopy guard1();
-
+dilcopy guardroutine("in_sgate@midgaard", 1);
 end
 
                            sgate_nguard
@@ -7330,8 +7555,7 @@ dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy rescue@function("guard / captain / mayor");
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilcopy guard2();
-
+dilcopy guardroutine("in_sgate@midgaard", 0);
 end
 
 /* -------------------------- Grubby Inn ----------------------------- */
@@ -7339,7 +7563,7 @@ end
                                 fanny
 names {"Fanny"}
 title "Fanny"
-descr "Fanny is here, dressed in french underwear."
+descr "Fanny is here, dressed in French underwear."
 extra {} "She is young and very pretty."
 
 romflags {CHAR_PROTECTED}
@@ -7396,7 +7620,7 @@ dilcopy janitors(15);
 
 dilbegin janitor1();
 external
- integer walk_room@function (s:string,i:integer);
+   integer walk_route@function(places : stringlist, spd : integer);
 
 var
 tf:integer;
@@ -7406,15 +7630,9 @@ code
    heartbeat := WAIT_SEC*10; // heartbeat for pickup is 15..
 
    :start:
-   tf:=walk_room@function("wall_rd14@midgaard",4);
-   tf:=walk_room@function("elm_street2@midgaard",4);
-   tf:=walk_room@function("park_cafe@midgaard",4);
-   tf:=walk_room@function("palace_sq@midgaard",4);
-   tf:=walk_room@function("glad_rd2@midgaard",4);
-   tf:=walk_room@function("wharf2@midgaard",4);
-   tf:=walk_room@function("n_prom2@midgaard",4);
-   tf:=walk_room@function("wall_rd11@midgaard",4);
-   tf:=walk_room@function("cth_se_tower@midgaard",4);
+   tf := walk_route@function({"wall_rd14@midgaard", "elm_street2@midgaard",
+         "park_cafe@midgaard", "palace_sq@midgaard", "glad_rd2@midgaard", "wharf2@midgaard",
+         "n_prom2@midgaard", "wall_rd11@midgaard", "cth_se_tower@midgaard"}, 5);
    goto start;
 }
 dilend
@@ -7454,209 +7672,29 @@ money 5 IRON_PIECE
 #define LIB_COMPLETE "Librarian Quest Complete"
 #define SCRIBE_ONGOING "Scribe Quest Ongoing"
 
-dilbegin li1();
-var
-  pcname   : string;
-  item     : unitptr;
-  pc       : unitptr;
-  i        : integer;
-  exdp     : extraptr;
+dilcopy qstSimpleQuest@quests("Librarian Quest|"+LIB_ONGOING+"|"+LIB_COMPLETE,
+         {"say You look like one who is on a quest.",
+          "say I have a pair of spectacles that I could give you in return for some things I need.",
+          "say Would you like to help me?",
+          "say Please nod or shake."},
+         {"say I am looking for something to write with.",
+          "say A book containing unlimited knowledge.",
+          "say I also search for a little information relating to a group of people named the Sanctuarians.",
+          "say Bring me these things and I can give you the glasses I have.",
+          "say I also know what you seek, and can tell you that there are between six and eight scrolls containing the language of the ancients."},
+         "The Librarian in Midgaard will give you a pair of spectacles for something to write with, a book containing unlimited knowledge, and a little information about a group of people named the Sanctuarians.",
+         {"say Thank you $1n.",
+          "say You have helped me greatly.",
+          "say Here are the glasses."},
+         0, 0, {"obj_15@pit"}, "hasQuest@quests 0 "+SCRIBE_ONGOING);
 
-code
-{
-
-  :init:
-  heartbeat := PULSE_SEC*5;
-  on_activation((self.position <= POSITION_SLEEPING) or
-	       (self.position == POSITION_FIGHTING), skip);
-
-  :start:
-  wait(SFB_CMD, (activator.type == UNIT_ST_PC) and (not
-      command("give")) and ((SCRIBE_ONGOING in
-		 activator.quests)));
-  if(LIB_COMPLETE in activator.quests)
-   goto waitawhile;
-
-  pc := activator;
-  secure(pc, lostpc);
-
-  if(not(LIB_ONGOING in pc.quests))
-    {
-     pause;
-     exec("say You look like one who is on a quest.", self);
-     pause;
-     exec("say I have a pair of spectacles that I could " +
-	  "give you in return for some things I need.", self);
-     pause;
-     exec("say would you like to help me?", self);
-     pause;
-     exec("say Please nod or shake.", self);
-
-     i := 0;
-     while (i < 5)
-     {
-	wait(SFB_CMD, activator #= pc);
-
-	if(command("nod"))
-	{
-	  goto quest_accepted;
-	}
-	else if(command("say"))
-	{
-	  pause;
-	  exec("say Nod if you want to continue, shake " +
-	       "if not.", self);
-	}
-	else if(command("shake"))
-	goto no_quest;
-	i := I + 1;
-     }
-
-  :no_quest:
-  pause;
-  exec("say Fine, good luck in your travels.", self);
-  unsecure(pc);
-  goto waitawhile;
-
-  :quest_accepted:
-  pause;
-  exec("say I am looking for something to write with.",
-	   self);
-  pause;
-  exec("say A book containing unlimited knowledge.", self);
-  pause;
-  exec("say I also search for a little information "+
-       "relating to a group of people named the "+
-	  "Sanctuarians.", self);
-  pause;
-  exec("say Bring me these things and I can give you the "+
-	  "glasses I have.", self);
-  pause;
-  exec("say I also know what you seek, and can tell you that there are "+
-       "between six and eight scrolls containing the language of "+
-       "the ancients", self);
-
-  addextra(pc.quests, {LIB_ONGOING}, "");
-  unsecure(pc);
-  goto start;
-  }
-  else
-  {
-    exdp := LIB_ONGOING in pc.quests;
-    if (("quill" in exdp.names)and
-	("book of knowledge" in exdp.names)and
-	   ("vellum scrap" in exdp.names))
-    {
-      pause;
-      subextra(pc.quests, LIB_ONGOING);
-      addextra(pc.quests, {LIB_COMPLETE}, "");
-      exec("say Thank you " +pc.name+ ".", self);
-      item := load("obj_15@pit");
-      link(item, pc);
-      pause;
-	 exec("say You have helped me greatly.", self);
-	 pause;
-	 exec("say here are the glasses.", self);
-	 pause;
-	 act("The librarian gives you a pair of glasses.",
-		A_SOMEONE, pc, null, null, TO_CHAR);
-
-	 act("The librarian give a pain of glasses to $1n.",
-		A_SOMEONE, self.outside, null, null, TO_ROOM);
-    }
-  }
-
-      unsecure(pc);
-      goto start;
-
-	:waitawhile:
-	heartbeat := PULSE_SEC*60;
-	pause;
-	goto init;
-
-	:lostpc:
-	exec("say I guess the quest wasn't so important.",
-	self);
-	pause;
-	exec("sigh", self);
-	goto start;
-}
-dilend
-
-dilbegin li2();
-var
-  pc     : unitptr;
-  item   : unitptr;
-  exdp   : extraptr;
-
-  code
-  {
-    heartbeat := PULSE_SEC*5;
-    on_activation((self.position <= POSITION_SLEEPING) or
-	       (self.position == POSITION_FIGHTING), skip);
-
-    :start:
-    wait(SFB_CMD, command("give") and
-	(activator.type == UNIT_ST_PC));
-
-    :give:
-    if (not(LIB_ONGOING in activator.quests))
-	goto start;
-
-    pc := activator;
-    item := self.inside;
-    secure(pc, labsecure);
-    secure(item, labsecure);
-
-    wait(SFB_CMD | SFB_TICK, TRUE);
-    if(not(item #= self.inside))
-    {
-      unsecure(item);
-      exdp := LIB_ONGOING in pc.quests;
-
-     if("quill" in self.inside.name)
-     {
-		addstring(exdp.names, "quill");
-		exec("say This will help me write.", self);
-		destroy(self.inside);
-     }
-     else if("book of knowledge" in self.inside.name)
-     {
-		addstring(exdp.names, "book of knowledge");
-		exec("say Ahh, the Book of Knowledge.", self);
-		destroy(self.inside);
-     }
-     else if("vellum scrap" in self.inside.name)
-     {
-		addstring(exdp.names, "vellum scrap");
-		exec("say The tales I search for...", self);
-		destroy(self.inside);
-     }
-     else
-     {
-		exec("say This is not what I am looking " +
-		     "for " +pc.name + ".", self);
-		pause;
-		exec("say Please have it back.", self);
-		link(self.inside, pc);
-     }
-    }
-    unsecure(pc);
-
-    if((command("give")) and
-       (activator.type == UNIT_ST_PC))
-    {
-      goto give;
-    }
-      else
-	goto start;
-
-    :labsecure:
-    exec("sigh", self);
-    goto start;
-
-}
-dilend
+dilcopy qstItemsWanted@quests("Librarian Quest|"+LIB_ONGOING+"|"+LIB_COMPLETE,
+         {"quill", "book of knowledge", "vellum scrap"},
+         {"", "libNameCheck@midgaard 0 book of knowledge", ""},
+         {"say This will help me write.",
+          "say Ahh, the Book of Knowledge.",
+          "say The tales I search for..."},
+         "say This is not what I am looking for, $1n. Please have it back.");
 
 
 end
@@ -7699,51 +7737,13 @@ dilcopy blow_whistle@justice();
 dilcopy whistlisten@justice({"midgaard"});
 dilcopy protect_lawful@justice();
 dilcopy arrest_check@midgaard("accuse_room@midgaard");
-dilbegin temple_guard();
-external
- integer walk_room@function (s:string,i:integer);
-
-var
-tf:integer;
-i : integer;
-code
-{
-   on_activation((self.position == POSITION_FIGHTING), skip);
-   heartbeat := WAIT_SEC*5;
-   :start:
-   i := rnd(1,4);
-   if(i == 1) goto one;
-   if(i == 2) goto two;
-   if(i == 3) goto three;
-   if(i == 4) goto four;
-   else goto start;
-
-   :one:
-   tf:=walk_room@function("cth_sw_tower@midgaard",4);
-   pause;
-   exec("emote stands guard.", self);
-   goto start;
-
-   :two:
-   tf:=walk_room@function("cth_se_tower@midgaard",4);
-   pause;
-   exec("emote stands guard.", self);
-   goto start;
-
-   :three:
-   tf:=walk_room@function("cth_sanctum@midgaard",4);
-   pause;
-   exec("emote stands guard.", self);
-   goto start;
-
-   :four:
-   tf:=walk_room@function("cth_square1@midgaard",4);
-   pause;
-   exec("emote stands guard.", self);
-   goto start;
-
-}
-dilend
+/* Stands guard at one of four posts round the temple, picked at random each time */
+dilcopy DailySchedule@quests({
+   "@0-24 repeat", "::walkto::cth_sw_tower@midgaard", "emote stands guard.",
+   "@0-24 repeat", "::walkto::cth_se_tower@midgaard", "emote stands guard.",
+   "@0-24 repeat", "::walkto::cth_sanctum@midgaard", "emote stands guard.",
+   "@0-24 repeat", "::walkto::cth_square1@midgaard", "emote stands guard."},
+   "", 5);
 
 end
 
@@ -7754,7 +7754,7 @@ title "Quasimodo"
 descr "Quasimodo is silently watching you."
 extra {}
 "He is a human, and yet he has the face of a troll.  His old, dirty robe
-makes a bad job hiding a hideous-looking hunch on his back. He seems very
+makes a bad job of hiding a hideous-looking hunch on his back. He seems very
 sad."
 
 romflags {CHAR_PROTECTED, CHAR_WIMPY}
@@ -7764,7 +7764,8 @@ money 5 IRON_PIECE
 
 dilbegin quasimodo();
 external
- integer walk_room@function (s:string,i:integer);
+   integer walk_room@function (s:string,i:integer);
+   DailyRoutine@quests(sl : stringlist, arg2 : string);
 
 var
 tf:integer;
@@ -7773,26 +7774,17 @@ tf:integer;
 
 code
 {
-   heartbeat := WAIT_SEC*15;
-   on_activation((self.position <= POSITION_SLEEPING) or
-		 (self.position == POSITION_FIGHTING), skip);
+   on_activation((self.position < POSITION_SLEEPING) or (self.position == POSITION_FIGHTING), skip);
 
    /* Quasi shall react only on ticks (variable time)  */
    wait(SFB_TICK | SFB_RANTIME, TRUE);
 
    :start:
-   tf:=walk_room@function("cth_sw_tower@midgaard",4);
-   if (self.position > POSITION_SLEEPING)
-   {
-      exec("sigh", self);
-      pause;
-      exec("sit", self);
-      pause;
-      exec("yawn", self);
-      pause;
-      exec("sleep", self);
-      pause;
-   }
+   heartbeat := WAIT_SEC*15;
+   DailyRoutine@quests({
+      "wake",
+      "::walkto::cth_sw_tower@midgaard",
+      "sigh", "sit", "yawn", "sleep"}, "");
 
    heartbeat := WAIT_SEC*SECS_PER_MUD_HOUR/2;
    while ((mudhour != 4) and (mudhour != 16))
@@ -7802,66 +7794,47 @@ code
    }
    heartbeat := WAIT_SEC*15;
 
-   exec("wake", self);
-   pause;
-
-   tf:=walk_room@function("cth_altar@midgaard",4);
-   exec("sulk", self);
-   pause;
+   DailyRoutine@quests({
+      "wake",
+      "::walkto::cth_altar@midgaard",
+      "sulk"}, "");
 
    u := findunit(self, "bronze key", FIND_UNIT_INVEN | FIND_UNIT_EQUIP, null);
    if (u #= null)
    {
-      exec("cry", self);
-      pause;
-      exec("say swomeone stwole our kwey!", self);
-      pause;
+      DailyRoutine@quests({
+         "cry",
+         "say swomeone stwole our kwey!"}, "");
       goto start;
    }
 
-   exec("unlock east door", self);
-   pause;
-   exec("open east door", self);
-   pause;
-   exec("east", self);
-   pause;
-   exec("close west door", self);
-   pause;
-   exec("lock west door", self);
-   pause;
-
-   tf:=walk_room@function("cth_n_tower@midgaard",4);
-   exec("bounce", self);
-   pause;
+   DailyRoutine@quests({
+      "unlock east door",
+      "open east door",
+      "east",
+      "close west door",
+      "lock west door",
+      "::walkto::cth_n_tower@midgaard",
+      "bounce"}, "");
 
    heartbeat := WAIT_SEC*SECS_PER_MUD_HOUR/2;
    while ((mudhour != 6) and (mudhour != 18))
      pause;
    heartbeat := WAIT_SEC*15;
 
-   exec("giggle", self);
-   pause;
-   exec("emote tries to ring the bells.", self);
-   pause;
-   exec("clap", self);
-   pause;
+   DailyRoutine@quests({
+      "giggle",
+      "emote tries to ring the bells.",
+      "clap",
+      "::walkto::cth_n_stairs1@midgaard",
+      "sulk",
+      "unlock west door",
+      "open west door",
+      "west",
+      "close east door",
+      "lock east door",
+      "sniff"}, "");
 
-   tf:=walk_room@function("cth_n_stairs1@midgaard",4);
-   exec("sulk", self);
-   pause;
-   exec("unlock west door", self);
-   pause;
-   exec("open west door", self);
-   pause;
-   exec("west", self);
-   pause;
-   exec("close east door", self);
-   pause;
-   exec("lock east door", self);
-   pause;
-
-   exec("sniff", self);
-   pause;
    goto start;
 }
 dilend
@@ -7895,7 +7868,7 @@ end
 
 names {"drunk"}
 title "the Drunk"
-descr "A singing, happy Drunk."
+descr "A singing, happy drunk is here."
 extra {} "A drunk who seems to be too happy, and to carry too much money."
 
 M_AVG_HUMAN(8, SEX_MALE)
@@ -8073,7 +8046,7 @@ names {"kitten"}
 title "the Kitten"
 descr "A small loyal Kitten is here."
 extra {} "The Kitten looks like a cute, little, fierce fighter. She is a
-special friend of the great god 'Papi'"
+special friend of the great god 'Papi'."
 M_CAT_TINY(2,SEX_FEMALE)
 
 end
@@ -8152,7 +8125,7 @@ title "the Mayor"
 descr "The Mayor is sitting in his huge chair, snoring loudly."
 extra {} 
 "He is a stocky, middle-aged man with thin, grey hair. The mayor can help you
-join guilds. Try the guild command and after that the join command."
+become a respectable citizen in Midgaard."
 
 romflags {CHAR_PROTECTED}
 M_AVG_HUMAN(15, SEX_MALE)
@@ -8161,13 +8134,13 @@ money 5 IRON_PIECE
 
 dilcopy qstItemsWanted@quests(QUEST_CITIZEN_MIDGAARD, {"platinum piece"}, {"moneycheck@quests 2 4"},
             {"say Thank you $1N, these citizen taxes will be put to good use."},
-            "say Thank you $1N but I can't accept that. I need 2 platinum piece.");
+            "say Thank you $1N but I can't accept that. I need 2 platinum pieces.");
 
 // Give a chance to grant citizenship
 //
 dilbegin citizenship();
 external
-   unitptr qstWaitHero@quests(qname : string, pc : unitptr, sl : stringlist, acptfunc : string);
+   unitptr qstWaitHero@quests(qname : string, pc : unitptr, sl : stringlist, acptfunc : string, prereqfunc : string);
    extraptr qstAssign@quests(qname : string, pc : unitptr, sl : stringlist, qdescr : string);
    integer check_protected@justice(char : unitptr, juris : string);
 var
@@ -8192,7 +8165,7 @@ code
 
    pc := qstWaitHero@quests(QUEST_CITIZEN_MIDGAARD, pc, 
       {"say Greetings $1N and welcome to the grand city of Midgaard",
-       "say So you'd like to become a protected citizen under the laws of Midgaard?"}, "");
+       "say So you'd like to become a protected citizen under the laws of Midgaard?"}, "", "");
 
    if (pc == null)
       goto start;
@@ -8204,17 +8177,18 @@ code
        "say and to prove no one is above the law you must pay me 2 platinum",
        "cough",
        "say to be spent solely on the city of Midgaard of course.",
-       "emote puts his hand forward and awaits your payment"},
+       "emote puts his hand forward and awaits your payment."},
       "Bring the Mayor of Midgaard 2 platinum pieces to become a citizen.");
    goto start;
 }
 dilend
 
 
-// Get items to complete Stew quest
+// Get items to complete citizenship
 //
 dilbegin citizenDone();
 external
+   unitptr qstWaitPc@quests();
    unitptr qstWaitDone@quests(qname : string, pc : unitptr,
                              sl : stringlist, xp : integer, gold : integer, itemsl : stringlist);
 var
@@ -8227,9 +8201,9 @@ var
 code
 {
    :start:
-   wait(SFB_CMD, (activator.type == UNIT_ST_PC));
+   pc := qstWaitPc@quests();
 
-   pc := qstWaitDone@quests(QUEST_CITIZEN_MIDGAARD, activator, 
+   pc := qstWaitDone@quests(QUEST_CITIZEN_MIDGAARD, pc, 
             {"say Congratulations, $1N, and welcome to Midgaard.",
              "smile $1N"}, 0, 0, {""});
 
@@ -8238,259 +8212,14 @@ code
 
    // qitems_ deletes items received 
    log(pc.symname + " became a citizen of Midgaard.");
-   addextra(pc.extra, {"$protected midgaard"}, "Paid 1 PP to the Mayor");
+   addextra(pc.extra, {"$protected midgaard"}, "Paid 2 PP to the Mayor");
 
    goto start;
 }
 dilend
-
-
-#define GUILD_NAMES  {"Udgaard Fighter", "Udgaard Thief", "Udgaard Healer", \
-               "Udgaard Conjurer", "Nymgaard Ranger", "Midgaard Paladin", "Midgaard Sorcerer", \
-               "Khorsabad Assassin", "Necromancer", "Nymgaard Druid", "Midgaard Dark Knight", "Barbarian" } 
-#define GUILD_LETTERS  {"F", "T", "H",  "C", "R", "P",   "S", "A", "N",  "D", "K", "B"};
-#define GUILD_EXCL     {"",  "P", "N",   "",  "",  "ANK", "",  "P", "PRD", "N", "PD", ""};
-
-/* Lists the characters current guilds and returns how many they are a member of */
-dilbegin aware integer guild_choose();
-var
-   ch : unitptr;
-   Guilds : stringlist;
-   GuildLetters : stringlist;
-   GuildExcl : stringlist;
-
-   exd         : extraptr;
-   nGuilds : integer;
-   i : integer;
-   sExcl : string;
-   sl : stringlist;
-   s  : string;
-
-   glvl : integer;
-
-   g1s : string;
-   g1i : integer;
-   g1l : integer;
-
-   g2s : string;
-   g2i : integer;
-   g2l : integer;
-
-   g3s : string;
-   g3i : integer;
-   g3l : integer;
-   il : stringlist;
-
-code
-{
-   heartbeat := PULSE_SEC*4;
-
-   :loop:
-   wait(SFB_CMD, command("guild"));
-
-   :loopa:
-   block;
-   ch :=activator;
-
-   Guilds := GUILD_NAMES;
-   GuildLetters := GUILD_LETTERS;
-   GuildExcl := GUILD_EXCL;
-
-   sendtext("You're a member of the following guilds:<br/>", ch);
-
-   nGuilds := 0;
-   sExcl := "";
-   il := null;
-   glvl := 0;
-   g1s := "";
-   g2s := "";
-   g3s := "";
-   g1l := 0;
-   g2l := 0;
-   g3l := 0;
-   g1i := -1;
-   g2i := -1;
-   g3i := -1;
-
-   exd := "$path" in ch.quests;
-   if (exd == null)
-      sendtext(" No guilds. <br/>", ch);
-
-   if (exd != null)
-   { 
-      i := length(exd.names);
-
-      if (i >= 8)
-      {
-         g1s := exd.names.[1];
-         g1i := g1s in Guilds -1;
-         if (g1i == -1)
-            g1s := "";
-         else
-            sExcl := sExcl + GuildExcl.[g1i] + GuildLetters.[g1i];
-
-         g2s := exd.names.[2];
-         g2i := g2s in Guilds -1;
-         if (g2i == -1)
-            g2s := "";
-         else
-            sExcl := sExcl + GuildExcl.[g2i] + GuildLetters.[g2i];
-
-         g3s := exd.names.[3];
-         g3i := g3s in Guilds -1;
-         if (g3i == -1)
-            g3s := "";
-         else
-            sExcl := sExcl + GuildExcl.[g3i] + GuildLetters.[g3i];
-
-         glvl := atoi(exd.names.[4]);
-         g1l := atoi(exd.names.[5]);
-         g2l := atoi(exd.names.[6]);
-         g3l := atoi(exd.names.[7]);
-
-         sl := split(exd.descr, "/");
-      }
-   }
-
-   if (g1i >= 0)
-      sendtext(" " + Guilds.[g1i] + "<br/>", ch);
-
-   if (g2i >= 0)
-      sendtext(" " + Guilds.[g2i] + "<br/>", ch);
-
-   if (g3i >= 0)
-      sendtext(" " + Guilds.[g3i] + "<br/>", ch);
-
-   if ((g1i >= 0) and (g2i >= 0) and (g3i >= 0))
-   {
-      sendtext("You cannot join any more guilds.<br/>", ch);
-      goto loop;
-   }
-
-   sendtext("<br/>Please pick a guild to join:<br/>", ch);
-   i := 0;
-
-   while (i < length(Guilds))
-   {
-      if (not (GuildLetters.[i] in sExcl))
-      {
-         sendtext(itoa(i+1) + ") "+Guilds.[i]+"<br/>", ch);
-         insert(il, 0, itoa(i+1));
-      }
-      i := i + 1;
-   }
-
-/*   i := 0;
-   while (i < length(il))
-   {
-      sendtext(il.[i]+",", ch);
-      i := i + 1;
-   }*/
-   sendtext("<br/>Type 'join [number]' to join one of the guilds.<br/>", ch);
-
-   secure(ch, lost);
-
-   :loop2:
-   wait(SFB_CMD, TRUE);
-
-   if (command("guild"))
-   {
-      if (activator != ch)
-      {
-         act("$1n says, '$3n, I'm busy helping out $2n, please be patient. There's only so much a mayor can do.'",
-              A_SOMEONE, self, ch, activator, TO_ROOM);
-         block;
-         goto loop2;
-      }
-      unsecure(ch);
-      goto loopa;
-   }
-
-   if (activator != ch)
-      goto loop2;
-
-   if (not command("join"))
-      goto loop2;
-
-   block;
-   unsecure(ch);
-   
-   i := atoi(argument);
-
-   if (not(itoa(i) in il))
-   {
-      sendtext("You must pick a valid number. Start over by typing 'guild'<br/>", ch);
-      goto loop;
-   }
- 
-   i := i - 1;
-
-   exec("say I'll put in the word for you to join " + Guilds.[i], self);
-
-   if (glvl < 1)
-      glvl := 1;
-
-   if (g1i == -1)
-   {
-      g1i := i;
-      g1s := Guilds.[i];
-      g1l := 1;
-   }
-   else if (g2i == -1)
-   {
-      g2i := i;
-      g2s := Guilds.[i];
-      g2l := 1;
-   }
-   else if (g3i == -1)
-   {
-      g3i := i;
-      g3s := Guilds.[i];
-      g3l := 1;
-   }
-
-   sl := {"$path"};
-   insert(sl, length(sl), g1s);
-   insert(sl, length(sl), g2s);
-   insert(sl, length(sl), g3s);
-   insert(sl, length(sl), itoa(glvl));
-   insert(sl, length(sl), itoa(g1l));
-   insert(sl, length(sl), itoa(g2l));
-   insert(sl, length(sl), itoa(g3l));
-
-   s := "";
-   if (g1i >= 0)
-      s := s + GuildLetters.[g1i];
-   s := s + " / ";
-   if (g2i >= 0)
-      s := s + GuildLetters.[g2i];
-   s := s + " / ";
-   if (g3i >= 0)
-      s := s + GuildLetters.[g3i];
-
-   exd := "$path" in ch.quests;
-   if (exd == null)
-   {
-      addextra(ch.quests, sl, s);
-   }
-   else
-   {
-      exd.names := sl;
-      exd.descr := s;
-   }
-   /*sendtext("Data "+s+"<br/>", ch);*/
-
-  goto loop;
-
-   :lost:
-   exec("say How rude.", self);
-   exec("emote looks perplexed.", self);
-   goto loop;
-}
-dilend
-
-
 end
+
+
 
 %objects
 
@@ -8499,7 +8228,7 @@ end
 tbag
 names{"trash bag","bag"}
 title "a trash bag"
-descr "a large trash bag has been dropped here."
+descr "A large trash bag has been dropped here."
 extra {}
  "<pre>This large black bag is commonly used for trash.
 There is some writing printed on it.</pre>"
@@ -8570,17 +8299,15 @@ title "a large sign"
 descr "A large sign sways gently in front of the engraving shop to the east."
 extra {}
 "<pre>The sign proclaims:<div class='cpw'>
-			_	  _
+		             _         _
  	 ______________(_))______(_))_____________
-	[					  ]]
-	[   	Veejay's Engraving Services.	  ]]
-	[  ------------------------------------&gt;  ]]
-	[	  Personalize your outfit!	  ]]
-	[	    Dazzle your friends!	  ]]
-	[	   Suprise your loved one!	  ]]
-	[_________________________________________]]</div><div class='cw'>
-
-&f</div></pre>"
+	[					                           ]]
+	[   	Veejay's Engraving Services.	      ]]
+	[  ------------------------------------&gt;   ]]
+	[	  Personalize your outfit!	            ]]
+	[	    Dazzle your friends!	            ]]
+	[	   Surprise your loved one!	            ]]
+	[_________________________________________]]</div></pre>"
 weight 20
 
 dilbegin sign_sway();
@@ -8740,7 +8467,7 @@ end
                               nightshade
 names {"nightshade", "berries"}
 title "some nightshade berries"
-descr "A handful of nightshade berries have been left here."
+descr "A handful of nightshade berries has been left here."
 manipulate {MANIPULATE_TAKE}
 FOOD_DEF(2, 5)
 weight 1
@@ -8770,7 +8497,7 @@ POTION_DEF(50, SPL_REM_DISEASE, SPL_NONE, SPL_NONE)
 weight 1
 cost 5 GOLD_PIECE
 extra {}
-"It has a nice white colour and smells little like peppermint."
+"It has a nice white colour and smells a little like peppermint."
 end
 
 			p_rpoison
@@ -8934,8 +8661,8 @@ end
 
                               bread
 
-names {"bread"}
-title "a bread"
+names {"bread", "loaf"}
+title "a loaf of bread"
 descr "A loaf of bread has been left here."
 manipulate {MANIPULATE_TAKE}
 FOOD_DEF(12, 0)
@@ -9045,10 +8772,10 @@ end
 
                                 garlic
 
-names {"garlic"}
-title "a garlic"
-descr "A large garlic has been left here."
-extra {} "In memorandum Bode."
+names {"garlic", "bulb"}
+title "a bulb of garlic"
+descr "A large bulb of garlic has been left here."
+extra {} "In memoriam Bode."
 manipulate {MANIPULATE_TAKE}
 FOOD_DEF(4, 0)
 weight 1
@@ -9080,7 +8807,8 @@ extra {}
 "This is a nice wooden quarterstaff, reinforced at each end with a
 little metal bar."
 manipulate {MANIPULATE_TAKE,MANIPULATE_HOLD,MANIPULATE_WIELD}
-WEAPON_DEF(WPN_QUARTERSTAFF, 0, 0)
+WEAPON_DEF(WPN_QUARTERSTAFF, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 2
 cost 5   COPPER_PIECE
 end
@@ -9091,7 +8819,8 @@ names {"wooden stick","stick"}
 title "a wooden stick"
 descr "A simple-looking wooden stick is here."
 /* Wood + Craftman ship = (30% + 5%) */
-WEAPON_DEF(WPN_CLUB, -10, 0)
+WEAPON_DEF(WPN_CLUB, BONUS_BAD, BONUS_AVERAGE)  // Xyzzy: -10,0
+dilcopy randomizeItem@randomt(BONUS_BAD);
 weight 3
 cost 1   COPPER_PIECE
 end
@@ -9102,7 +8831,8 @@ names {"great wooden club","wooden club", "club"}
 title "a great wooden club"
 descr "A very large, simple-looking wooden club is here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_BATTLE_CLUB, -10, 0)
+WEAPON_DEF(WPN_BATTLE_CLUB, BONUS_AVERAGE_MINUS, BONUS_AVERAGE)  // Xyzzy: -10,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 7
 cost 2   COPPER_PIECE
 end
@@ -9114,7 +8844,8 @@ title "a dagger"
 descr "A small dagger with a long thin blade is here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman-ship = -5% */
-WEAPON_DEF(WPN_DAGGER, -5, 0)
+WEAPON_DEF(WPN_DAGGER, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 6
 cost  4   SILVER_PIECE
 end
@@ -9126,7 +8857,8 @@ title "a short sword"
 descr "A short sword lies here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman ship = -5% */
-WEAPON_DEF(WPN_SHORT_SWORD, -5, 0)
+WEAPON_DEF(WPN_SHORT_SWORD, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 10
 cost 8   SILVER_PIECE
 end
@@ -9138,7 +8870,8 @@ title "a long sword"
 descr "A long sword has been left here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman ship = -5% */
-WEAPON_DEF(WPN_LONG_SWORD, -5, 0)
+WEAPON_DEF(WPN_LONG_SWORD, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 romflags {OBJ_NO_DUAL}
 weight 10
 cost 12   SILVER_PIECE
@@ -9151,7 +8884,8 @@ title "a two handed sword"
 descr "A two handed sword has been left here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman ship = -5% */
-WEAPON_DEF(WPN_GREAT_SWORD, -5, 0)
+WEAPON_DEF(WPN_GREAT_SWORD, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 10
 cost 16   SILVER_PIECE
 end
@@ -9163,9 +8897,10 @@ names {"katana"}
 title "a katana"
 descr "A katana has been left here."
 extra {}
-"The katana is a light weight finely crafted weapon."
+"The katana is a lightweight, finely crafted weapon."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
-WEAPON_DEF(WPN_SCIMITAR, 0, 0)
+WEAPON_DEF(WPN_SCIMITAR, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 7
 cost 25   SILVER_PIECE
 end
@@ -9173,12 +8908,13 @@ end
 
                               ham0
 
-names {"war hammer","hammer"}
+names {"war hammer","warhammer","hammer"}
 title "a war hammer"
 descr "A medium-sized warhammer is here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman ship -5% */
-WEAPON_DEF(WPN_WAR_HAMMER, -5, 0)
+WEAPON_DEF(WPN_WAR_HAMMER, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 10
 cost 8   SILVER_PIECE
 end
@@ -9210,7 +8946,8 @@ title "a mace"
 descr "A mace has been left here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman ship -5% */
-WEAPON_DEF(WPN_MACE, -5, 0)
+WEAPON_DEF(WPN_MACE, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 10
 cost 8   SILVER_PIECE
 end
@@ -9224,7 +8961,8 @@ descr "A medium-sized spear has been dropped on the ground."
 extra {} "The spear has a wooden shaft, and is reinforced at the head."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman ship -5% */
-WEAPON_DEF(WPN_SPEAR, -5, 0)
+WEAPON_DEF(WPN_SPEAR, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 7
 cost 2   SILVER_PIECE
 end
@@ -9240,7 +8978,8 @@ extra {}
 metal chain."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron / Craftman ship = -5% */
-WEAPON_DEF(WPN_FLAIL, -5, 0)
+WEAPON_DEF(WPN_FLAIL, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 5
 cost 15   SILVER_PIECE
 end
@@ -9254,7 +8993,8 @@ descr "A battle axe has been dropped here."
 extra {} "The axe is made of metal with a wooden grip."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron + Craftman ship = (90% + -5%) */
-WEAPON_DEF(WPN_BATTLE_AXE, -5, 0)
+WEAPON_DEF(WPN_BATTLE_AXE, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 10
 cost 10   SILVER_PIECE
 end
@@ -9372,23 +9112,9 @@ names {"leather cap","cap"}
 title "a leather cap"
 descr "A leather cap is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
-ARMOUR_LEATHER(0, 0) /* 10 default str, Leather Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
 cost 6   COPPER_PIECE
-end
-
-
-                                  lth_cap1
-
-names {"leather cap","cap"}
-title "a leather cap"
-descr "A leather cap is lying on the ground."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
-ARMOUR_PLATE(0, 0) /* 10 default str, Leather Quality, Average Craft */
-weight 25
-cost 6   COPPER_PIECE
-dilcopy abil_restrict@function(ABIL_STR, 70, 0, 0, "");
-
 end
 
 
@@ -9399,21 +9125,8 @@ names {"leather gloves","gloves"}
 title "a pair of leather gloves"
 descr "A pair of leather gloves is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HANDS}
-ARMOUR_LEATHER(0, 0) /* 10 default str, Leather Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
-cost 6   COPPER_PIECE
-end
-
-
-                                 lth_gloves1
-
-names {"leather gloves","gloves"}
-title "a pair of leather gloves"
-descr "A pair of leather gloves is lying on the ground."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HANDS}
-ARMOUR_PLATE(0, 0) /* 10 default str, Leather Quality, Average Craft */
-weight 25
-dilcopy abi_restrict@function(ABIL_STR, 70, 0, 0, "");
 cost 6   COPPER_PIECE
 end
 
@@ -9424,23 +9137,10 @@ names {"leather sleeves","sleeves"}
 title "a pair of leather sleeves"
 descr "A pair of leather sleeves is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_LEATHER(0, 0) /* 10 default str, Leather Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
 cost 8   COPPER_PIECE
 end
-
-                                lth_sleeves1
-
-names {"leather sleeves","sleeves"}
-title "a pair of leather sleeves"
-descr "A pair of leather sleeves is lying on the ground."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_PLATE(0, 0) /* 10 default str, Leather Quality, Average Craft */
-weight 25
-dilcopy abi_restrict@function(ABIL_STR, 70, 0, 0, "");
-cost 8   COPPER_PIECE
-end
-
 
 
                                 lth_jerkin
@@ -9449,22 +9149,9 @@ names {"leather jerkin","jerkin"}
 title "a leather jerkin"
 descr "A leather jerkin is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_LEATHER(0, 0) /* 10 default str, Leather Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
 cost 6   COPPER_PIECE
-end
-
-
-                                lth_jerkin1
-
-names {"leather jerkin","jerkin"}
-title "a leather jerkin"
-descr "A leather jerkin is lying on the ground."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_PLATE(0, 0) /* 10 default str, Leather Quality, Average Craft */
-weight 25
-cost 6   COPPER_PIECE
-dilcopy abi_restrict@function(ABIL_STR, 70, 0, 0, "");
 end
 
 
@@ -9475,7 +9162,7 @@ names {"leather pants", "pants"}
 title "a pair of leather pants"
 descr "A pair of leather pants is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_LEATHER(0, 0) /* 10 default str, Leather Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 5
 cost 8   COPPER_PIECE
 extra "$wear_s"
@@ -9490,55 +9177,19 @@ extra "$rem_o"
 end
 
 
-                lth_pants1
-
-names {"leather pants", "pants"}
-title "a pair of leather pants"
-descr "A pair of leather pants is lying on the ground."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_PLATE(0, 0) /* 10 default str, Leather Quality, Average Craft */
-weight 25
-cost 8   COPPER_PIECE
-extra "$wear_s"
-"You slip into the $2N and feel rather smart."
-extra "$wear_o"
-"$1n slips into the $2N."
-
-extra "$rem_s"
-"You get out of the $2N and feel a little naked."
-extra "$rem_o"
-"$1n gets out of $1s $2N."
-
-dilcopy abi_restrict@function(ABIL_STR, 70, 0, 0, "");
-
-end
-
-
 
 lth_boots
 names {"leather boots", "boots"}
 title "a pair of leather boots"
 descr "A pair of leather boots lies here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
-ARMOUR_LEATHER(0, 0) /* 10 default str, Leather Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 3
 cost 6   COPPER_PIECE
 end
 
 
 
-
-                                lth_boots1
-
-names {"leather boots", "boots"}
-title "a pair of leather boots"
-descr "A pair of leather boots lies here."
-manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
-ARMOUR_PLATE(0, 0) /* 10 default str, Leather Quality, Average Craft */
-weight 23
-cost 6   COPPER_PIECE
-dilcopy abi_restrict@function(ABIL_STR, 70, 0, 0, "");
-end
 
 /* -------------------------- STUDDED ARMOURS -------------------------- */
 
@@ -9548,7 +9199,7 @@ names {"hard leather cap","cap"}
 title "a hard leather cap"
 descr "A hard leather cap is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
-ARMOUR_HRD_LEATHER(0, 0) /* 15 def str, HLth Quality, Average Craft */
+ARMOUR_HRD_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
 cost 12   COPPER_PIECE
 end
@@ -9559,7 +9210,7 @@ names {"hard leather gloves","gloves"}
 title "a pair of hard leather gloves"
 descr "A pair of hard leather gloves is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HANDS}
-ARMOUR_HRD_LEATHER(0, 0) /* 15 def str, HLth Quality, Average Craft */
+ARMOUR_HRD_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 1
 cost 12   COPPER_PIECE
 end
@@ -9570,7 +9221,7 @@ names {"studded leather sleeves","sleeves"}
 title "a pair of studded leather sleeves"
 descr "A pair of studded leather sleeves is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_LEATHER(0, 0) /* 15 def str, Lth Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 4
 cost 8   COPPER_PIECE
 end
@@ -9580,7 +9231,7 @@ names {"studded leather jerkin","jerkin"}
 title "a studded leather jerkin"
 descr "A studded leather jerkin is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_LEATHER(0, 0) /* 15 def str, Lth Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 5
 cost 12   COPPER_PIECE
 end
@@ -9591,7 +9242,7 @@ names {"studded leather pants","pants"}
 title "a pair of studded leather pants"
 descr "A pair of studded leather pants is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_LEATHER(0, 0) /* 15 def str, Lth Quality, Average Craft */
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 16   COPPER_PIECE
 end
@@ -9602,7 +9253,7 @@ names {"hard leather boots","boots"}
 title "a pair of hard leather boots"
 descr "A pair of hard leather boots lies here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
-ARMOUR_HRD_LEATHER(0, 0) /* 10 def str, HLth Quality, Average Craft */
+ARMOUR_HRD_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 4
 cost 12   COPPER_PIECE
 end
@@ -9617,7 +9268,7 @@ title "a scale mail coif"
 descr "A scale mail coif is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
 /* Iron/Leather mixture + avg/poor craftmanship */
-ARMOUR_CHAIN(-2, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -2,0
 cost 7   SILVER_PIECE
 end
 
@@ -9627,7 +9278,7 @@ names {"reinforced gloves","gloves"}
 title "a pair of reinforced gloves"
 descr "A pair of reinforced gloves is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HANDS}
-ARMOUR_CHAIN(-2, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -2,0
 weight 4
 cost 7   SILVER_PIECE
 end
@@ -9638,7 +9289,7 @@ names {"scale mail sleeves","sleeves"}
 title "a pair of scale mail sleeves"
 descr "A pair of scale mail sleeves is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_CHAIN(-2, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -2,0
 weight 8
 cost 9   SILVER_PIECE
 end
@@ -9649,7 +9300,7 @@ names {"scale mail jerkin","jerkin"}
 title "a scale mail jerkin"
 descr "A scale mail jerkin is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_CHAIN(-2, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -2,0
 weight 9
 cost 7   SILVER_PIECE
 end
@@ -9660,7 +9311,7 @@ names {"scale mail skirt","skirt"}
 title "a long scale mail skirt"
 descr "A long scale mail skirt is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_CHAIN(-2, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -2,0
 weight 9
 cost 9   SILVER_PIECE
 end
@@ -9671,7 +9322,7 @@ names {"scale mail boots","boots"}
 title "a pair of scale mail boots"
 descr "A pair of scale mail boots lies here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
-ARMOUR_CHAIN(-2, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -2,0
 weight 6
 cost 7   SILVER_PIECE
 end
@@ -9685,7 +9336,7 @@ title "a chain mail coif"
 descr "A chain mail coif is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
 /* Iron rings + avg/poor = 100% +  -5% */
-ARMOUR_CHAIN(-5, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 4
 cost 15   SILVER_PIECE
 end
@@ -9696,7 +9347,7 @@ names {"chain mail sleeves","sleeves"}
 title "a pair of chain mail sleeves"
 descr "A pair of chain mail sleeves is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_CHAIN(-5, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 8
 cost 20   SILVER_PIECE
 end
@@ -9707,7 +9358,7 @@ names {"chain mail jerkin", "jerkin"}
 title "a chain mail jerkin"
 descr "A chain mail jerkin is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_CHAIN(-5, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 9
 cost 15   SILVER_PIECE
 end
@@ -9719,7 +9370,7 @@ names {"chain mail skirt", "skirt"}
 title "a long chain mail skirt"
 descr "A long chain mail skirt is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_CHAIN(-5, 0)
+ARMOUR_CHAIN(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 9
 cost 20   SILVER_PIECE
 end
@@ -9733,7 +9384,7 @@ title "a bronze helmet"
 descr "A bronze helmet is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
 /*  Bronze + poor craftmanship */
-ARMOUR_PLATE(-5, 0)
+ARMOUR_PLATE(BONUS_AVERAGE_MINUS, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 8
 cost 12   COPPER_PIECE
 end
@@ -9744,7 +9395,7 @@ names {"bronze gauntlets","gauntlets"}
 title "a pair of bronze gauntlets"
 descr "A pair of bronze gauntlets is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HANDS}
-ARMOUR_PLATE(-5, 0)
+ARMOUR_PLATE(BONUS_AVERAGE_MINUS, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 8
 cost 12   COPPER_PIECE
 end
@@ -9755,7 +9406,7 @@ names {"bronze bracers","bracers"}
 title "a pair of bronze bracers"
 descr "A pair of bronze bracers is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_PLATE(-5, 0)
+ARMOUR_PLATE(BONUS_AVERAGE_MINUS, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 8
 cost 22   SILVER_PIECE
 end
@@ -9766,7 +9417,7 @@ names {"bronze breast plate", "breast plate"}
 title "a bronze breast plate"
 descr "A bronze breast plate is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_PLATE(-5, 0)
+ARMOUR_PLATE(BONUS_AVERAGE_MINUS, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 20
 cost 17   SILVER_PIECE
 end
@@ -9778,7 +9429,7 @@ names {"bronze leggings","leggings"}
 title "a pair of bronze leggings"
 descr "A pair of bronze leggings is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_PLATE(-5, 0)
+ARMOUR_PLATE(BONUS_AVERAGE_MINUS, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 8
 cost 22   SILVER_PIECE
 end
@@ -9789,7 +9440,7 @@ names {"bronze boots","boots"}
 title "a pair of bronze boots"
 descr "A pair of bronze boots is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
-ARMOUR_PLATE(-5, 0)
+ARMOUR_PLATE(BONUS_AVERAGE_MINUS, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 10
 cost 8   SILVER_PIECE
 end
@@ -9804,7 +9455,7 @@ title "an iron helmet"
 descr "An iron helmet is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
 /* Iron plates + poor craftmanship = 100% + -10% = 90% */
-ARMOUR_PLATE(0, 0)
+ARMOUR_PLATE(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 15   COPPER_PIECE
 end
@@ -9815,7 +9466,7 @@ names {"iron gauntlets","gauntlets"}
 title "a pair of iron gauntlets"
 descr "A pair of iron gauntlets is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HANDS}
-ARMOUR_PLATE(0, 0)
+ARMOUR_PLATE(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 15   SILVER_PIECE
 end
@@ -9826,7 +9477,7 @@ names {"iron bracers","bracers"}
 title "a pair of iron bracers"
 descr "A pair of iron bracers is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_ARMS}
-ARMOUR_PLATE(0, 0)
+ARMOUR_PLATE(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 25   SILVER_PIECE
 end
@@ -9837,7 +9488,7 @@ names {"iron breast plate", "breast plate"}
 title "an iron breast plate"
 descr "An iron breast plate is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_BODY}
-ARMOUR_PLATE(0, 0)
+ARMOUR_PLATE(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 20
 cost 20   SILVER_PIECE
 end
@@ -9849,7 +9500,7 @@ names {"iron leggings","leggings"}
 title "a pair of iron leggings"
 descr "A pair of iron leggings is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_LEGS}
-ARMOUR_PLATE(0, 0)
+ARMOUR_PLATE(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 8
 cost 25   SILVER_PIECE
 end
@@ -9860,7 +9511,7 @@ names {"iron boots","boots"}
 title "a pair of iron boots"
 descr "A pair of iron boots is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
-ARMOUR_PLATE(0, 0)
+ARMOUR_PLATE(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 10
 cost 10   SILVER_PIECE
 end
@@ -9874,7 +9525,7 @@ names {"small wooden shield", "wooden shield", "shield"}
 title "a small wooden shield"
 descr "A small wooden shield is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_SHIELD}
-SHIELD_DEF(SHIELD_SMALL, -10, 0)
+SHIELD_DEF(SHIELD_SMALL, BONUS_JUNK, BONUS_AVERAGE)  // Xyzzy: -10,0
 weight 8
 cost 1   SILVER_PIECE
 end
@@ -9885,7 +9536,7 @@ names {"small metal shield", "metal shield", "shield"}
 title "a small metal shield"
 descr "A small metal shield is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_SHIELD}
-SHIELD_DEF(SHIELD_SMALL, -5, 0)
+SHIELD_DEF(SHIELD_SMALL, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 5
 cost 2   SILVER_PIECE
 end
@@ -9896,7 +9547,7 @@ names {"large metal shield", "metal shield", "shield"}
 title "a large metal shield"
 descr "A large metal shield is lying on the ground."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_SHIELD}
-SHIELD_DEF(SHIELD_LARGE, -5, 0)
+SHIELD_DEF(SHIELD_LARGE, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
 weight 10
 cost 8   SILVER_PIECE
 end
@@ -9987,7 +9638,7 @@ type ITEM_KEY
 manipulate {MANIPULATE_TAKE, MANIPULATE_HOLD}
 weight 1
 extra {}
-"You notice the inscription `Crypt' on the key."
+"You notice the inscription 'Tower' on the key."
 end
 
 
@@ -10030,7 +9681,7 @@ end
                                amethyst
 
 names {"amethyst","gem"}
-title "a amethyst"
+title "an amethyst"
 descr "A small beautifully polished amethyst has been left here."
 type ITEM_TREASURE
 manipulate {MANIPULATE_TAKE, MANIPULATE_HOLD}
@@ -10046,6 +9697,7 @@ names {"pendant","silver"}
 title "a silver pendant"
 descr "A silver pendant has been left here."
 type ITEM_TREASURE
+dilcopy randomizeItem@randomt(BONUS_AVERAGE_PLUS);
 romflags {OBJ_NOCOVER}
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_NECK, MANIPULATE_HOLD}
 weight 5
@@ -10061,8 +9713,9 @@ title "a silver ring"
 descr "A silver ring has been left here."
 type ITEM_TREASURE
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FINGER, MANIPULATE_HOLD}
-weight 1
 cost 1   SILVER_PIECE
+dilcopy randomizeItem@randomt(BONUS_AVERAGE_PLUS);
+weight 1
 extra {}
 "It appears to be made of solid silver, and is beautifully polished.  It
 almost
@@ -10078,6 +9731,7 @@ names {"gold ring", "ring"}
 title "a gold ring"
 descr "A gold ring has been left here."
 type ITEM_TREASURE
+dilcopy randomizeItem@randomt(BONUS_AVERAGE_PLUS);
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FINGER, MANIPULATE_HOLD}
 weight 1
 cost 12   SILVER_PIECE
@@ -10094,7 +9748,8 @@ type ITEM_WEAPON
 flags {UNIT_FL_MAGIC}
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Silver / Good Craftmanship / A little magic~= -5% */
-WEAPON_DEF(WPN_DAGGER, -5, +1)
+WEAPON_DEF(WPN_DAGGER, BONUS_AVERAGE_PLUS, BONUS_AVERAGE_PLUS)  // Xyzzy: -5,+1
+dilcopy randomizeItem@randomt(BONUS_AVERAGE_PLUS);
 weight 1
 rent 20 COPPER_PIECE
 cost 50   SILVER_PIECE
@@ -10134,7 +9789,7 @@ manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 weight 1
 cost 6   SILVER_PIECE
 extra {}
-"This is just a old leather tool."
+"This is just an old leather tool."
 extra {"$improved identify"}
 "This leather tool would be perfect for adjusting the size of leather armor."
 extra {"$refit leather"}
@@ -10157,7 +9812,7 @@ variety of different signatures, all once names of respected citizens.
 extra {"pedestal"}
 "The book is securely fastened and doesn't seem to budge."
 extra {"signatures", "signature", "blood", "pages", "page"}
-"The recognize many of the names written on the book's pages.
+"You recognize many of the names written on the book's pages.
 In fact, many ring out in your memory, these are the names of
 outlaws!
 _____________________________________________________________<br/>"
@@ -10214,17 +9869,16 @@ code
       pause;
       act("A morbid voice intones 'Thou truly wishes to sign the " +
 	  "death book? Let the warnings of the dead ring out in your " +
-       	  "mind!", A_ALWAYS, pc, self, null, TO_CHAR);
+       	  "mind!'", A_ALWAYS, pc, self, null, TO_CHAR);
 		pause;
       act("The voices of the dead whisper 'If you really choose to sign, " +
 	  "be it known that your death may be sought by ANYONE else " +
 	  "who has signed. You will be free to murder other signers " +
-	  "as you wish.", A_ALWAYS, pc, self, null, TO_CHAR);
+	  "as you wish.'", A_ALWAYS, pc, self, null, TO_CHAR);
       pause;
       act ("Understand though if you sign there is no turning back.  "+
       "Once a book signer always a book signer.  Also don't complain to "+
-      "The gods about another book signer that kills you cause thats what
-signing "+
+      "the gods about another book signer that kills you cause that's what signing "+
       "this book means.  You are giving your permission to be killed.",
         A_ALWAYS, pc, self, null, TO_CHAR);
         pause;
@@ -10251,7 +9905,7 @@ signing "+
  	 }
          i := i+1;
       }
-      act("An eerie voice exclaims 'A wise decision not to sign!",
+      act("An eerie voice exclaims 'A wise decision not to sign!'",
 	  A_ALWAYS, activator, self, null, TO_CHAR);
       unsecure(pc);
       goto start;
@@ -10284,7 +9938,7 @@ var
   ));
   block;
   pc:=ghead();
-sendtext ("The following book signers are on line.<br/><br/>",activator);
+sendtext ("The following book signers are online.<br/><br/>",activator);
 
      while (pc.type==UNIT_ST_PC)
       {
@@ -10343,8 +9997,8 @@ G     |     I-#-----#-#-#-----#-S     |          Baker's Shop       J07
 H   R |   S   |   O   |   O   |   S   | R        Butcher's Shop     J17
     | |   |   |   |   |   |   |   |   | |        Boat Shop          L06
 I @-#-W---#---#---#---#---#---#---#---W-#-@      Fish Shop          L08
-    | |   |   |   |   |   |   |   |   | |        Armour's Shop      Q09
-J   R |   S   S   S   |   T   |   S   | R        Mortican's Shop    S05
+    | |   |   |   |   |   |   |   |   | |        Armourer's Shop    Q09
+J   R |   S   S   S   |   T   |   S   | R        Mortician's Shop   S05
       |               |       |       |          Blacksmith's Shop  S09
 K     |               #-I   O-#       |          Carpenter's Shop   T05
       |               |       |       |          Weaponsmith's Shop T08
@@ -10357,7 +10011,7 @@ N     W       #       #               W          Filthy's           G06
 
    South Midgaard.                             Guilds
                     1 1 1 1 1 1 1 1 1 1 1 1      Paladins           F09
-  1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1      Sorcerors          Y03
+  1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1      Sorcerers          Y03
 
       |               |               |        Connections
 O     W---#---#---#---#---#---#---#---W          Cypress Forest     I01
@@ -10406,7 +10060,8 @@ title "a meat cleaver"
 descr "A meat cleaver has been left here."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WIELD}
 /* Not pure Iron + Craftman ship = -5% */
-WEAPON_DEF(WPN_HAND_AXE, -5, 0)
+WEAPON_DEF(WPN_HAND_AXE, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -5,0
+dilcopy randomizeItem@randomt(BONUS_AVERAGE);
 weight 4
 cost 2   SILVER_PIECE
 end
@@ -10452,7 +10107,7 @@ descr "A pair of heavy oilskin boots lies here."
 extra {}
 "They are made from thick oilskin that has been reinforced with hard wood."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_FEET}
-ARMOUR_HRD_LEATHER(0, 0)
+ARMOUR_HRD_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 5
 cost 14   COPPER_PIECE
 end
@@ -10466,7 +10121,7 @@ extra {}
 "It is made from thick oilskin and looks to give good protection from rain and
 some protection from blows."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
-ARMOUR_LEATHER(0, 0)
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
 cost 18   COPPER_PIECE
 end
@@ -10505,7 +10160,7 @@ descr "A pointy hat is lying on the ground."
 extra {} "It is the sort of hat most wizards fancy."
 manipulate {MANIPULATE_TAKE, MANIPULATE_WEAR_HEAD}
 /*  Gives protection as a leather cap  */
-ARMOUR_CLOTHES(-3, 0)
+ARMOUR_CLOTHES(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: -3,0
 weight 1
 cost 3   COPPER_PIECE
 end
@@ -10560,7 +10215,7 @@ end
                              prom_bench
 
 names {"bench"}
-title "the Bench"
+title "the bench"
 descr "A white-painted wooden bench is standing here."
 type ITEM_OTHER
 weight 100
@@ -10574,7 +10229,7 @@ end
                              park_bench
 
 names {"bench"}
-title "the Bench"
+title "the bench"
 descr "A white-painted wooden bench is standing here."
 type ITEM_OTHER
 weight 100
@@ -10614,14 +10269,14 @@ end
 /* -------------------------- ZONE RESET -------------------------- */
 
 #define ARMOUR_S3   \
-   equip lth_sleeves1 position WEAR_ARMS   \
-   equip lth_jerkin1 position WEAR_BODY    \
-   equip lth_pants1 position WEAR_LEGS
+   equip lth_sleeves position WEAR_ARMS   \
+   equip lth_jerkin position WEAR_BODY    \
+   equip lth_pants position WEAR_LEGS
 
 #define ARMOUR_S8   \
-   equip lth_sleeves1 position WEAR_ARMS   \
-   equip lth_jerkin1 position WEAR_BODY    \
-   equip lth_pants1 position WEAR_LEGS
+   equip lth_sleeves position WEAR_ARMS   \
+   equip lth_jerkin position WEAR_BODY    \
+   equip lth_pants position WEAR_LEGS
 
 #define ARMOUR_S30   \
    equip iron_bracers position WEAR_ARMS   \
@@ -10639,7 +10294,9 @@ load mid_clerk into mid_storage@midgaard max 1
 
 
 /*engraver stuff*/
-load veejay into engraver_shop max 1
+load veejay into engraver_shop local 1
+load reejay into engraver_back local 1
+door engraver_shop EAST {EX_OPEN_CLOSE, EX_CLOSED, EX_HIDDEN}
 load engraver_sign into tailor_st3@midgaard max 1
 
 

@@ -4,253 +4,294 @@
  $Date: 2005/06/28 20:17:48 $
  $Revision: 2.9 $
  */
+#include "handler.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdarg.h>
-#include <time.h>
-
-#include "utils.h"
-#include "textutil.h"
-#include "skills.h"
+#include "affect.h"
+#include "char_follow_type.h"
 #include "comm.h"
 #include "db.h"
-#include "handler.h"
-#include "interpreter.h"
-#include "affect.h"
-#include "utility.h"
-#include "money.h"
-#include "files.h"
-#include "main.h"
 #include "dilrun.h"
+#include "files.h"
+#include "interpreter.h"
+#include "main_functions.h"
+#include "mobact.h"
+#include "money.h"
+#include "nanny.h"
+#include "slog.h"
+#include "spec_assign.h"
+#include "unit_affected_type.h"
+#include "unit_fptr.h"
+#include "utils.h"
+#include "zon_basis.h"
 
-extern class unit_data *unit_list;
-extern class unit_data *combat_list;
-extern class descriptor_data *descriptor_list;
-/* External procedures */
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
-void stop_special(class unit_data *u, class unit_fptr *fptr);
-
-class descriptor_data *unit_is_edited(class unit_data *u)
+descriptor_data *unit_is_edited(unit_data *u)
 {
-    class descriptor_data *d;
+    descriptor_data *d = nullptr;
 
-    for (d = descriptor_list; d; d = d->next)
-        if (d->editing == u)
+    for (d = g_descriptor_list; d; d = d->getNext())
+    {
+        if (d->cgetEditing() == u)
+        {
             return d;
+        }
+    }
 
-    return NULL;
+    return nullptr;
 }
 
 /* By using this, we can easily sort the list if ever needed */
-void insert_in_unit_list(class unit_data *u)
+void insert_in_unit_list(unit_data *u)
 {
-    assert(u->gnext == NULL && u->gprevious == NULL && unit_list != u);
+    assert(u->getGlobalNext() == nullptr && u->getGlobalPrevious() == nullptr && g_unit_list != u);
 
-    if (UNIT_FILE_INDEX(u))
-        UNIT_FILE_INDEX(u)->fi_unit_list.push_front(u);
-
-    class unit_data *tmp_u;
-
-    if (!unit_list)
+    if (u->getFileIndex())
     {
-        u->gnext = NULL;
-        u->gprevious = NULL;
-        unit_list = u;
-        npc_head = u;
-        room_head = u;
-        obj_head = u;
+        u->getFileIndex()->PushFront(u);
+    }
+
+    unit_data *tmp_u = nullptr;
+
+    if (!g_unit_list)
+    {
+        u->setGlobalNext(nullptr);
+        u->setGlobalPrevious(nullptr);
+        g_unit_list = u;
+        g_npc_head = u;
+        g_room_head = u;
+        g_obj_head = u;
         return;
     }
 
-    switch (UNIT_TYPE(u))
+    switch (u->getUnitType())
     {
-    case UNIT_ST_PC:
-    {
-        tmp_u = unit_list;
-        u->gnext = tmp_u;
-        u->gprevious = tmp_u->gprevious;
-        tmp_u->gprevious = u;
-
-        if (tmp_u == unit_list)
-            unit_list = u;
-        break;
-    }
-    case UNIT_ST_NPC:
-    {
-        if (UNIT_TYPE(npc_head) != UNIT_ST_NPC)
+        case UNIT_ST_PC:
         {
-            tmp_u = unit_list;
-            for (; tmp_u && IS_PC(tmp_u); tmp_u = tmp_u->gnext)
-                ;
+            tmp_u = g_unit_list;
+            u->setGlobalNext(tmp_u);
+            u->setGlobalPrevious(tmp_u->getGlobalPrevious());
+            tmp_u->setGlobalPrevious(u);
+
+            if (tmp_u == g_unit_list)
+            {
+                g_unit_list = u;
+            }
+            break;
         }
-        else
-            tmp_u = npc_head;
-
-        u->gnext = tmp_u;
-        u->gprevious = tmp_u->gprevious;
-        if (tmp_u->gprevious)
-            tmp_u->gprevious->gnext = u;
-        tmp_u->gprevious = u;
-
-        if (tmp_u == unit_list)
-            unit_list = u;
-        npc_head = u;
-        break;
-    }
-    case UNIT_ST_OBJ:
-    {
-        if (UNIT_TYPE(obj_head) != UNIT_ST_OBJ)
+        case UNIT_ST_NPC:
         {
-            tmp_u = unit_list;
-            for (; tmp_u && IS_CHAR(tmp_u); tmp_u = tmp_u->gnext)
-                ;
+            if (g_npc_head->getUnitType() != UNIT_ST_NPC)
+            {
+                tmp_u = g_unit_list;
+                for (; tmp_u && tmp_u->isPC(); tmp_u = tmp_u->getGlobalNext())
+                {
+                    ;
+                }
+            }
+            else
+            {
+                tmp_u = g_npc_head;
+            }
+
+            u->setGlobalNext(tmp_u);
+            u->setGlobalPrevious(tmp_u->getGlobalPrevious());
+            if (tmp_u->getGlobalPrevious())
+            {
+                tmp_u->getGlobalPrevious()->setGlobalNext(u);
+            }
+            tmp_u->setGlobalPrevious(u);
+
+            if (tmp_u == g_unit_list)
+            {
+                g_unit_list = u;
+            }
+            g_npc_head = u;
+            break;
         }
-        else
-            tmp_u = obj_head;
-
-        u->gnext = tmp_u;
-        u->gprevious = tmp_u->gprevious;
-        if (tmp_u->gprevious)
-            tmp_u->gprevious->gnext = u;
-        tmp_u->gprevious = u;
-
-        if (tmp_u == unit_list)
-            unit_list = u;
-        obj_head = u;
-        break;
-    }
-    case UNIT_ST_ROOM:
-    {
-        if (UNIT_TYPE(room_head) != UNIT_ST_ROOM)
+        case UNIT_ST_OBJ:
         {
-            tmp_u = unit_list;
-            for (; tmp_u && (IS_CHAR(tmp_u) || IS_OBJ(tmp_u));
-                 tmp_u = tmp_u->gnext)
-                ;
+            if (g_obj_head->getUnitType() != UNIT_ST_OBJ)
+            {
+                tmp_u = g_unit_list;
+                for (; tmp_u && tmp_u->isChar(); tmp_u = tmp_u->getGlobalNext())
+                {
+                    ;
+                }
+            }
+            else
+            {
+                tmp_u = g_obj_head;
+            }
+
+            u->setGlobalNext(tmp_u);
+            u->setGlobalPrevious(tmp_u->getGlobalPrevious());
+            if (tmp_u->getGlobalPrevious())
+            {
+                tmp_u->getGlobalPrevious()->setGlobalNext(u);
+            }
+            tmp_u->setGlobalPrevious(u);
+
+            if (tmp_u == g_unit_list)
+            {
+                g_unit_list = u;
+            }
+            g_obj_head = u;
+            break;
         }
-        else
-            tmp_u = room_head;
+        case UNIT_ST_ROOM:
+        {
+            if (g_room_head->getUnitType() != UNIT_ST_ROOM)
+            {
+                tmp_u = g_unit_list;
+                for (; tmp_u && (tmp_u->isChar() || tmp_u->isObj()); tmp_u = tmp_u->getGlobalNext())
+                {
+                    ;
+                }
+            }
+            else
+            {
+                tmp_u = g_room_head;
+            }
 
-        u->gnext = tmp_u;
-        u->gprevious = tmp_u->gprevious;
-        if (tmp_u->gprevious)
-            tmp_u->gprevious->gnext = u;
-        tmp_u->gprevious = u;
+            u->setGlobalNext(tmp_u);
+            u->setGlobalPrevious(tmp_u->getGlobalPrevious());
+            if (tmp_u->getGlobalPrevious())
+            {
+                tmp_u->getGlobalPrevious()->setGlobalNext(u);
+            }
+            tmp_u->setGlobalPrevious(u);
 
-        if (tmp_u == unit_list)
-            unit_list = u;
-        room_head = u;
-        break;
+            if (tmp_u == g_unit_list)
+            {
+                g_unit_list = u;
+            }
+            g_room_head = u;
+            break;
+        }
     }
-    }
-
 }
 
-/* Remove a unit from the unit_list */
-void remove_from_unit_list(class unit_data *unit)
+/* Remove a unit from the g_unit_list */
+void remove_from_unit_list(unit_data *unit)
 {
-    assert(unit->gprevious || unit->gnext || (unit_list == unit));
+    assert(unit->getGlobalPrevious() || unit->getGlobalNext() || (g_unit_list == unit));
 
-    if (UNIT_FILE_INDEX(unit))
-        UNIT_FILE_INDEX(unit)->fi_unit_list.remove(unit);
+    if (unit->getFileIndex())
+    {
+        unit->getFileIndex()->Remove(unit);
+    }
 
-    if (npc_head == unit)
-        npc_head = unit->gnext;
-    if (obj_head == unit)
-        obj_head = unit->gnext;
-    if (room_head == unit)
-        room_head = unit->gnext;
-    if (unit_list == unit)
-        unit_list = unit->gnext;
-    else /* Then this is always true 'if (unit->gprevious)'  */
-        unit->gprevious->gnext = unit->gnext;
+    if (g_npc_head == unit)
+    {
+        g_npc_head = unit->getGlobalNext();
+    }
+    if (g_obj_head == unit)
+    {
+        g_obj_head = unit->getGlobalNext();
+    }
+    if (g_room_head == unit)
+    {
+        g_room_head = unit->getGlobalNext();
+    }
+    if (g_unit_list == unit)
+    {
+        g_unit_list = unit->getGlobalNext();
+    }
+    else
+    { /* Then this is always true 'if (unit->gprevious)'  */
+        unit->getGlobalPrevious()->setGlobalNext(unit->getGlobalNext());
+    }
 
-    if (unit->gnext)
-        unit->gnext->gprevious = unit->gprevious;
+    if (unit->getGlobalNext())
+    {
+        unit->getGlobalNext()->setGlobalPrevious(unit->getGlobalPrevious());
+    }
 
-    unit->gnext = unit->gprevious = NULL;
+    unit->setGlobalNext(nullptr);
+    unit->setGlobalPrevious(nullptr);
 }
 
-class unit_fptr *find_fptr(class unit_data *u, ubit16 idx)
+unit_fptr *find_fptr(unit_data *u, ubit16 idx)
 {
-    class unit_fptr *tf;
+    unit_fptr *tf = nullptr;
 
-    for (tf = UNIT_FUNC(u); tf; tf = tf->next)
-        if (tf->index == idx)
+    for (tf = u->getFunctionPointer(); tf; tf = tf->getNext())
+    {
+        if (tf->getFunctionPointerIndex() == idx)
+        {
             return tf;
+        }
+    }
 
-    return NULL;
+    return nullptr;
 }
-
 
 // 2020: Add it prioritized
-void insert_fptr(class unit_data *u, class unit_fptr *f)
+void insert_fptr(unit_data *u, unit_fptr *f)
 {
-    if (f->priority == 0)
+    if (f->getFunctionPriority() == 0)
     {
         slog(LOG_ALL, 0, "fptr_priotity not set, setting to chores");
-        f->priority = FN_PRI_CHORES;
+        f->setFunctionPriority(FN_PRI_CHORES);
     }
 
     // If there are no funcs, just add it.
-    if (UNIT_FUNC(u) == NULL)
+    if (u->getFunctionPointer() == nullptr)
     {
-        f->next = UNIT_FUNC(u);
-        UNIT_FUNC(u) = f;
+        f->setNext(u->getFunctionPointer());
+        u->setFunctionPointer(f);
         return;
     }
 
     // See if we are higher priority than head element
-    if (f->priority < UNIT_FUNC(u)->priority)
+    if (f->getFunctionPriority() < u->getFunctionPointer()->getFunctionPriority())
     {
-        f->next = UNIT_FUNC(u);
-        UNIT_FUNC(u) = f;
+        f->setNext(u->getFunctionPointer());
+        u->setFunctionPointer(f);
         return;
     }
 
-    class unit_fptr *p, *prev;
+    unit_fptr *p = nullptr;
+    unit_fptr *prev = nullptr;
 
     // Find location to insert
-    prev = UNIT_FUNC(u);
-    for (p = UNIT_FUNC(u)->next; p; p = p->next)
+    prev = u->getFunctionPointer();
+    for (p = u->getFunctionPointer()->getNext(); p; p = p->getNext())
     {
-        if (f->priority < p->priority)
+        if (f->getFunctionPriority() < p->getFunctionPriority())
         {
-            f->next = p;
-            prev->next = f;
+            f->setNext(p);
+            prev->setNext(f);
             return;
         }
         prev = p;
     }
 
     // We are the lowest priority, insert at the
-    assert(prev->next == NULL);
-    prev->next = f;
-    f->next = NULL;
+    assert(prev->getNext() == nullptr);
+    prev->setNext(f);
+    f->setNext(nullptr);
 }
 
-
-class unit_fptr *create_fptr(class unit_data *u, ubit16 index, ubit16 priority,
-                              ubit16 beat, ubit16 flags, void *data)
+unit_fptr *create_fptr(unit_data *u, ubit16 index, ubit16 priority, ubit16 beat, ubit16 flags, void *data)
 {
-    class unit_fptr *f;
-
-    void start_special(class unit_data * u, class unit_fptr * fptr);
-
+    unit_fptr *f = nullptr;
     f = new EMPLACE(unit_fptr) unit_fptr;
 
     assert(f);
     assert(!f->is_destructed());
 
-    f->index = index;
-    f->priority = priority;
-    f->heart_beat = beat;
-    f->flags = flags;
-    f->data = data;
-    f->event = NULL;
+    f->setFunctionPointerIndex(index);
+    f->setFunctionPriority(priority);
+    f->setHeartBeat(beat);
+    f->setAllActivateOnEventFlags(flags);
+    f->setData(data);
+    f->setEventQueue(nullptr);
 
     membug_verify(f->data);
     insert_fptr(u, f);
@@ -264,40 +305,36 @@ class unit_fptr *create_fptr(class unit_data *u, ubit16 index, ubit16 priority,
 }
 
 /* Does not free 'f' - it is done by clear_destruct by comm.c */
-void destroy_fptr(class unit_data *u, class unit_fptr *f)
+void destroy_fptr(unit_data *u, unit_fptr *f)
 {
-    class unit_fptr *tf;
-    struct spec_arg sarg;
-
-    extern struct unit_function_array_type unit_function_array[];
-    extern struct command_info cmd_auto_extract;
-
-    void register_destruct(int i, void *ptr);
-    void add_func_history(class unit_data * u, ubit16, ubit16);
+    unit_fptr *tf = nullptr;
+    spec_arg sarg;
 
     assert(f);
     if (f->is_destructed())
+    {
         return;
+    }
 
     assert(!f->is_destructed());
 
     f->register_destruct();
 
 #ifdef DEBUG_HISTORY
-    add_func_history(u, f->index, 0);
+    add_func_history(u, f->getFunctionPointerIndex(), 0);
 #endif
 
     sarg.owner = u;
-    sarg.activator = NULL;
-    sarg.medium = NULL;
-    sarg.target = NULL;
-    sarg.pInt = NULL;
+    sarg.activator = nullptr;
+    sarg.medium = nullptr;
+    sarg.target = nullptr;
+    sarg.pInt = nullptr;
     sarg.fptr = f;
-    sarg.cmd = &cmd_auto_extract;
+    sarg.cmd = &g_cmd_auto_extract;
     sarg.arg = "";
     sarg.mflags = ((ubit16)0);
 
-    (*(unit_function_array[f->index].func))(&sarg);
+    (*(g_unit_function_array[f->getFunctionPointerIndex()].func))(&sarg);
 
     /* Data is free'ed in destruct() if it is not NULL now */
 
@@ -306,91 +343,105 @@ void destroy_fptr(class unit_data *u, class unit_fptr *f)
     membug_verify(f);
 
     /* Only unlink function, do not free it! */
-    if (UNIT_FUNC(u) == f)
-        UNIT_FUNC(u) = f->next;
+    if (u->getFunctionPointer() == f)
+    {
+        u->setFunctionPointer(f->getNext());
+    }
     else
     {
-        for (tf = UNIT_FUNC(u); tf && (tf->next != f); tf = tf->next)
+        for (tf = u->getFunctionPointer(); tf && (tf->getNext() != f); tf = tf->getNext())
+        {
             ;
+        }
         if (tf)
         {
-            assert(tf->next == f);
-            tf->next = f->next;
+            assert(tf->getNext() == f);
+            tf->setNext(f->getNext());
         }
     }
 
-    f->next = NULL;
-    assert(f->event == 0);
+    f->setNext(nullptr);
+    assert(f->getEventQueue() == nullptr);
 }
 
 /* Stop the 'ch' from following his master    */
 /* Call die_follower if a person dies         */
-void stop_following(class unit_data *ch)
+void stop_following(unit_data *ch)
 {
-    struct char_follow_type *j, *k;
-
-    extern struct command_info *cmd_follow;
+    char_follow_type *j = nullptr;
+    char_follow_type *k = nullptr;
 
     assert(CHAR_MASTER(ch));
 
-    if (CHAR_FOLLOWERS(CHAR_MASTER(ch))->follower == ch) /* Head of list? */
+    if (CHAR_FOLLOWERS(CHAR_MASTER(ch))->getFollower() == ch) /* Head of list? */
     {
         k = CHAR_FOLLOWERS(CHAR_MASTER(ch));
-        CHAR_FOLLOWERS(CHAR_MASTER(ch)) = k->next;
-        FREE(k);
+        UCHAR(CHAR_MASTER(ch))->setFollowers(k->getNext());
+        DELETE(char_follow_type, k);
     }
     else
     { /* locate follower who is not head of list */
-        for (k = CHAR_FOLLOWERS(CHAR_MASTER(ch));
-             k->next->follower != ch; k = k->next)
+        for (k = CHAR_FOLLOWERS(CHAR_MASTER(ch)); k->getNext()->getFollower() != ch; k = k->getNext())
+        {
             ;
-        j = k->next;
-        k->next = j->next;
-        FREE(j);
+        }
+        j = k->getNext();
+        k->setNext(j->getNext());
+        DELETE(char_follow_type, j);
     }
 
-    CHAR_MASTER(ch) = 0;
+    UCHAR(ch)->setMaster(nullptr);
+    dil_destroy("dilfollow@basemove", ch);
 
-    send_done(ch, NULL, NULL, 0, cmd_follow, "");
+    send_done(ch, nullptr, nullptr, 0, g_cmd_follow, "");
 }
 
 /* Set 'ch' to follow leader. Circles allowed. */
-void start_following(class unit_data *ch, class unit_data *leader)
+void start_following(unit_data *ch, unit_data *leader)
 {
-    struct char_follow_type *k;
-
-    extern struct command_info *cmd_follow;
+    char_follow_type *k = nullptr;
 
     assert(!leader->is_destructed());
     assert(!ch->is_destructed());
 
-    REMOVE_BIT(CHAR_FLAGS(ch), CHAR_GROUP);
+    UCHAR(ch)->removeCharacterFlag(CHAR_GROUP);
     if (CHAR_MASTER(ch))
+    {
         stop_following(ch);
-    CHAR_MASTER(ch) = leader;
-    CREATE(k, struct char_follow_type, 1);
-    k->follower = ch;
-    k->next = CHAR_FOLLOWERS(leader);
-    CHAR_FOLLOWERS(leader) = k;
+    }
+    UCHAR(ch)->setMaster(leader);
+    k = new EMPLACE(char_follow_type) char_follow_type;
+    k->setFollower(ch);
+    k->setNext(CHAR_FOLLOWERS(leader));
+    UCHAR(leader)->setFollowers(k);
 
-    send_done(ch, NULL, leader, 0, cmd_follow, "");
+    dilprg *prg = dil_copy_template(g_dil_follow, ch, nullptr);
+    if (prg)
+    {
+        prg->waitcmd = WAITCMD_MAXINST - 1;
+        dil_activate(prg);
+    }
+
+    send_done(ch, nullptr, leader, 0, g_cmd_follow, "");
 }
 
 /* Called by extract_unit when a character that follows/is followed dies */
-void die_follower(class unit_data *ch)
+void die_follower(unit_data *ch)
 {
-    struct char_follow_type *j, *k;
+    char_follow_type *j = nullptr;
+    char_follow_type *k = nullptr;
 
     if (CHAR_MASTER(ch))
+    {
         stop_following(ch);
+    }
 
     for (k = CHAR_FOLLOWERS(ch); k; k = j)
     {
-        j = k->next;
-        stop_following(k->follower);
+        j = k->getNext();
+        stop_following(k->getFollower());
     }
 }
-
 
 /*
    An NPC can see if the sum of this is >= 0
@@ -410,9 +461,9 @@ ubit1 unit_islight(class unit_data *u)
 
 /* MS2020. Trying to remember how this worked:
 
-    BRIGHT: How much a unit shines wtih light/dark afecting what it is in 
+    BRIGHT: How much a unit shines wtih light/dark afecting what it is in
     LIGHTS: How much light is inside a unit (not how much it shines out)
-    ILLUM:  
+    ILLUM:
 
 Example: (Lights, Bright, Illum)
     Room: (-1,0,0)
@@ -425,7 +476,7 @@ Example: (Lights, Bright, Illum)
     NPC equips lantern Room: L+1. NPC: L:2, B:2
 
     What about NPC in coffin when it is open & closed?
-    What about room in room when it is open & closed? (barrel) 
+    What about room in room when it is open & closed? (barrel)
 
     coffin@midgaard & horse@midgaard are both transparent
 
@@ -438,139 +489,176 @@ Example: (Lights, Bright, Illum)
 */
 /* Call this routine if you modify the brightness of a unit */
 /* in order to correctly update the environment of the unit */
-void modify_bright(class unit_data *unit, int bright)
+void modify_bright(unit_data *unit, int bright)
 {
-    class unit_data *ext, *in;
+    unit_data *ext = nullptr;
+    unit_data *in = nullptr;
 
-    UNIT_BRIGHT(unit) += bright;
+    unit->changeLightOutputBy(bright);
 
-    if ((in = UNIT_IN(unit))) /* Light up what the unit is inside */
-        UNIT_LIGHTS(in) += bright;
+    if ((in = unit->getUnitIn()))
+    { /* Light up what the unit is inside */
+        in->changeNumberOfActiveLightSourcesBy(bright);
+    }
 
-    if (IS_OBJ(unit) && OBJ_EQP_POS(unit))
+    if (unit->isObj() && OBJ_EQP_POS(unit))
+    {
         /* The char holding the torch light up the SAME way the torch does! */
         /* this works with the equib/unequib functions. This is NOT a case  */
         /* of transparancy.  */
         modify_bright(in, bright);
-    else if (in && UNIT_IS_TRANSPARENT(in))
+    }
+    else if (in && in->isTransparent())
     {
         /* the unit is inside a transperant unit, so it lights up too */
         /* this works with actions in unit-up/down                    */
-        UNIT_BRIGHT(in) += bright;
-        if ((ext = UNIT_IN(in)))
+        in->changeLightOutputBy(bright);
+        if ((ext = in->getUnitIn()))
         {
-            UNIT_LIGHTS(ext) += bright;
-            UNIT_ILLUM(in) += bright;
+            ext->changeNumberOfActiveLightSourcesBy(bright);
+            in->changeTransparentLightOutputBy(bright);
         }
     }
 }
 
-void trans_set(class unit_data *u)
+void trans_set(unit_data *u)
 {
-    class unit_data *u2;
+    unit_data *u2 = nullptr;
     int sum = 0;
 
-    for (u2 = UNIT_CONTAINS(u); u2; u2 = u2->next)
-        sum += UNIT_BRIGHT(u2);
+    for (u2 = u->getUnitContains(); u2; u2 = u2->getNext())
+    {
+        sum += u2->getLightOutput();
+    }
 
-    UNIT_ILLUM(u) = sum;
-    UNIT_BRIGHT(u) += sum;
+    u->setTransparentLightOutput(sum);
+    u->changeLightOutputBy(sum);
 
-    if (UNIT_IN(u))
-        UNIT_LIGHTS(UNIT_IN(u)) += sum;
+    if (u->getUnitIn())
+    {
+        u->getUnitIn()->changeNumberOfActiveLightSourcesBy(sum);
+    }
 }
 
-void trans_unset(class unit_data *u)
+void trans_unset(unit_data *u)
 {
-    UNIT_BRIGHT(u) -= UNIT_ILLUM(u);
+    u->changeLightOutputBy(-1 * u->getTransparentLightOutput());
 
-    if (UNIT_IN(u))
-        UNIT_LIGHTS(UNIT_IN(u)) -= UNIT_ILLUM(u);
+    if (u->getUnitIn())
+    {
+        u->getUnitIn()->changeNumberOfActiveLightSourcesBy(-1 * u->getTransparentLightOutput());
+    }
 
-    UNIT_ILLUM(u) = 0;
+    u->setTransparentLightOutput(0);
 }
 
-class unit_data *equipment(class unit_data *ch, ubit8 pos)
+unit_data *equipment(unit_data *ch, ubit8 pos)
 {
-    class unit_data *u;
+    unit_data *u = nullptr;
 
-    assert(IS_CHAR(ch));
+    assert(ch->isChar());
 
-    for (u = UNIT_CONTAINS(ch); u; u = u->next)
-        if (IS_OBJ(u) && pos == OBJ_EQP_POS(u))
+    for (u = ch->getUnitContains(); u; u = u->getNext())
+    {
+        if (u->isObj() && pos == OBJ_EQP_POS(u))
+        {
             return u;
+        }
+    }
 
-    return NULL;
+    return nullptr;
 }
 
 /* The following functions find armor / weapons on a person with     */
 /* type checks (i.e. trash does not protect!).                       */
-class unit_data *equipment_type(class unit_data *ch, int pos, ubit8 type)
+unit_data *equipment_type(unit_data *ch, int pos, ubit8 type)
 {
-    class unit_data *obj;
+    unit_data *obj = nullptr;
 
     obj = equipment(ch, pos);
 
     if (obj && OBJ_TYPE(obj) == type)
+    {
         return obj;
+    }
     else
-        return NULL;
+    {
+        return nullptr;
+    }
 }
 
-void equip_char(class unit_data *ch, class unit_data *obj, ubit8 pos)
+/* Give the wearer ch its copy of the transfer affect af of a worn object */
+void equip_transfer_affect(unit_data *ch, unit_affected_type *af)
 {
-    class unit_affected_type *af, newaf;
+    unit_affected_type newaf = *af;
 
-    assert(pos > 0 && IS_OBJ(obj) && IS_CHAR(ch));
+    assert(af->getID() < 0);
+    newaf.setID(newaf.getID() * -1); /* No longer a transfer    */
+    newaf.setDuration(-1);           /* Permanent until unequip */
+    create_affect(ch, &newaf);
+}
+
+void equip_char(unit_data *ch, unit_data *obj, ubit8 pos)
+{
+    unit_affected_type *af = nullptr;
+
+    assert(pos > 0 && obj->isObj() && ch->isChar());
     assert(!equipment(ch, pos));
-    assert(UNIT_IN(obj) == ch); /* Must carry object in inventory */
+    assert(obj->getUnitIn() == ch); /* Must carry object in inventory */
 
-    OBJ_EQP_POS(obj) = pos;
-    modify_bright(ch, UNIT_BRIGHT(obj)); /* Update light sources */
+    UOBJ(obj)->setEquipmentPosition(pos);
+    modify_bright(ch, obj->getLightOutput()); /* Update light sources */
 
-    for (af = UNIT_AFFECTED(obj); af; af = af->next)
-        if (af->id < 0) /* It is a transfer affect! */
+    for (af = obj->getUnitAffected(); af; af = af->getNext())
+    {
+        if (af->getID() < 0) /* It is a transfer affect! */
         {
-            newaf = *af;
-            newaf.id = -newaf.id; /* No longer a transfer    */
-            newaf.duration = -1;  /* Permanent until unequip */
-            create_affect(ch, &newaf);
+            equip_transfer_affect(ch, af);
         }
+    }
 }
 
-class unit_data *unequip_object(class unit_data *obj)
+/* Remove from the wearer ch the copy that equip_char made of the transfer affect af */
+void unequip_transfer_affect(unit_data *ch, unit_affected_type *af)
 {
-    class unit_data *ch;
-    class unit_affected_type *af, *caf;
+    unit_affected_type *caf = nullptr;
 
-    ch = UNIT_IN(obj);
+    assert(af->getID() < 0);
 
-    assert(IS_OBJ(obj) && OBJ_EQP_POS(obj));
-    assert(IS_CHAR(ch));
-
-    OBJ_EQP_POS(obj) = 0;
-    modify_bright(ch, -UNIT_BRIGHT(obj)); /* Update light sources */
-
-    for (af = UNIT_AFFECTED(obj); af; af = af->next)
-        if (af->id < 0) /* It is a transfer affect! */
+    for (caf = ch->getUnitAffected(); caf; caf = caf->getNext())
+    {
+        if ((-caf->getID() == af->getID()) && (caf->getDuration() == -1) && (caf->getDataAtIndex(0) == af->getDataAtIndex(0)) &&
+            (caf->getDataAtIndex(1) == af->getDataAtIndex(1)) &&
+            // THIS IS NOT TESTED! (caf->data[2] == af->data[2]) &&
+            (caf->getApplyFI() == af->getApplyFI()) && (caf->getFirstFI() == af->getFirstFI()) &&
+            (caf->getLastFI() == af->getLastFI()) && (caf->getTickFI() == af->getTickFI()))
         {
-            for (caf = UNIT_AFFECTED(ch); caf; caf = caf->next)
-            {
-                if ((-caf->id == af->id) &&
-                    (caf->duration == -1) &&
-                    (caf->data[0] == af->data[0]) &&
-                    (caf->data[1] == af->data[1]) &&
-                    // THIS IS NOT TESTED! (caf->data[2] == af->data[2]) &&
-                    (caf->applyf_i == af->applyf_i) &&
-                    (caf->firstf_i == af->firstf_i) &&
-                    (caf->lastf_i == af->lastf_i) &&
-                    (caf->tickf_i == af->tickf_i))
-                {
-                    destroy_affect(caf);
-                    break; /* Skip inner for loop since we found the affect */
-                }
-            }
+            destroy_affect(caf);
+            break; /* Only one: each worn object gave its own copy */
         }
+    }
+}
+
+unit_data *unequip_object(unit_data *obj)
+{
+    unit_data *ch = nullptr;
+    unit_affected_type *af = nullptr;
+
+    ch = obj->getUnitIn();
+
+    assert(obj->isObj() && OBJ_EQP_POS(obj));
+    assert(ch->isChar());
+
+    UOBJ(obj)->setEquipmentPosition(0);
+    modify_bright(ch, -obj->getLightOutput()); /* Update light sources */
+
+    for (af = obj->getUnitAffected(); af; af = af->getNext())
+    {
+        if (af->getID() < 0) /* It is a transfer affect! */
+        {
+            unequip_transfer_affect(ch, af);
+        }
+    }
 
     return obj;
 }
@@ -579,215 +667,254 @@ class unit_data *unequip_object(class unit_data *obj)
 /* through itself. For example if Papi carries a coffin and God is   */
 /* inside the coffin, when God types trans Papi this function will   */
 /* return TRUE                                                       */
-int unit_recursive(class unit_data *from, class unit_data *to)
+int unit_recursive(unit_data *from, unit_data *to)
 {
-    class unit_data *u;
+    unit_data *u = nullptr;
 
-    for (u = to; u; u = UNIT_IN(u))
+    for (u = to; u; u = u->getUnitIn())
+    {
         if (u == from)
+        {
             return TRUE;
+        }
+    }
 
     return FALSE;
 }
 
-class zone_type *unit_zone(const class unit_data *unit)
+zone_type *unit_zone(const unit_data *unit)
 {
-    class unit_data *org = (class unit_data *)unit;
+    unit_data *org = (unit_data *)unit;
 
-    for (; unit; unit = UNIT_IN(unit))
-        if (!UNIT_IN(unit))
+    for (; unit; unit = unit->getUnitIn())
+    {
+        if (!unit->getUnitIn())
         {
             //      assert(IS_ROOM(unit));
-            if (!IS_ROOM(unit))
+            if (!unit->isRoom())
             {
-                slog(LOG_ALL, 0,
-                     "ZONE: FATAL(1): %s@%s IN NO ROOMS WHILE NOT A ROOM!!",
-                     UNIT_FI_NAME(org), UNIT_FI_ZONENAME(org));
-                return NULL;
+                slog(LOG_ALL, 0, "ZONE: FATAL(1): %s IN NO ROOMS WHILE NOT A ROOM!!", org->getFileIndexSymName());
+                return nullptr;
             }
-            return UNIT_FILE_INDEX(unit)->zone;
+            return unit->getFileIndex()->getZone();
         }
+    }
 
-    slog(LOG_ALL, 0, "ZONE: FATAL(2): %s@%s IN NO ROOMS WHILE NOT A ROOM!!",
-         UNIT_FI_NAME(org), UNIT_FI_ZONENAME(org));
-    return NULL;
+    slog(LOG_ALL, 0, "ZONE: FATAL(2): %s IN NO ROOMS WHILE NOT A ROOM!!", org->getFileIndexSymName());
+    return nullptr;
 }
 
 //
 // Returns a symname text string of all the units a unit is in
 //
-string unit_trace_up(class unit_data *unit)
+std::string unit_trace_up(unit_data *unit)
 {
-    class unit_data *u;
-    string s, t;
+    unit_data *u = nullptr;
+    std::string s = unit->getFileIndexSymName();
+    std::string t;
 
-    s = "";
-    s.append(UNIT_FI_NAME(unit));
-    s.append("@");
-    s.append(UNIT_FI_ZONENAME(unit));
-
-    for (u = UNIT_IN(unit); u; u = UNIT_IN(u))
+    for (u = unit->getUnitIn(); u; u = u->getUnitIn())
     {
         t = " in ";
-        t.append(UNIT_FI_NAME(u));
-        t.append("@");
-        t.append(UNIT_FI_ZONENAME(u));
+        t.append(u->getFileIndexSymName());
         s.append(t);
     }
 
     return s;
 }
 
-class unit_data *unit_room(class unit_data *unit)
+unit_data *unit_room(unit_data *unit)
 {
-   if (unit == NULL)
-      return NULL;
+    if (unit == nullptr)
+    {
+        return nullptr;
+    }
 
-   class unit_data *org = unit;
+    unit_data *org = unit;
 
-   for (; unit; unit = UNIT_IN(unit))
-      if (IS_ROOM(unit))
-         return unit;
+    for (; unit; unit = unit->getUnitIn())
+    {
+        if (unit->isRoom())
+        {
+            return unit;
+        }
+    }
 
-   slog(LOG_ALL, 0, "ROOM: FATAL(3): %s@%s IN NO ROOMS WHILE NOT A ROOM!!",
-      UNIT_FI_NAME(org), UNIT_FI_ZONENAME(org));
-   return 0;
+    slog(LOG_ALL, 0, "ROOM: FATAL(3): %s IN NO ROOMS WHILE NOT A ROOM!!", org->getFileIndexSymName());
+    return nullptr;
 }
 
-void intern_unit_up(class unit_data *unit, ubit1 pile)
+void intern_unit_up(unit_data *unit, ubit1 pile)
 {
-    class unit_data *u, *in, *toin, *extin;
-    sbit8 bright, selfb;
+    unit_data *u = nullptr;
+    unit_data *in = nullptr;
+    unit_data *toin = nullptr;
+    unit_data *extin = nullptr;
+    sbit8 bright = 0;
+    sbit8 selfb = 0;
 
-    assert(UNIT_IN(unit));
+    assert(unit->getUnitIn());
 
     /* resolve *ALL* light!!! */
-    in = UNIT_IN(unit);                /* where to move unit up to */
-    toin = UNIT_IN(in);                /* unit around in           */
-    extin = toin ? UNIT_IN(toin) : 0;  /* unit around toin         */
-    bright = UNIT_BRIGHT(unit);        /* brightness inc. trans    */
-    selfb = bright - UNIT_ILLUM(unit); /* brightness excl. trans   */
+    in = unit->getUnitIn();                             /* where to move unit up to */
+    toin = in->getUnitIn();                             /* unit around in           */
+    extin = toin ? toin->getUnitIn() : nullptr;         /* unit around toin         */
+    bright = unit->getLightOutput();                    /* brightness inc. trans    */
+    selfb = bright - unit->getTransparentLightOutput(); /* brightness excl. trans   */
 
-    UNIT_LIGHTS(in) -= bright; /* Subtract Light */
-    if (UNIT_IS_TRANSPARENT(in))
+    in->changeNumberOfActiveLightSourcesBy(-1 * bright); // Subtract Light
+    if (in->isTransparent())
     {
-        UNIT_ILLUM(in) -= selfb;
-        UNIT_BRIGHT(in) -= selfb;
+        in->changeTransparentLightOutputBy(-1 * selfb);
+        in->changeLightOutputBy(-1 * selfb);
     }
     else if (toin)
-        UNIT_LIGHTS(toin) += bright;
-
-    if (toin && UNIT_IS_TRANSPARENT(toin))
     {
-        UNIT_BRIGHT(toin) += selfb;
-        UNIT_ILLUM(toin) += selfb;
-        if (extin)
-            UNIT_LIGHTS(extin) += selfb;
+        toin->changeNumberOfActiveLightSourcesBy(bright);
     }
 
-    if (IS_CHAR(unit))
-        --UNIT_CHARS(UNIT_IN(unit));
-    /*fuck*/
-    UNIT_WEIGHT(UNIT_IN(unit)) -= UNIT_WEIGHT(unit);
+    if (toin && toin->isTransparent())
+    {
+        toin->changeLightOutputBy(selfb);
+        toin->changeTransparentLightOutputBy(selfb);
+        if (extin)
+        {
+            extin->changeNumberOfActiveLightSourcesBy(selfb);
+        }
+    }
 
-    if (unit == UNIT_CONTAINS(UNIT_IN(unit)))
-        UNIT_CONTAINS(UNIT_IN(unit)) = unit->next;
+    if (unit->isChar())
+    {
+        unit->getUnitIn()->decrementNumberOfCharactersInsideUnit();
+    }
+    /*fuck*/
+    unit->getUnitIn()->reduceWeightBy(unit->getWeight());
+
+    if (unit == unit->getUnitIn()->getUnitContains())
+    {
+        unit->getUnitIn()->setUnitContains(unit->getNext());
+    }
     else
     {
-        for (u = UNIT_CONTAINS(UNIT_IN(unit)); u->next != unit; u = u->next)
+        for (u = unit->getUnitIn()->getUnitContains(); u->getNext() != unit; u = u->getNext())
+        {
             ;
-        u->next = unit->next;
+        }
+        u->setNext(unit->getNext());
     }
 
-    unit->next = NULL;
+    unit->setNext(nullptr);
 
-    if ((UNIT_IN(unit) = UNIT_IN(UNIT_IN(unit))))
+    unit->setUnitIn(unit->getUnitIn()->getUnitIn());
+    if (unit->getUnitIn())
     {
-        unit->next = UNIT_CONTAINS(UNIT_IN(unit));
-        UNIT_CONTAINS(UNIT_IN(unit)) = unit;
-        if (IS_CHAR(unit))
-            ++UNIT_CHARS(UNIT_IN(unit));
+        unit->setNext(unit->getUnitIn()->getUnitContains());
+        unit->getUnitIn()->setUnitContains(unit);
+        if (unit->isChar())
+        {
+            unit->getUnitIn()->incrementNumberOfCharactersInsideUnit();
+        }
     }
 
-    if (pile && IS_MONEY(unit) && UNIT_IN(unit))
+    if (pile && IS_MONEY(unit) && unit->getUnitIn())
+    {
         pile_money(unit);
+    }
 }
 
-void unit_up(class unit_data *unit)
+void unit_up(unit_data *unit)
 {
     intern_unit_up(unit, TRUE);
 }
 
-void unit_from_unit(class unit_data *unit)
+void unit_from_unit(unit_data *unit)
 {
-    while (UNIT_IN(unit))
+    while (unit->getUnitIn())
+    {
         intern_unit_up(unit, FALSE);
+    }
 }
 
-void intern_unit_down(class unit_data *unit, class unit_data *to, ubit1 pile)
+void intern_unit_down(unit_data *unit, unit_data *to, ubit1 pile)
 {
-    class unit_data *u, *in, *extin;
-    sbit8 bright, selfb;
+    unit_data *u = nullptr;
+    unit_data *in = nullptr;
+    unit_data *extin = nullptr;
+    sbit8 bright = 0;
+    sbit8 selfb = 0;
 
-    assert(UNIT_IN(unit) == UNIT_IN(to));
+    assert(unit->getUnitIn() == to->getUnitIn());
     assert(unit != to);
 
     /* do *ALL* light here!!!! */
-    in = UNIT_IN(unit);
-    extin = in ? UNIT_IN(in) : 0;
-    bright = UNIT_BRIGHT(unit);
-    selfb = bright - UNIT_ILLUM(unit);
+    in = unit->getUnitIn();
+    extin = in ? in->getUnitIn() : nullptr;
+    bright = unit->getLightOutput();
+    selfb = bright - unit->getTransparentLightOutput();
 
-    UNIT_LIGHTS(to) += bright;
-    if (UNIT_IS_TRANSPARENT(to))
+    to->changeNumberOfActiveLightSourcesBy(bright);
+    if (to->isTransparent())
     {
-        UNIT_BRIGHT(to) += selfb;
-        UNIT_ILLUM(to) += selfb;
+        to->changeLightOutputBy(selfb);
+        to->changeTransparentLightOutputBy(selfb);
     }
     else if (in)
-        UNIT_LIGHTS(in) -= bright;
-
-    if (in && UNIT_IS_TRANSPARENT(in))
     {
-        UNIT_BRIGHT(in) -= selfb;
-        UNIT_ILLUM(in) -= selfb;
-        if (extin)
-            UNIT_LIGHTS(extin) -= selfb;
+        in->changeNumberOfActiveLightSourcesBy(-1 * bright);
     }
 
-    if (UNIT_IN(unit))
+    if (in && in->isTransparent())
     {
-        if (IS_CHAR(unit))
-            --UNIT_CHARS(UNIT_IN(unit));
-        if (unit == UNIT_CONTAINS(UNIT_IN(unit)))
-            UNIT_CONTAINS(UNIT_IN(unit)) = unit->next;
-        else
+        in->changeLightOutputBy(-1 * selfb);
+        in->changeTransparentLightOutputBy(-1 * selfb);
+        if (extin)
         {
-            for (u = UNIT_CONTAINS(UNIT_IN(unit)); u->next != unit;
-                 u = u->next)
-                ;
-            u->next = unit->next;
+            extin->changeNumberOfActiveLightSourcesBy(-1 * selfb);
         }
     }
 
-    UNIT_IN(unit) = to;
-    unit->next = UNIT_CONTAINS(to);
-    UNIT_CONTAINS(to) = unit;
+    if (unit->getUnitIn())
+    {
+        if (unit->isChar())
+        {
+            unit->getUnitIn()->decrementNumberOfCharactersInsideUnit();
+        }
+        if (unit == unit->getUnitIn()->getUnitContains())
+        {
+            unit->getUnitIn()->setUnitContains(unit->getNext());
+        }
+        else
+        {
+            for (u = unit->getUnitIn()->getUnitContains(); u->getNext() != unit; u = u->getNext())
+            {
+                ;
+            }
+            u->setNext(unit->getNext());
+        }
+    }
 
-    if (IS_CHAR(unit))
-        ++UNIT_CHARS(UNIT_IN(unit));
-    UNIT_WEIGHT(to) += UNIT_WEIGHT(unit);
+    unit->setUnitIn(to);
+    unit->setNext(to->getUnitContains());
+    to->setUnitContains(unit);
+
+    if (unit->isChar())
+    {
+        unit->getUnitIn()->incrementNumberOfCharactersInsideUnit();
+    }
+    to->increaseWeightBy(unit->getWeight());
 
     if (pile && IS_MONEY(unit))
+    {
         pile_money(unit);
+    }
 }
 
-void unit_down(class unit_data *unit, class unit_data *to)
+void unit_down(unit_data *unit, unit_data *to)
 {
     intern_unit_down(unit, to, TRUE);
 }
 
-void intern_unit_to_unit(class unit_data *unit, class unit_data *to, ubit1 pile)
+void intern_unit_to_unit(unit_data *unit, unit_data *to, ubit1 pile)
 {
     assert(to);
     if (unit == to)
@@ -796,21 +923,25 @@ void intern_unit_to_unit(class unit_data *unit, class unit_data *to, ubit1 pile)
         assert(to != unit);
     }
 
-    if (UNIT_IN(to))
-        intern_unit_to_unit(unit, UNIT_IN(to), FALSE);
+    if (to->getUnitIn())
+    {
+        intern_unit_to_unit(unit, to->getUnitIn(), FALSE);
+    }
 
     intern_unit_down(unit, to, FALSE);
 
     if (pile && IS_MONEY(unit))
+    {
         pile_money(unit);
+    }
 }
 
-void unit_to_unit(class unit_data *unit, class unit_data *to)
+void unit_to_unit(unit_data *unit, unit_data *to)
 {
     intern_unit_to_unit(unit, to, TRUE);
 }
 
-void snoop(class unit_data *ch, class unit_data *victim)
+void snoop(unit_data *ch, unit_data *victim)
 {
     assert(!victim->is_destructed());
     assert(!ch->is_destructed());
@@ -819,68 +950,72 @@ void snoop(class unit_data *ch, class unit_data *victim)
     /*   assert(IS_PC(ch) && IS_PC(victim)); */
     assert(CHAR_DESCRIPTOR(ch) && CHAR_DESCRIPTOR(victim));
     assert(!CHAR_IS_SNOOPING(ch) && !CHAR_IS_SNOOPED(victim));
-    assert(CHAR_LEVEL(CHAR_ORIGINAL(victim)) <
-           CHAR_LEVEL(CHAR_ORIGINAL(ch)));
+    assert(CHAR_LEVEL(CHAR_ORIGINAL(victim)) < CHAR_LEVEL(CHAR_ORIGINAL(ch)));
     /*   assert(!CHAR_IS_SWITCHED(victim)); */
 
-    CHAR_DESCRIPTOR(ch)->snoop.snooping = victim;
-    CHAR_DESCRIPTOR(victim)->snoop.snoop_by = ch;
+    CHAR_DESCRIPTOR(ch)->getSnoopData().setSnooping(victim);
+    CHAR_DESCRIPTOR(victim)->getSnoopData().setSnoopBy(ch);
 }
 
 /* Mode 0: Stop ch from snooping a person       */
 /* Mode 1: Mode 0 + stop any person snooping ch */
-void unsnoop(class unit_data *ch, int mode)
+void unsnoop(unit_data *ch, int mode)
 {
     assert(CHAR_DESCRIPTOR(ch));
     assert(CHAR_IS_SNOOPING(ch) || CHAR_IS_SNOOPED(ch));
 
     if (CHAR_IS_SNOOPING(ch))
     {
-        act("You no longer snoop $3n.",
-            A_SOMEONE, ch, cActParameter(), CHAR_DESCRIPTOR(ch)->snoop.snooping, TO_CHAR);
-        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->snoop.snooping)->snoop.snoop_by =
-            0;
-        CHAR_DESCRIPTOR(ch)->snoop.snooping = 0;
+        act("You no longer snoop $3n.", eA_SOMEONE, ch, cActParameter(), CHAR_DESCRIPTOR(ch)->cgetSnoopData().getSnooping(), eTO_CHAR);
+        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->getSnoopData().getSnooping())->getSnoopData().setSnoopBy(nullptr);
+        CHAR_DESCRIPTOR(ch)->getSnoopData().setSnooping(nullptr);
     }
 
     if (CHAR_IS_SNOOPED(ch) && mode)
     {
         act("You no longer snoop $3n, $3e was extracted.",
-            A_SOMEONE, CHAR_DESCRIPTOR(ch)->snoop.snoop_by, cActParameter(), ch, TO_CHAR);
-        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->snoop.snoop_by)->snoop.snooping =
-            0;
-        CHAR_DESCRIPTOR(ch)->snoop.snoop_by = 0;
+            eA_SOMEONE,
+            CHAR_DESCRIPTOR(ch)->cgetSnoopData().getSnoopBy(),
+            cActParameter(),
+            ch,
+            eTO_CHAR);
+        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->getSnoopData().getSnoopBy())->getSnoopData().setSnooping(nullptr);
+        CHAR_DESCRIPTOR(ch)->getSnoopData().setSnoopBy(nullptr);
     }
 }
 
-
-void switchbody(class unit_data *ch, class unit_data *vict)
+void switchbody(unit_data *ch, unit_data *vict)
 {
-    assert(CHAR_DESCRIPTOR(ch) && IS_NPC(vict));
+    assert(CHAR_DESCRIPTOR(ch) && vict->isNPC());
     assert(!CHAR_DESCRIPTOR(vict));
     assert(!CHAR_IS_SNOOPING(ch) || CHAR_DESCRIPTOR(CHAR_IS_SNOOPING(ch)));
     assert(!CHAR_IS_SNOOPED(ch) || CHAR_DESCRIPTOR(CHAR_IS_SNOOPED(ch)));
     assert(!vict->is_destructed());
     assert(!ch->is_destructed());
 
-    CHAR_DESCRIPTOR(ch)->character = vict;
+    CHAR_DESCRIPTOR(ch)->setCharacter(vict);
 
-    if (IS_PC(ch))
-        CHAR_DESCRIPTOR(ch)->original = ch;
+    if (ch->isPC())
+    {
+        CHAR_DESCRIPTOR(ch)->setOriginalCharacter(ch);
+    }
     if (CHAR_IS_SNOOPING(ch))
-        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->snoop.snooping)->snoop.snoop_by = vict;
+    {
+        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->getSnoopData().getSnooping())->getSnoopData().setSnoopBy(vict);
+    }
     if (CHAR_IS_SNOOPED(ch))
-        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->snoop.snoop_by)->snoop.snooping = vict;
+    {
+        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(ch)->getSnoopData().getSnoopBy())->getSnoopData().setSnooping(vict);
+    }
 
-    CHAR_DESCRIPTOR(vict) = CHAR_DESCRIPTOR(ch);
-    CHAR_DESCRIPTOR(ch) = NULL;
-    CHAR_LAST_ROOM(vict) = NULL;
+    UCHAR(vict)->setDescriptor(CHAR_DESCRIPTOR(ch));
+    UCHAR(ch)->setDescriptor(nullptr);
+    UCHAR(vict)->setLastLocation(nullptr);
 }
 
-
-void unswitchbody(class unit_data *npc)
+void unswitchbody(unit_data *npc)
 {
-    assert(IS_NPC(npc) && CHAR_DESCRIPTOR(npc));
+    assert(npc->isNPC() && CHAR_DESCRIPTOR(npc));
     assert(CHAR_IS_SWITCHED(npc));
     assert(!CHAR_IS_SNOOPING(npc) || CHAR_DESCRIPTOR(CHAR_IS_SNOOPING(npc)));
     assert(!CHAR_IS_SNOOPED(npc) || CHAR_DESCRIPTOR(CHAR_IS_SNOOPED(npc)));
@@ -888,87 +1023,95 @@ void unswitchbody(class unit_data *npc)
     send_to_char("You return to your original body.<br/>", npc);
 
     if (CHAR_IS_SNOOPING(npc))
-        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(npc)->snoop.snooping)->snoop.snoop_by = CHAR_ORIGINAL(npc);
+    {
+        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(npc)->getSnoopData().getSnooping())->getSnoopData().setSnoopBy(CHAR_ORIGINAL(npc));
+    }
 
     if (CHAR_IS_SNOOPED(npc))
-        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(npc)->snoop.snoop_by)->snoop.snooping = CHAR_ORIGINAL(npc);
+    {
+        CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(npc)->getSnoopData().getSnoopBy())->getSnoopData().setSnooping(CHAR_ORIGINAL(npc));
+    }
 
-    CHAR_DESCRIPTOR(npc)->character = CHAR_ORIGINAL(npc);
-    CHAR_DESCRIPTOR(npc)->original = NULL;
+    CHAR_DESCRIPTOR(npc)->setCharacter(CHAR_ORIGINAL(npc));
+    CHAR_DESCRIPTOR(npc)->setOriginalCharacter(nullptr);
 
-    CHAR_DESCRIPTOR(CHAR_DESCRIPTOR(npc)->character) = CHAR_DESCRIPTOR(npc);
-    CHAR_DESCRIPTOR(npc) = NULL;
+    UCHAR(CHAR_DESCRIPTOR(npc)->cgetCharacter())->setDescriptor(CHAR_DESCRIPTOR(npc));
+    UCHAR(npc)->setDescriptor(nullptr);
 }
 
 void stop_fightfollow(unit_data *unit)
 {
-    if (IS_CHAR(unit))
+    if (unit->isChar())
     {
-      if (CHAR_FOLLOWERS(unit) || CHAR_MASTER(unit))
-         die_follower(unit);
+        if (CHAR_FOLLOWERS(unit) || CHAR_MASTER(unit))
+        {
+            die_follower(unit);
+        }
 
-      stop_fighting(unit);
+        stop_fighting(unit);
     }
 }
 
-
 void stop_snoopwrite(unit_data *unit)
 {
-   // removed this statement: if (!IS_PC(unit) || UNIT_IN(unit))
-   //
+    // removed this statement: if (!IS_PC(unit) || UNIT_IN(unit))
+    //
 
-   class descriptor_data *d;
-   while ((d = unit_is_edited(unit)))
-   {
-      send_to_char("<br/>Unit was extracted, sorry.<br/>", d->character);
-      set_descriptor_fptr(d, descriptor_interpreter, FALSE);
-   }
+    descriptor_data *d = nullptr;
+    while ((d = unit_is_edited(unit)))
+    {
+        send_to_char("<br/>Unit was extracted, sorry.<br/>", d->cgetCharacter());
+        set_descriptor_fptr(d, descriptor_interpreter, FALSE);
+    }
 
-   if (IS_CHAR(unit))
-   {
-      if (CHAR_IS_SWITCHED(unit))
-         unswitchbody(unit);
+    if (unit->isChar())
+    {
+        if (CHAR_IS_SWITCHED(unit))
+        {
+            unswitchbody(unit);
+        }
 
-      /* If the PC which is switched is extracted, then unswitch */
-      if (IS_PC(unit) && !CHAR_DESCRIPTOR(unit))
-         for (d = descriptor_list; d; d = d->next)
-            if (d->original == unit)
+        /* If the PC which is switched is extracted, then unswitch */
+        if (unit->isPC() && !CHAR_DESCRIPTOR(unit))
+        {
+            for (d = g_descriptor_list; d; d = d->getNext())
             {
-               unswitchbody(d->character);
-               break;
+                if (d->cgetOriginalCharacter() == unit)
+                {
+                    unswitchbody(d->getCharacter());
+                    break;
+                }
             }
+        }
 
-      if (CHAR_IS_SNOOPING(unit) || CHAR_IS_SNOOPED(unit))
-         unsnoop(unit, 1); /* Remove all snoopers */
-   }
+        if (CHAR_IS_SNOOPING(unit) || CHAR_IS_SNOOPED(unit))
+        {
+            unsnoop(unit, 1); /* Remove all snoopers */
+        }
+    }
 }
-
 
 /* Used when a unit is to be extracted from the game */
 /* Extracts recursively                              */
-void extract_unit(class unit_data *unit)
+void extract_unit(unit_data *unit)
 {
-    extern class unit_data *destroy_room;
-
-    void register_destruct(int i, void *ptr);
-    void nanny_menu(class descriptor_data * d, char *arg);
-    void stop_all_special(class unit_data * u);
-
     /* Prevent recursive calling on extracted units. */
     /* This happens on for example corpses. When the */
     /* destruct_affect is called inside extract we   */
     /* got a recursive call.                         */
 
     if (unit->is_destructed())
+    {
         return;
+    }
 
     /* We can't extract rooms! Sanity, MS 300595, wierd bug... */
-    assert(!IS_ROOM(unit));
+    assert(!unit->isRoom());
 
-    if (IS_PC(unit))
+    if (unit->isPC())
     {
-        //slog(LOG_ALL, 0, "DEBUG: Extracting player %s", UNIT_NAME(unit));
-        UPC(unit)->gstate_tomenu(NULL);
+        // slog(LOG_ALL, 0, "DEBUG: Extracting player %s", UNIT_NAME(unit));
+        UPC(unit)->gstate_tomenu(nullptr);
     }
 
     DeactivateDil(unit);
@@ -980,53 +1123,54 @@ void extract_unit(class unit_data *unit)
 
     unit->register_destruct();
 
-   if (UNIT_IS_EQUIPPED(unit))
-      unequip_object(unit);
+    if (UNIT_IS_EQUIPPED(unit))
+    {
+        unequip_object(unit);
+    }
 
     stop_all_special(unit);
     stop_affect(unit);
 
-   while (UNIT_CONTAINS(unit))
-      extract_unit(UNIT_CONTAINS(unit));
+    while (unit->getUnitContains())
+    {
+        extract_unit(unit->getUnitContains());
+    }
 
     /*	void unlink_affect(class unit_affected_type *af);
           while (UNIT_FUNC(unit))
-    	destroy_fptr(unit, UNIT_FUNC(unit));
+        destroy_fptr(unit, UNIT_FUNC(unit));
 
           while (UNIT_AFFECTED(unit))
-    	     unlink_affect(UNIT_AFFECTED(unit));
+             unlink_affect(UNIT_AFFECTED(unit));
     */
 
     stop_fightfollow(unit);
     stop_snoopwrite(unit);
-
-    if (IS_PC(unit) && CHAR_DESCRIPTOR(unit))
-    {
-        UPC(unit)->disconnect_game();
-    }
 
     /*if (!IS_PC(unit) || UNIT_IN(unit))
     {
       if (UNIT_IN(unit))
          unit_from_unit(unit);
 
-      unit_to_unit(unit, destroy_room);
+      unit_to_unit(unit, g_destroy_room);
 
       // Otherwise find_unit will find it AFTER it has been extracted!!
       remove_from_unit_list(unit);
     }*/
 
-   if (UNIT_IN(unit))
-      unit_from_unit(unit);
+    if (unit->getUnitIn())
+    {
+        unit_from_unit(unit);
+    }
 
-   if (!IS_PC(unit))
-   {
-      unit_to_unit(unit, destroy_room);  // Apparently dont place PCs in the destroy room
+    if (!unit->isPC())
+    {
+        unit_to_unit(unit, g_destroy_room); // Apparently dont place PCs in the destroy room
 
-      // Otherwise find_unit will find it AFTER it has been extracted!!
-      // Players are already removed from the list in gstate_tomenu()
-      remove_from_unit_list(unit);
-   }
+        // Otherwise find_unit will find it AFTER it has been extracted!!
+        // Players are already removed from the list in gstate_tomenu()
+        remove_from_unit_list(unit);
+    }
 }
 
 /* ***********************************************************************
@@ -1036,52 +1180,18 @@ void extract_unit(class unit_data *unit)
 
 /* Add weight to the unit and change everything it is in */
 /* (It will not change the -basic- weight of a player)   */
-void weight_change_unit(class unit_data *unit, int weight)
+void weight_change_unit(unit_data *unit, int weight)
 {
-    for (; unit; unit = UNIT_IN(unit))
-        UNIT_WEIGHT(unit) += weight;
+    for (; unit; unit = unit->getUnitIn())
+    {
+        unit->increaseWeightBy(weight);
+    }
 }
 
-class extra_descr_data *quest_add(class unit_data *ch, const char *name, const char *descr)
+extra_descr_data *quest_add(unit_data *ch, const char *name, const char *descr)
 {
-    assert(name != NULL);
+    assert(name != nullptr);
     assert(name[0]);
 
     return PC_QUEST(ch).add(name, descr);
-}
-
-/* void szonelog(char *zonename, const char *fmt, ...) */
-void szonelog(class zone_type *zone, const char *fmt, ...)
-{
-    char name[256];
-    char buf[MAX_STRING_LENGTH], buf2[MAX_STRING_LENGTH + 512];
-    va_list args;
-    FILE *f;
-
-    time_t now = time(0);
-    char *tmstr = ctime(&now);
-
-    tmstr[strlen(tmstr) - 1] = '\0';
-
-    va_start(args, fmt);
-
-    vsnprintf(buf, MAX_STRING_LENGTH - 51, fmt, args);
-    buf[MAX_STRING_LENGTH - 51] = 0;
-    va_end(args);
-
-    if (zone == NULL)
-    {
-        slog(LOG_ALL, 0, buf);
-        return;
-    }
-
-    sprintf(buf2, "%s/%s", zone->name, buf);
-    slog(LOG_ALL, 0, buf2);
-
-    sprintf(name, "%s%s.err", g_cServerConfig.m_zondir, zone->filename);
-
-    if ((f = fopen_cache(name, "a")) == NULL)
-        slog(LOG_ALL, 0, "Unable to append to zonelog '%s'", name);
-    else
-        fprintf(f, "%s :: %s\n", tmstr, buf);
 }

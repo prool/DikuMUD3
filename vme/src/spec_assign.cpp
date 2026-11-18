@@ -22,21 +22,31 @@
  * authorization of Valhalla is prohobited.                                *
  * *********************************************************************** */
 
-#include <stdio.h>
-
-#include "utils.h"
-#include "interpreter.h"
 #include "spec_assign.h"
-#include "handler.h"
 
-int spec_unused(struct spec_arg *sarg)
+#include "bank.h"
+#include "dictionary.h"
+#include "dilrun.h"
+#include "eliza.h"
+#include "fight.h"
+#include "guild.h"
+#include "handler.h"
+#include "interpreter.h"
+#include "justice.h"
+#include "slime.h"
+#include "slog.h"
+#include "teach.h"
+#include "utils.h"
+#include "zon_basis.h"
+#include "zon_wiz.h"
+
+int spec_unused(spec_arg *sarg)
 {
 #ifdef VMC
 #else
     if (sarg->cmd->no != CMD_AUTO_EXTRACT)
     {
-        slog(LOG_ALL, 0, "Unit %s@%s had undefined special routine.",
-             UNIT_FI_NAME(sarg->owner), UNIT_FI_ZONENAME(sarg->owner));
+        slog(LOG_ALL, 0, "Unit %s had undefined special routine.", sarg->owner->getFileIndexSymName());
         destroy_fptr(sarg->owner, sarg->fptr);
     }
 
@@ -49,12 +59,13 @@ int spec_unused(struct spec_arg *sarg)
  ******************************************************************** */
 
 #ifdef VMC
-#define VMCIT(a) spec_unused
+    #define VMCIT(a) spec_unused
 #else
-#define VMCIT(a) a
+    #define VMCIT(a) a
 #endif
+
 /* macro definitions for array indices are in values.h */
-struct unit_function_array_type unit_function_array[] = {
+unit_function_array_type g_unit_function_array[] = {
     {"0 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"DIL Copy Internal", VMCIT(dil_direct_init), FN_PRI_CHORES, SD_NEVER, 0, 0},
     {"2 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
@@ -63,11 +74,12 @@ struct unit_function_array_type unit_function_array[] = {
     {"5 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"6 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"7 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
-    {"#8 XXXUnused", VMCIT(spec_unused), FN_PRI_RES , SD_NEVER, 0, 0},
+    {"#8 XXXUnused", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"#9 XXX Unused", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"10 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"11 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
-    {"12 XXX Unused", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, SFB_TICK | SFB_PRIORITY, PULSE_SEC * 5}, // Was: npc_visit_room replaced with DIL
+    {"12 XXX Unused", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, SFB_TICK | SFB_PRIORITY, PULSE_SEC * 5}, // Was: npc_visit_room replaced
+                                                                                                         // with DIL
     {"13 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"14 XXX UnUsed", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"banking routine", VMCIT(bank), FN_PRI_CHORES, SD_NULL, SFB_CMD, 0},
@@ -122,15 +134,15 @@ struct unit_function_array_type unit_function_array[] = {
     {"64 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"65 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"66 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
-    {"Guard Guild Way", VMCIT(guard_guild_way), FN_PRI_CHORES, SD_ASCII, SFB_CMD, 0},
-    {"Teach Guild Members Only", VMCIT(teach_members_only), FN_PRI_RESCUE, SD_ASCII, SFB_CMD, 0},
+    {"Guard Guild Way", VMCIT(spec_unused), FN_PRI_CHORES, SD_ASCII, SFB_CMD, 0},
+    {"Teach Guild Members Only", VMCIT(spec_unused), FN_PRI_RESCUE, SD_ASCII, SFB_CMD, 0},
     {"#69 XXXUnused", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
-    {"Guild Master Init", VMCIT(guild_master_init), FN_PRI_CHORES, SD_ASCII, SFB_CMD, 0},
-    {"Guild Basis", VMCIT(guild_basis), FN_PRI_CHORES, SD_ASCII, SFB_DEAD | SFB_COM, 0},
+    {"Guild Master Init", VMCIT(spec_unused), FN_PRI_CHORES, SD_ASCII, SFB_CMD, 0},
+    {"Guild Basis", VMCIT(spec_unused), FN_PRI_CHORES, SD_ASCII, SFB_DEAD | SFB_COM, 0},
     {"72 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"73 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"74 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
-    {"Guild Titles", VMCIT(guild_title), FN_PRI_CHORES, SD_NULL, SFB_CMD, 0},
+    {"Guild Titles", VMCIT(spec_unused), FN_PRI_CHORES, SD_NULL, SFB_CMD, 0},
     {"#76 XXXUNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"Give Reward", VMCIT(reward_give), FN_PRI_CHORES, SD_NEVER, SFB_CMD, 0},
     {"78 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
@@ -145,7 +157,7 @@ struct unit_function_array_type unit_function_array[] = {
     {"Administrator Slime", VMCIT(slime_obj), FN_PRI_CHORES, SD_NULL, SFB_CMD, 0},
     {"88 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"89 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
-    {"Guild Master Internal", VMCIT(guild_master), FN_PRI_RES, SD_NEVER, SFB_CMD, 0},
+    {"Guild Master Internal", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, SFB_CMD, 0},
     {"91 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"92 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},
     {"93 XXX UNUSED", VMCIT(spec_unused), FN_PRI_RES, SD_NEVER, 0, 0},

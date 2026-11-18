@@ -8,15 +8,9 @@ version     23
 END HEADER*/
 
 
-
-
-
-
-
-
-
 #define _GUILD_UDGAARD_CONJURER
 #define CONJURER_CHARM "$Conjurer Charm Given"
+#define QUEST_MAGE_ENTRY "Conjurer Guild Entry"
 
 /* This zone is the Mages Guild, the School of Magic. It has been    */
 /* made as a separate zone in order to make Midgaard smaller.        */
@@ -43,7 +37,7 @@ lifespan 125
 
 help
 "<pre><br/>
-The College of Arcane Arts was build in the place of the old Conjurers<br/>
+The College of Arcane Arts was built in the place of the old Conjurers<br/>
 Guild, which itself replaced the older Mage Guild of Midgaard. The College<br/>
 is a rich institution, able to afford pompous buildings as well as large<br/>
 area and own defences.<br/>
@@ -63,8 +57,8 @@ area and own defences.<br/>
 			  are available at the Archcancellor by bowing or<br/>
 			  worshipping him.<br/>
   Bar and relaxation 	- A small resting area, along with a bar, can be found<br/>
-			  in the College Gardens (north and east or south<br/>
-			  and east from the Main Hall).<br/>
+			  in the College Gardens (east and east, then north<br/>
+			  and east or south and east from the Main Hall).<br/>
 <br/>
 </div></pre>"
 
@@ -79,59 +73,61 @@ mana + incapacitated */
 
 dilbegin nokill();
 var
-        pc : unitptr;
-        room : unitptr;
+   pc : unitptr;
+   room : unitptr;
+
 code
 {
-        heartbeat := 3 * PULSE_SEC;
+   heartbeat := 3 * PULSE_SEC;
 
-        :start:
-        wait(SFB_COM,  self.position == POSITION_FIGHTING );
-        if(pc.type == UNIT_ST_NPC) goto start;
-        pc := self.fighting;
-if(pc.level>200) goto start;
-         if (command("flee"))
-                block;
+   :start:
+   wait(SFB_COM,  self.position == POSITION_FIGHTING );
+   pc := self.fighting;
+   if(pc.type == UNIT_ST_NPC) goto start;
+   if(pc.level>200) goto start;
+   if (command("flee"))
+   block;
 
-self.hp := self.max_hp;
-act("The sounds of battle attract the attention of the college guards.",
-A_ALWAYS, pc, self, null, TO_ALL);
-act("Suddenly the air is hot with magic, as several spells smash into "+
-"your body and mind!", A_ALWAYS, pc, self, null, TO_CHAR);
-act("Several of them charge into the room, $3n topples under the magical "+
-"assault!",A_SOMEONE, pc, self, null, TO_REST);
-pc.hp := 0;
-pc.mana := 0;
-act("You can feel yourself being dragged away as you slip into the "+
-"unconsciousness.",A_ALWAYS, pc, self, null, TO_CHAR);
-position_update(pc);
-act("Two of the guards grab $1n and drag $1m out of the Guild, dumping "+
-"$1m in the streets.",A_SOMEONE, pc, self, null, TO_REST);
-room := findroom("cth_square2@midgaard");
-link(pc,room);
-act("Two guards appear, dragging an unconscious figure between them and "+
-"dump $1m unceremoniously on the street."
-,A_SOMEONE,pc,self,null,TO_REST);
-        :gone:
-unsecure(pc);
-goto start;
+   self.hp := self.max_hp;
+   act("The sounds of battle attract the attention of the college guards.",
+   A_ALWAYS, pc, self, null, TO_ALL);
+   act("Suddenly the air is hot with magic, as several spells smash into "+
+   "your body and mind!", A_ALWAYS, pc, self, null, TO_CHAR);
+   act("Several of them charge into the room, $1n topples under the magical "+
+   "assault!",A_SOMEONE, pc, self, null, TO_REST);
+   pc.hp := 0;
+   pc.mana := 0;
+   act("You can feel yourself being dragged away as you slip into the "+
+   "unconsciousness.",A_ALWAYS, pc, self, null, TO_CHAR);
+   position_update(pc);
+   act("Two of the guards grab $1n and drag $1m out of the Guild, dumping "+
+   "$1m in the streets.",A_SOMEONE, pc, self, null, TO_REST);
+   room := findroom("cth_square2@midgaard");
+   link(pc,room);
+   act("Two guards appear, dragging an unconscious figure between them and "+
+   "dump $1m unceremoniously on the street."
+   ,A_SOMEONE,pc,self,null,TO_REST);
+   :gone:
+   unsecure(pc);
+   goto start;
 }
 dilend
 
+
+
 /* DIL for the mobs summoned with a spellweaver charm. It will cause the
 summoned mobs to vanish back after a short while. */
-
 dilbegin vanish_back();
 code
 {
-        :init:
-        heartbeat := PULSE_SEC* (rnd(15,25));
+   :init:
+   heartbeat := PULSE_SEC* (rnd(15,25));
 
-        :start:
-wait(SFB_TICK,TRUE);
-wait(SFB_TICK,TRUE);
-act("$1n fades away and disappears!",A_SOMEONE,self,null,null,TO_ALL);
-destroy(self);
+   :start:
+   wait(SFB_TICK,TRUE);
+   wait(SFB_TICK,TRUE);
+   act("$1n fades away and disappears!",A_SOMEONE,self,null,null,TO_ALL);
+   destroy(self);
 }
 dilend
 
@@ -140,6 +136,7 @@ dilend
 		entrance
 names {"entrance","guild entrance","college gates"}
 title "Gates to the College of Arcane Arts"
+gmap(112,238)
 descr
 "You stand outside the grand gates of the College of Arcane, the home of
 mages known as Midgaard's Conjurers. A large sign is mounted on the wall
@@ -158,7 +155,7 @@ extra {"large sign","sign","wall"}
 		    Welcome to the College of Arcane Arts<br/>
 <br/>
 	This College is the educational facility for Midgaard Conjurers.<br/>
-~	Applicants, please walk straight through to the Archcancellor's<br/>
+	Applicants, please walk straight through to the Archcancellor's<br/>
 	offices at the back of the university.<br/>
 <br/>
 				- Rafizir the Archcancellor -<br/>
@@ -172,7 +169,8 @@ end
 
 		hall
 names {"main hall","College of Arcane","college pattern","pattern"}
-title "The Main Hall of College"
+title "The Main Hall of the College"
+gmap(187,238)
 descr
 "The Main Hall is a huge, open space, illuminated by the light falling in
 through the huge, arched windows. Two huge archways lead off to the north
@@ -186,15 +184,15 @@ the glass has a strange quality, very soft and relaxing.<br/>"
 extra {"white marble floor","floor","marble"}
 "As you take a closer look, you notice that the marble on the floor is
 divided into pentagonal shapes. A complicated pattern of black and white
-stones cover the middle of the floor.<br/>"
+stones covers the middle of the floor.<br/>"
 extra {"pattern on the floor","pattern"}
 "As you study this pattern, you realize that it is meant as a homing
-point for Conjurers using less traditional means of travels. You can
+point for Conjurers using less traditional means of travel. You can
 teleport straight home by letting the spell take you to 'college pattern',
 'pattern' or simply 'college of arcane'.<br/>"
 extra {"archways","archway","sign"}
 "The archways are decorated with patterns of sigils. You fail to decipher
-those, but the sign above northern archway exclaims 'Tower of Mudane',
+those, but the sign above the northern archway exclaims 'Tower of Mundane',
 while the sign above the southern archway says 'Tower of Arcane'.<br/>"
 extra {"grand gates","gates"}
 "Those gates lead to the cruel outside world.<br/>"
@@ -214,6 +212,7 @@ end
 		statue_walk
 names {"statue walk"}
 title "The statue walk"
+gmap(262,238)
 descr
 "This long corridor stretches east and west. Many statues of prominent
 magicians gaze at you from their pedestals along the walls. You can see a
@@ -222,7 +221,7 @@ northern wall of the corridor is marked 'Library' and another one to the
 south marked 'Main Lecture Hall'. A double door leads west to the Main Hall."
 extra {"solemn marble statues","statues","pedestals"}
 "The large marble statues are quite varied - some depict classical,
-long-bearded, robed, staff-wielding mages, while other portrait
+long-bearded, robed, staff-wielding mages, while others portray
 combat-wizards in battle outfits, confused alchemists with scorched
 eyebrows, quiet scholars with stacks of books under their arms... Most of
 the statues are very lifelike.<br/>"
@@ -240,6 +239,7 @@ end
 		con_hall
 names {"congregation hall"}
 title "The Congregation Hall"
+gmap(337,238)
 descr
 "The Congregation Hall of the College is a splendid place. Grand seats of
 the heads of the university are placed upon a podium in the north part of
@@ -256,7 +256,7 @@ extra {"chairs","chair"}
 "The chairs surrounding the podium are made of a dark, heavy wood.<br/>"
 extra {"ceiling of the hall","ceiling","chandelier"}
 "The huge chandelier in the middle of the ceiling is richly decorated
-and seem capable to containing a wast amount of candles.<br/>"
+and seems capable of containing a vast amount of candles.<br/>"
 movement SECT_INSIDE
 flags {UNIT_FL_NO_WEATHER,UNIT_FL_INDOORS}
 west to statue_walk descr "A pair of double doors lead to a long walk.<br/>";
@@ -271,9 +271,10 @@ end
 
 		chan_office
 names {"Archchancellor's office"}
-title "The offices of Archcancellor of the College"
+title "The offices of the Archcancellor of the College"
+gmap(412,238)
 descr
-"The offices of the Archcancellor are suprisingly spartan, compared to
+"The offices of the Archcancellor are surprisingly spartan, compared to
 the grandeur of the rest of this place. A single desk near a large
 window, a large cabinet file and a case containing several books and
 scrolls seem to be the only furniture here. A few chairs for the
@@ -285,7 +286,9 @@ extra {"small sign","sign"}
 <br/>
 		Welcome to the College of Arcane Arts.<br/>
 <br/>
-	'title'		- changes your title to a new and better one.<br/>
+        'join'           - join this guild (if you qualify!).
+        'title'          - changes your title to a new and better one.
+        'worship'        - ... 
 <br/>
    	Members, please pay respect to your Archcancellor by bowing<br/>
 	or worshipping him. The special items of our College are<br/>
@@ -293,7 +296,7 @@ extra {"small sign","sign"}
 <br/>
 </pre>"
 extra {"desk near the window","desk"}
-"The dark-wood desk is slightly decorated and suprisingly tidy. A large
+"The dark-wood desk is slightly decorated and surprisingly tidy. A large
 chair behind the desk provides a sitting place for the Archcancellor.<br/>"
 extra {"bookcase","case"}
 "The bookcase is filled with books and scrolls, although they seem more
@@ -315,6 +318,7 @@ end
 		library
 names {"library"}
 title "The College Library"
+gmap(262,162)
 descr
 "The College Library looks like every other library at every other
 university in the universe. Rows of bookcases and shelves stretch away
@@ -374,10 +378,11 @@ end
 		main_lecture
 names {"main lecture hall"}
 title "The Main Lecture Hall of the College"
+gmap(262,313)
 descr
 "This large, concave hall contains a chair for the speaker, a large
-blackboard and rows of seats, raising in a half-circle from the centre
-of the hall. although half-empty now, the hall bears signs of frequent use.
+blackboard and rows of seats, rising in a half-circle from the centre
+of the hall. Although half-empty now, the hall bears signs of frequent use.
 A door leads out of the hall to the north."
 extra {"speaker's chair","chair"}
 "The speaker's chair is a simple thing of dark oak.<br/>"
@@ -396,10 +401,11 @@ end
 		archway_n
 names {"northern archway","archway"}
 title "The northern walkway"
+gmap(337,162)
 descr
-"This long north-south walkway is lined with series of tall arches on each
+"This long north-south walkway is lined with a series of tall arches on each
 side of the walk. To the north, outside the College, you have a magnificent
-view of the Midgaard cathedral , while to the east you can walk
+view of the Midgaard cathedral, while to the east you can walk
 through the arches into the university gardens. South of here the walkway
 enters the Congregation Hall of the College."
 extra {"eastern view","gardens","garden","east","arches"}
@@ -407,7 +413,7 @@ extra {"eastern view","gardens","garden","east","arches"}
 where the mages go to relax and study, well kept by the various gardeners.<br/>"
 movement SECT_INSIDE
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS,UNIT_FL_NO_TELEPORT}
-south to con_hall descr "A wide archway leads into the Main Hall of the
+south to con_hall descr "A wide archway leads into the Congregation Hall of the
 College.<br/>" ;
 east to garden1 descr "A large, tranquil garden can be seen through the
 archway to the east.<br/>" ;
@@ -417,6 +423,7 @@ end
 		mundane_ground
 names {"tower of mundane","tower"}
 title "The Tower of Mundane - training halls"
+gmap(187,162)
 descr
 "The ground floor of the Tower of Mundane is filled by a huge training
 hall. Apparently, this is the place where the students of the College
@@ -440,10 +447,11 @@ end
 		mundane_top
 names {"tower of mundane"}
 title "Top gallery of the Tower of Mundane"
+gmap(187,162)
 descr
 "You stand at the uppermost gallery in the Tower of Mundane. A
 breathtaking view rewards your long climb - the tall, arched windows
-provide a scenery the whole of Midgaard, and beyond that, far glimpses
+provide a view of the whole of Midgaard, and beyond that, far glimpses
 of surrounding areas. A spiral stairway provides means to descend the tower."
 extra {"view of Cypress Forest","Cypress","forest"}
 "The Cypress Forest is a tangled mass of green, with the river cutting a
@@ -458,9 +466,10 @@ end
 		archway_s
 names {"southern archway","archway"}
 title "The southern walkway"
+gmap(337,313)
 descr
-"This long north-south walkway is lined with series of tall arches on each
-side of the walk. To the north, outside the College, the catheral square of
+"This long north-south walkway is lined with a series of tall arches on each
+side of the walk. To the north, outside the College, the cathedral square of
 Midgaard can be seen, while to the east you can walk through the arches into
 the university gardens. North of here the walkway enters the Congregation Hall
 of the College."
@@ -472,7 +481,7 @@ extra {"thick door","door"}
 protective sigla cover the door, magic is worked in the tower!<br/>"
 movement SECT_INSIDE
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS,UNIT_FL_NO_TELEPORT}
-north to con_hall descr "A wide archway leads into the Main Hall of the
+north to con_hall descr "A wide archway leads into the Congregation Hall of the
 College.<br/>";
 east to garden4 descr "Through the archways the garden of the university
 can be seen.<br/>";
@@ -482,8 +491,9 @@ end
 		arcane_ground
 names {"tower of arcane","tower"}
 title "The Tower of Arcane - Thaumaturgical studies"
+gmap(187,313)
 descr
-"This walls of this large room are heavily covered in protective sigla
+"The walls of this large room are heavily covered in protective sigla
 and seem extremely thick and solid. Several blackboards are placed along
 the walls and various tables covered in magical materia of all sorts.
 Blackened spots on the walls witness the intense training that takes
@@ -505,10 +515,11 @@ end
 		arcane_top
 names {"tower of arcane"}
 title "The gallery at the top of the Tower of Arcane"
+gmap(187,313)
 descr
-"You stand at the uppermost gallery in the Tower of Mundane. A
+"You stand at the uppermost gallery in the Tower of Arcane. A
 breathtaking view rewards your long climb - the tall, arched windows
-provide a scenery the whole of Midgaard. A spiral stairway provides
+provide a view of the whole of Midgaard. A spiral stairway provides
 means to descend the tower."
 extra {"view of Cypress Forest","Cypress","forest"}
 "The Cypress Forest is a tangled mass of green, with the river cutting a
@@ -523,11 +534,12 @@ end
 		garden1
 names {"college gardens"}
 title "University gardens"
+gmap(412,162)
 descr
 "The beautiful gardens seem well-kept and lush. The paths are combed and
 the bushes trimmed to perfection. Small benches provide resting places.
 Everything breathes peace and quiet here. A path leads off to the east
-and to the north a long row of archways marks the walkway of the College."
+and to the west a long row of archways marks the walkway of the College."
 extra {"vegetation of the gardens","bushes","roses","flowers"}
 "The bushes are lush green, the flowers full and beautiful. Someone is
 doing a great job here.<br/>"
@@ -545,6 +557,7 @@ end
                 garden2
 names {"college gardens"}
 title "University gardens - at a small pond"
+gmap(487,162)
 descr
 "You stand at a small pond in the college gardens. A few goldfish glimmer
 in the crystal-clear water. Low benches near the pond invite you to rest
@@ -567,9 +580,10 @@ end
                 garden3
 names {"college gardens"}
 title "University gardens - at a small alcove"
+gmap(487,313)
 descr
 "You stumble upon a small alcove in the gardens. To your surprise, it
-features a small bar with selection of various refreshments. A small sign
+features a small bar with a selection of various refreshments. A small sign
 is placed on the counter. A path leads off to the north and another one to
 the west, toward the college buildings."
 extra {"small alcove","alcove"}
@@ -592,18 +606,19 @@ extra {"paths","path"}
 movement SECT_CITY
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS,UNIT_FL_NO_TELEPORT}
 north to garden2 descr "A small path leads off to the north.<br/>";
-west to garden4 descr "A small path leads off into the east.<br/>";
+west to garden4 descr "A small path leads off into the west.<br/>";
 ALWAYS_LIGHT
 end
 
                 garden4
 names {"college gardens"}
 title "University gardens"
+gmap(412,313)
 descr
 "The beautiful gardens seem well-kept and lush. The paths are combed and
 the bushes trimmed to perfection. Small benches provide resting places.
 Everything breathes peace and quiet here. A path leads off to the east
-and to the north a long row of archways marks the walkway of the College."
+and to the west a long row of archways marks the walkway of the College."
 extra {"vegetation of the gardens","bushes","roses","flowers"}
 "The bushes are lush green, the flowers full and beautiful. Someone is
 doing a great job here.<br/>"
@@ -618,7 +633,7 @@ east to garden3 descr "A small path leads off into the east.<br/>";
 ALWAYS_LIGHT
 end
 
-%mobiles
+
 %mobiles
 
 		gate_guard
@@ -635,16 +650,11 @@ M_HUMAN_MAGE_ACID(160,SEX_MALE,"acid ball")
 alignment 800
 money 7 IRON_PIECE
 
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
 dilcopy rescue@function("guard");
 dilcopy teamwork@function("guard");
-/*special SFUN_GUILD_GUARD_WAY
-""+"east"+"#"+GUILD_UDG_MAGE+"#entrance#guard
-#$1n stops you and says,'Members only!'
-#$1n stops $3n, and says, 'Members only!'"*/
-
-dilcopy guild_guard@guild_paths(GUILD_UDG_MAGE, "east");
-
+// dilcopy guild_guard@guild_paths(GUILD_UDG_MAGE, "east");
 end
 
 		rafizir
@@ -662,18 +672,11 @@ alignment 735
 money 5 IRON_PIECE
 exp -100
 
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
-/*
-special SFUN_GUILD_MASTER
-"Guild               = ~"+GUILD_UDG_MAGE+"~
-Guild Enter Quest    = ~~
-Guild Enter Cost     = "+(1*SILVER_MULT)+"<br/>
-Guild Leave Quest    = ~~
-Guild Leave Cost     = "+(5*GOLD_MULT)+"<br/>
-Guild Exclude Quest  = ~Udgaard Mage Quitter~"
-*/
+dilcopy nokill@mageguild();
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
 
-dilcopy guild_titles@guild_paths(GUILD_UDG_MAGE, {"Apprentice of Magic",
+dilcopy SetTitles@guilds(GUILD_UDG_MAGE, {"Apprentice of Magic",
 "Apprentice of Magic", "Spell Student", "Spell Student", "Scholar of Magic",
 "Scholar of Magic", "Delver in Spells", "Delveress in Spells",
 "Medium of Magic", "Medium of Magic", "Scribe of Magic", "Scribess of Magic",
@@ -683,116 +686,129 @@ dilcopy guild_titles@guild_paths(GUILD_UDG_MAGE, {"Apprentice of Magic",
 "Mistress of Arcane Arts", "Savant", "Savant", "Magus", "Craftess", "Wizard",
 "Wizard", "Warlock", "War Witch", "Archmagus", "Archcraftess"});
 
+dilcopy MasterJoin@guilds(GUILD_UDG_MAGE, GUILD_MAGE_EXCL, QUEST_MAGE_ENTRY, 
+ {"say You have been banned from our guild, you can't rejoin.","spit $1N"},
+ {"eye $1N", "say Perhaps you have been hitting your head too much lately, $1N?", "say You're already a member of our guild."},
+ {"glare $1N", "say Followers of the faith cannot master the science of magic."},
+ {"say To join, $1N, you must prove yourself worthy by completing the Conjurer's Guild quest.","say Go speak with Mr. Backspindle."},
+ {"handshake $1N", "say Welcome to the Conjurer's Guild, $1N."});
+
 /* Conjurer Master DIL - gives out the Spellweaver Charm. */
 
 dilbegin conj_give();
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
+   integer IsInGuilds@guilds(pc : unitptr, sGuilds : stringlist);
+
 var
-        pc : unitptr;
-        item : unitptr;
-        expd : extraptr;
+   pc : unitptr;
+   item : unitptr;
+
 code
 {
-        heartbeat := PULSE_SEC * 5;
+   heartbeat := PULSE_SEC * 5;
 
-        :start:
+:start:
 
-wait (SFB_DONE, (command("worship")or(command("bow")))
-and(self==target));
-        pc := activator;
-        secure(pc, lost);
-        expd := "$path" in pc.quests;
-        if (expd == null) goto lost;
-        if ((GUILD_UDG_MAGE in expd.names))
-        {
-if("$Conjurer Charm Given" in pc.quests)
-{
-exec("say Greetings "+pc.name+", good to see you here again.",self);pause;
-exec("say Knowing my students, I guess you do not come here for ilde chat."
-,self);exec("sigh",self);pause;
-exec("say I think you managed to lose your Spellweaver Charm and wish to "+
-"receive another one.",self);
-act("$3n gives you a stern look that makes you feel very small indeed."
-,A_ALWAYS,pc,null,self,TO_CHAR);
-act("$3n gives $1n a stern look that makes $1m step uneasily from foot to "+
-"foot.",A_SOMEONE,pc,null,self,TO_REST);pause;
-exec("say Now "+pc.name+", the Spellweaver Charms are weak enchantments, "+
-"but they do not grow on trees.",self);pause;
-exec("say If you wish another one, you have to earn it first.",self);
-pause;
-exec("emote eyes you carefully...",self);pause;
-exec("say In the lands of the savages, far away from here, grow the "+
-"mystical fruits of magic, bring me one of those!",self);pause;
-exec("say My supplies are dwindling.",self);pause;
-exec("say I shall replace your Charm if... when you get back.",self);pause;
-exec("say Farewell, "+pc.name+".",self);
-exec("emote returns to his paperwork.",self);
-unsecure(pc);
-goto start;
-}
-exec("say Greetings "+pc.name+", good to see you here.",self);pause;
-exec("say I know you are an aspiring Conjurer...",self);pause;
-exec("say The way of a devoted student is long and perilous... too many "+
-"promising pupils endanger their lives seeking fortunes through adventures."
-,self);pause;
-exec("say Know, that there is no short-cuts to knowledge, no fast lane to "+
-"wisdom.",self);pause;
-exec("say And even the one of greatest talent can fall before sharp "+
-"wits and cunning... or lacking that, a sharp blade.",self);pause;
-exec("emote sinks into deep thoughts.",self);pause;
-exec("say "+pc.name+", we wish to keep our promising students alive, "+
-"thus we will provide you with a small item to aid you."
-,self);pause;
-exec("say A simple enchantment, yet useful in dire straits.",self);
-        item := load("conj_charm@mageguild");
-        item.height := pc.height;
-        link(item, pc);
-sendtext(self.name+" hands you a small charm.<br/>",pc);
-act("$3n hands $1n a small charm.",A_SOMEONE,pc,null,self,TO_REST);
-pause;
-exec("say This charm summons a creature to stand by your side in combat."
-,self); pause;
-exec("say Notice, however, that the creature summoned has a will and life "+
-"of its own.",self);pause;
-exec("say It will obey no command of yours and do nothing else except "+
-"fighting the enemy it has been summoned to vanquish.",self);pause;
-exec("say The magic of the charm is feeble... the creature will be sent "+
-"back into its homelands after a short while.",self);pause;
-exec("say I trust your wisdom in the use of this trinket. Simply grip "+
-"your charm in combat to activate the runes.",self);pause;
-exec("say And one more thing before you go...",self);
-exec("emote regards you with slight amusement in his eyes...",self);pause;
-exec("say Let's be careful out there.",self);pause;
-exec("emote nods goodbye and return to his paperwork.",self);
-addextra(pc.quests, {CONJURER_CHARM}, "");
-unsecure(pc);
-goto start;
-}
-else
+   wait (SFB_DONE, (command("worship")or(command("bow"))) and(self==target));
+
+   pc := activator;
+   secure(pc, lost);
+
+   if (IsInGuild@guilds(pc, GUILD_UDG_MAGE))
+   {
+      if ("$Conjurer Charm Given" in pc.quests)
       {
-        unsecure(pc);
-        pause;
-        exec ("say Yeah, I know I am famous, but lets not overdo this "+
-"thing, shall we?", self);
-        goto start;
+         exec("say Greetings, "+pc.name+", good to see you here again.",self);pause;
+         exec("say Knowing my students, I guess you do not come here for idle chat."
+         ,self);exec("sigh",self);pause;
+         exec("say I think you managed to lose your Spellweaver Charm and wish to "+
+         "receive another one.",self);
+         act("$3n gives you a stern look that makes you feel very small indeed."
+         ,A_ALWAYS,pc,null,self,TO_CHAR);
+         act("$3n gives $1n a stern look that makes $1m step uneasily from foot to "+
+         "foot.",A_SOMEONE,pc,null,self,TO_REST);pause;
+         exec("say Now "+pc.name+", the Spellweaver Charms are weak enchantments, "+
+         "but they do not grow on trees.",self);pause;
+         exec("say If you wish another one, you have to earn it first.",self);
+         pause;
+         exec("emote eyes you carefully...",self);pause;
+         exec("say In the lands of the savages, far away from here, grow the "+
+         "mystical fruits of magic, bring me one of those!",self);pause;
+         exec("say My supplies are dwindling.",self);pause;
+         exec("say I shall replace your Charm if... when you get back.",self);pause;
+         exec("say Farewell, "+pc.name+".",self);
+         exec("emote returns to his paperwork.",self);
+         unsecure(pc);
+         goto start;
       }
 
-unsecure(pc);
-goto start;
+      exec("say Greetings, "+pc.name+", good to see you here.",self);pause;
+      exec("say I know you are an aspiring Conjurer...",self);pause;
+      exec("say The way of a devoted student is long and perilous... too many "+
+      "promising pupils endanger their lives seeking fortunes through adventures."
+      ,self);pause;
+      exec("say Know that there are no short-cuts to knowledge, no fast lane to "+
+      "wisdom.",self);pause;
+      exec("say And even the one of greatest talent can fall before sharp "+
+      "wits and cunning... or lacking that, a sharp blade.",self);pause;
+      exec("emote sinks into deep thoughts.",self);pause;
+      exec("say "+pc.name+", we wish to keep our promising students alive, "+
+      "thus we will provide you with a small item to aid you."
+      ,self);pause;
+      exec("say A simple enchantment, yet useful in dire straits.",self);
+      item := load("conj_charm@mageguild");
+      item.height := pc.height;
+      link(item, pc);
+      act("$3n hands you a small charm.",A_SOMEONE,pc,null,self,TO_CHAR);
+      act("$3n hands $1n a small charm.",A_SOMEONE,pc,null,self,TO_REST);
+      pause;
+      exec("say This charm summons a creature to stand by your side in combat."
+      ,self); pause;
+      exec("say Notice, however, that the creature summoned has a will and life "+
+      "of its own.",self);pause;
+      exec("say It will obey no command of yours and do nothing else except "+
+      "fighting the enemy it has been summoned to vanquish.",self);pause;
+      exec("say The magic of the charm is feeble... the creature will be sent "+
+      "back into its homelands after a short while.",self);pause;
+      exec("say I trust your wisdom in the use of this trinket. Simply grip "+
+      "your charm in combat to activate the runes.",self);pause;
+      exec("say And one more thing before you go...",self);
+      exec("emote regards you with slight amusement in his eyes...",self);pause;
+      exec("say Let's be careful out there.",self);pause;
+      exec("emote nods goodbye and returns to his paperwork.",self);
+      addextra(pc.quests, {CONJURER_CHARM}, "");
+      unsecure(pc);
+      goto start;
+   }
+   else
+   {
+      unsecure(pc);
+      pause;
+      exec ("say Yeah, I know I am famous, but let's not overdo this "+
+      "thing, shall we?", self);
+      goto start;
+   }
+   unsecure(pc);
+   goto start;
 
-	:lost:
-
-unsecure(pc);
-exec("shrug", self);
-goto start;
+:lost:
+   unsecure(pc);
+   exec("shrug", self);
+   goto start;
 }
 dilend
 
 dilbegin conj_quest2();
+external
+   integer IsInGuild@guilds(pc : unitptr, sGuild : string);
+   integer IsInGuilds@guilds(pc : unitptr, sGuilds : stringlist);
+
 var
         pc : unitptr;
         item : unitptr;
         gift : unitptr;
-      expd: extraptr;
+
 code
 {
         heartbeat := PULSE_SEC * 4;
@@ -803,12 +819,10 @@ wait (SFB_DONE, (command("give")and(self ==target)));
         pc := activator;
         secure(pc, lost);
         gift := medium;
-        expd := "$path" in pc.quests;
-        if (expd == null) goto lost;
-        if ((GUILD_UDG_MAGE in expd.names) and
-(CONJURER_CHARM in pc.quests))
-{
-if((gift.nameidx $= "mana_fruit")and(gift.zoneidx $= "lostlands"))
+
+        if (IsInGuild@guilds(pc, GUILD_UDG_MAGE) and (CONJURER_CHARM in pc.quests))
+        {
+        if((gift.nameidx $= "mana_fruit")and(gift.zoneidx $= "lostlands"))
 {
         heartbeat := PULSE_SEC * 7;
 exec("say Aaah, excellent!",self);
@@ -827,8 +841,10 @@ exec("emote returns to his paperwork.",self);
 else
 {
 exec("say Hmm, nice of you to give me that, but this is not what I asked "+
-"for..",self);pause;
-exec("emote locks "+gift.title+" away in the cabinet.",self);pause;
+"for.",self);
+exec("emote locks "+gift.title+" away in the cabinet.",self);
+destroy(gift);
+pause;
 exec("emote smiles slightly.",self);
 }
 	:lost:
@@ -836,13 +852,19 @@ destroy(gift);
 unsecure(pc);
 goto start;
 }
+else if (gift.objecttype != ITEM_MONEY)
+{
+        // not for the charm quest: hand it back
+        link(gift, pc);
+        act("$1n hands $2n back to you.", A_SOMEONE, self, gift, pc, TO_VICT);
+        act("$1n hands $2n back to $3n.", A_SOMEONE, self, gift, pc, TO_NOTVICT);
+}
+unsecure(pc);
 goto start;
 }
 dilend
-
-dilcopy nokill@mageguild();
-
 end
+
 
 		zofax
 names {"Zofax","dean"}
@@ -859,13 +881,10 @@ alignment 500
 money 5 IRON_PIECE
 exp -100
 
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
-/*
-special SFUN_MEMBERS_ONLY GUILD_UDG_MAGE+
-"#$1n says, 'You are not an enlisted student, $3n. Please leave the
-premises.'"
-*/
-dilcopy teacher_prac@guild_paths( GUILD_UDG_MAGE );
+dilcopy nokill@mageguild();
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
+dilcopy TrainMemberChk@guilds(GUILD_UDG_MAGE, "");
 
 #define _SPELL
 #include "guilddef.h"
@@ -879,8 +898,8 @@ names {"merlin","head librarian","librarian"}
 title "Merlin"
 descr "Merlin, the Head Librarian, stands ready to assist with your studies."
 extra {}
-"The life has been easy for Merlin since his retirement. With the
-expansion of the former Mages Guild in Midgaard, Merlin choose the quiet
+"Life has been easy for Merlin since his retirement. With the
+expansion of the former Mages Guild in Midgaard, Merlin chose the quiet
 and steady position of a Head Librarian and has now the pleasure of
 training the students' abilities."
 flags {UNIT_FL_NO_TELEPORT}
@@ -891,13 +910,10 @@ alignment 500
 money 5 IRON_PIECE
 exp -100
 
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
-/*
-special SFUN_MEMBERS_ONLY GUILD_UDG_MAGE+
-"#$1n says, 'You are not an enlisted student, $3n. Please leave the
-premises.'"
-*/
-dilcopy teacher_prac@guild_paths( GUILD_UDG_MAGE );
+dilcopy nokill@mageguild();
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
+dilcopy TrainMemberChk@guilds(GUILD_UDG_MAGE, "");
 
 #define _ABILITY
 #include "guilddef.h"
@@ -911,7 +927,7 @@ names {"caval","head","mage"}
 title "Caval"
 descr "Caval the Head of Physical Studies awaits your training here."
 extra {}
-"A rather physicaly fit mage, he seems to swing his training staff with a
+"A rather physically fit mage, he seems to swing his training staff with a
 skill you can only admire. Perhaps he can give you a few lessons."
 flags {UNIT_FL_NO_TELEPORT}
 romflags {CHAR_PROTECTED}
@@ -921,12 +937,10 @@ alignment 1000
 money 9 IRON_PIECE
 exp -100
 
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
-/*
-special SFUN_MEMBERS_ONLY GUILD_UDG_MAGE+
-"#$1n says, 'You are not an enlisted student, $3n. Beat it or have it
-beaten for you.'"*/
-dilcopy teacher_prac@guild_paths( GUILD_UDG_MAGE );
+dilcopy nokill@mageguild();
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
+dilcopy TrainMemberChk@guilds(GUILD_UDG_MAGE, "");
 
 #define _WEAPON
 #include "guilddef.h"
@@ -952,12 +966,10 @@ alignment 700
 money 7 IRON_PIECE
 exp -100
 
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
-/*
-special SFUN_MEMBERS_ONLY GUILD_UDG_MAGE+
-"#$1n says, 'You are not an enlisted student, $3n. You better leave
-before someone kicks you out.'"*/
-dilcopy teacher_prac@guild_paths( GUILD_UDG_MAGE );
+dilcopy nokill@mageguild();
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
+dilcopy TrainMemberChk@guilds(GUILD_UDG_MAGE, "");
 
 #define _SKILL
 #include "guilddef.h"
@@ -971,7 +983,7 @@ names {"Mr Backspindle","gardener","backspindle","gnome"}
 title "Mr Backspindle"
 descr "Mr Backspindle, the local gardener, is engrossed in his work here."
 extra {}
-"A small figure, Mr Backspindle is a gnome employed at the college
+"A small figure, Mr Backspindle is a man employed at the college
 gardens. He takes care of the gardens and, as you can see, does an
 excellent job of it."
 M_HUMAN_WARRIOR_SWORD(30, SEX_MALE)
@@ -980,9 +992,23 @@ romflags {CHAR_PROTECTED}
 alignment 700
 money 3 IRON_PIECE
 exp 0
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
-dilcopy nokill@mageguild();
 
+dilcopy nokill@mageguild();
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
+
+dilcopy qstSimpleQuest@quests(QUEST_MAGE_ENTRY,
+         {"say Hey $1N, want to prove your worth to our guild?",
+          "say All you need to do is to bring me the head of Xad of the Academy."},
+         {"say Excellent! Best of luck, $1N."},
+         "Mr. Backspindle in the Conjurer's Guild has asked you to bring him the head of Xad of the Academy.",
+         {"emote looks at the head of Xad.",
+          "say Impressive! Well done, $1N. You should go speak with the guild master now."},
+          800, 1 * COPPER_MULT, {""}, "NotInGuild@quests 0 "+GUILD_UDG_MAGE);
+
+dilcopy qstItemsWanted@quests(QUEST_MAGE_ENTRY, {"head@death"}, {"decapCheck@quests 0 conmaster@academy"},
+         {"say Excellent, thank you, $1N."},
+          "say I can't accept that, maybe you could bring me the head of Xad from the Academy?");
 end
 
 		rayasa
@@ -999,7 +1025,11 @@ romflags {CHAR_PROTECTED}
 alignment 600
 money 5 IRON_PIECE
 exp 0
-special SFUN_GUILD_BASIS GUILD_UDG_MAGE
+
+dilcopy nokill@mageguild();
+dilcopy MurderBanish@guilds(GUILD_UDG_MAGE);
+dilcopy AlertMembers@guilds(GUILD_UDG_MAGE, "");
+
 dilcopy shopkeeper@function(
 {"tea@mageguild 20 20","coffee@mageguild 20 20"
 ,"milk@mageguild 20 20","lemonade@mageguild 20 20"
@@ -1008,7 +1038,7 @@ dilcopy shopkeeper@function(
    "$1n says, 'Sell me what, $3n?'",
    "$1n smiles and says, 'I don't want it, $3n, not even from you.'",
    "$1n exclaims, 'No credit here, $3n!'",
-   "$1n exclaims, 'One $2N comming up!'",
+   "$1n exclaims, 'One $2N coming up!'",
    "$1n says, 'Excellent, it's a deal, $3n.'",
    "$1n sighs and says, 'I can't afford it, $3n.'",
    "$1n asks, 'I'm having a quick lunch, can you drop by later?'" },
@@ -1026,9 +1056,9 @@ names {"chaos bunny","bunny"}
 title "a chaos bunny"
 descr "A black bunny skips around happily, its red eyes glowing."
 extra {}
-"A creature of your nightmares, this hideously fluffly and lovingly soft
-bunny has teeth sharp like swordblades and ferocity matching those of a
-starved lion. Undoubtely a creature of magic, perhaps created by one of
+"A creature of your nightmares, this hideously fluffy and lovingly soft
+bunny has teeth sharp like swordblades and ferocity matching that of a
+starved lion. Undoubtedly a creature of magic, perhaps created by one of
 those mad wizards of yore, this beast is a dangerous foe to meet!"
 M_RABBIT_TINY(6,SEX_NEUTRAL)
 exp 0
@@ -1040,7 +1070,7 @@ end
         dreadhound
 names {"dreadhound","hound"}
 title "a dreadhound"
-descr "A large, etheral hound regards you with eyes like pools of darkness."
+descr "A large, ethereal hound regards you with eyes like pools of darkness."
 extra {}
 "The large hound seems insubstantial, like a ghost, yet feels very much
 alive, especially the huge teeth. Its eyes are like two pools of
@@ -1076,7 +1106,7 @@ names {"crimson viper","viper","snake"}
 title "a crimson viper"
 descr "A long, crimson viper hisses angrily at you, eyes flaring."
 extra {}
-"A long, crimson-red viper, its fangs dripping with vemon. The eyes stare
+"A long, crimson-red viper, its fangs dripping with venom. The eyes stare
 at you hatefully. Did you do something to offend it? Better leave now."
 M_SNAKE_POISON_TINY(9,SEX_NEUTRAL)
 exp 0
@@ -1103,7 +1133,7 @@ end
 
         wolverine
 names {"wolverine"}
-title "a fericious wolverine"
+title "a ferocious wolverine"
 descr "A ferocious wolverine growls at you!"
 extra {}
 "Fur bristling, eyes flaring, fangs dripping saliva, this wolverine is
@@ -1121,10 +1151,10 @@ title "a wererat"
 descr "A hunched rat-like figure stands here."
 extra {}
 "This creature appears to be part human, part rat. The body is covered
-with fur and the face elongated into a rat snout. Altough it stands on
+with fur and the face elongated into a rat snout. Although it stands on
 its hind legs, the obvious difficulty in the movement makes you think it
-prefers all fours. It seems higly annoyed with its present condition and
-thus rather agressive."
+prefers all fours. It seems highly annoyed with its present condition and
+thus rather aggressive."
 M_WERERAT_LARGE(13, SEX_NEUTRAL)
 exp 120
 alignment -400
@@ -1145,25 +1175,24 @@ fight is initiated and will disappear after a short while. */
 
         conj_charm
 names {"Spellweaving Charm","charm"}
-title "Spellweaving Charm"
+title "Spellweaver Charm"
 descr "A small, twinkling charm lies here."
 extra {}
 "A small charm of what seems like a silver alloy. It twinkles in the
 light, a small black jet in the centre of it providing a sharp contrast
 to the bright metal. A runic inscription along the edge of the charm
 catches your attention. You recognise the number '5' among the runes."
-extra {"runic inscription on the Charm","inscription","runes","runic
-inscriptions"}
+extra {"runic inscription on the Charm","inscription","runes","runic inscriptions"}
 "The inscriptions seem to form an enchantment for the wearer and grant
 him the ability to summon simple helpers in combat. Beware, weak
 summoners can lose control of the Charm and be attacked instead!<br/>
 Simply grip your charm to activate it. Read the runes to check the
 charges on your charm.<br/>"
 extra {"jet in the Charm","jet","centre","center"}
-"The jet is deeply black, even the surrounding light seem to fall into
+"The jet is deeply black, even the surrounding light seems to fall into
 it.<br/>"
 extra {"$identify"}
-"The Spellweaving Charm improves your Magic as well as your
+"The Spellweaver Charm improves your Magic as well as your
 Conjuring abilities. When gripped, it summons a small helper to aid you
 in your fight.<br/>
 Beware, as weak summoners can easily lose control of the charm!<br/>"
@@ -1171,9 +1200,9 @@ extra {"$improved identify"}
 "It adds 2 to your Mag, 2 to your Bra, and -1 to Str.<br/>"
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_NECK}
 MATERIAL_METAL("This item is made of silver.")
-MAG_TRANSFER(+2)
-BRA_TRANSFER(+2)
-STR_TRANSFER(-1)
+MAG_TRANSFER(BONUS_GOOD)  // Xyzzy: +2
+BRA_TRANSFER(BONUS_GOOD)  // Xyzzy: +2
+STR_TRANSFER(BONUS_AVERAGE_MINUS)  // Xyzzy: -1
 dilcopy guild_restrict@function ({GUILD_UDG_MAGE},0,25,"");
 rent 32 IRON_PIECE
 
@@ -1184,9 +1213,9 @@ code
 heartbeat:=PULSE_SEC*SECS_PER_MUD_DAY/24;
 wait (SFB_TICK,(self.equip==WEAR_WIELD));
 heartbeat:=PULSE_SEC*5;
-act ("The jet on your $2n pulses with soft, blue light.",
+act ("The jet on your $2N pulses with soft, blue light.",
 A_ALWAYS,self.outside,self,null,TO_CHAR);
-act ("The jet on $1n's $2n pulses with soft, blue light.",
+act ("The jet on $1n's $2N pulses with soft, blue light.",
 A_ALWAYS,self.outside,self,null,TO_REST);
 sendto ("add charge",self);
 goto start;
@@ -1213,7 +1242,7 @@ charge:=interrupt (SFB_MSG,((self==activator)and
 
         :start:
 wait (SFB_CMD,(command ("grip"))and
-((self.equip==WEAR_NECK_1)or(self.equip==WEAR_NECK_1)));
+((self.equip==WEAR_NECK_1)or(self.equip==WEAR_NECK_2))and(activator == self.outside));
 block;
 enemy:=self.outside.fighting;
 pc:= self.outside;
@@ -1229,9 +1258,9 @@ light, a small black jet in the centre of it providing a sharp contrast
 to the bright metal. A runic inscription along the edge of the charm
 catches your attention. You recognise the number '"+itoa(pwr)+"' among
 the runes.";
-act ("You grip your $2n and concentrate on its power..."
+act ("You grip your $2N and concentrate on its power..."
 , A_ALWAYS,self.outside,self,null,TO_CHAR);
-act ("$1n grips his $2n and concentrates..."
+act ("$1n grips $1s $2N and concentrates..."
 , A_HIDEINV,self.outside,self,null,TO_REST);
 if (pc.mana<10)
 {
@@ -1328,9 +1357,9 @@ act("The air beside you shimmers, a shape begins to take form."
 ,A_ALWAYS,self.outside,self,null,TO_CHAR);
 act("The air shimmers and a shape begins to take form."
 ,A_ALWAYS,self.outside,self,null,TO_REST);
-act("Your $2n flares violently, you lose control of the apparition!"
+act("Your $2N flares violently, you lose control of the apparition!"
 ,A_ALWAYS,self.outside,self,null,TO_CHAR);
-act("$1n's $2n flares violently, $1e loses control of the apparition!"
+act("$1n's $2N flares violently, $1e loses control of the apparition!"
 ,A_ALWAYS,self.outside,self,null,TO_REST);
 pc.mana := pc.mana-(rnd(5,20));
 pc.endurance := pc.endurance-(rnd(1,10));
@@ -1352,7 +1381,7 @@ goto start;
         :fail:
 act("Your charm is drained of power!"
 , A_ALWAYS,self.outside,self,null,TO_CHAR);
-act("$1n's $2n flickers briefly but nothing happens."
+act("$1n's $2N flickers briefly but nothing happens."
 , A_ALWAYS,self.outside,self,null,TO_REST);
 
 :charge:
@@ -1370,9 +1399,9 @@ goto init;
 goto start;
 }
         :no_person:
-act("You grip your $2n, but it senses no need to aid you outside combat."
+act("You grip your $2N, but it senses no need to aid you outside combat."
 , A_ALWAYS,self.outside,self,null,TO_CHAR);
-act("$1n grips $1s $2n and concentrates, but nothing happens."
+act("$1n grips $1s $2N and concentrates, but nothing happens."
 , A_ALWAYS,self.outside,self,null,TO_REST);
 goto start;
 }
@@ -1394,8 +1423,8 @@ extra {"$wear_s"}
 You feel protected from the sun and rain."
 extra {"$rem_s"}
 "You remove your $2N.<br/>
-You feel more wounderable to the sun and rain."
-ARMOUR_CLOTHES(0,0)
+You feel more vulnerable to the sun and rain."
+ARMOUR_CLOTHES(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_HEAD}
 weight 1
 cost 6 IRON_PIECE
@@ -1403,13 +1432,13 @@ end
 
 		signet_ring
 names {"Conjurer signet ring","signet","ring"}
-title "Conjurer signet ring"
+title "a Conjurer signet ring"
 descr "A large signet ring lies here."
 extra {}
 "This large ring bears the arms of Midgaard College of Arcane Arts and
 signifies its wearer as a student of magic."
-extra {"wear_s"}
-"You put your $2n on your finger.<br/>
+extra {"$wear_s"}
+"You put your $2N on your finger.<br/>
 You feel a considerable pride."
 type ITEM_WORN
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_FINGER}
@@ -1423,37 +1452,37 @@ names {"carved wizard staff","staff","quarterstaff"}
 title "a carved wizard staff"
 descr "A carved quarterstaff lies here."
 extra {}
-"This is a typical wizard staff, elaboratery carved in protective sigils
+"This is a typical wizard staff, elaborately carved in protective sigils
 and with small charms attached to it. A must for any decent,
 self-respecting student of arcane."
 extra {"protective sigils on your staff","sigils","charms"}
 "The sigils empower the staff with weak magic.<br/>"
 extra {"$wear_s"}
-"You grab your $2N and lift it toward heavens in triumph. However,
-lighting totally fails to crackle down the wood of the staff and power
+"You grab your $2N and lift it toward the heavens in triumph. However,
+lightning totally fails to crackle down the wood of the staff and power
 fails to surge down your arm."
 extra {"$wear_o"}
-"$1n grabs $1s $2N and lifts it toward the heaven in triumph. However,
-lighting totally fails to crackle down the dark wood and no fancy magical
+"$1n grabs $1s $2N and lifts it toward the heavens in triumph. However,
+lightning totally fails to crackle down the dark wood and no fancy magical
 effects appear. You smirk."
 extra {"$rem_o"}
 "$1n shrugs and puts away $1s $2N."
-WEAPON_DEF(WPN_QUARTERSTAFF,0,0)
+WEAPON_DEF(WPN_QUARTERSTAFF, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 weight 2
 cost 1 COPPER_PIECE
 end
 
 		wiz_dagger
-names {"ornated dagger","dagger"}
-title "an ornated dagger"
-descr "An ornated dagger lies here."
+names {"ornate dagger","dagger"}
+title "an ornate dagger"
+descr "An ornate dagger lies here."
 extra {}
-"A highly ornated dagger of shiny steel. A great weapon for a student of
+"A highly ornate dagger of shiny steel. A great weapon for a student of
 magic with acute need of means of self-defence."
 extra {"$wear_s"}
 "You wield $2n with a smile on your face.<br/>
 You are just in the mood for some arcane sacrifices."
-WEAPON_DEF(WPN_DAGGER,0,0)
+WEAPON_DEF(WPN_DAGGER, BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE,MANIPULATE_WIELD}
 weight 1
 cost 1 COPPER_PIECE
@@ -1479,10 +1508,10 @@ end
 
 		conjurer_robe
 names {"Conjurer robe","robe"}
-title "Conjurer robe"
+title "a Conjurer robe"
 descr "A heavy robe, rich in protective sigils, lies here."
 extra {}
-"A heavy, dark robe, richly embroidened in protective sigils. It bears
+"A heavy, dark robe, richly embroidered in protective sigils. It bears
 the mark of the Conjurer College on the chest."
 extra {"sigils on the robe","sigils"}
 "The sigils serve to protect the wearer from physical harm.<br/>"
@@ -1490,8 +1519,8 @@ extra {"$identify"}
 "This robe offers protection equal to a leather armour, even if it is
 only made of cloth.<br/>"
 extra {"$improved identify"}
-"The craftmanship of the robe is 3 and the magical bonus 1.<br/>"
-ARMOUR_LEATHER(0,0)
+"The craftsmanship of the robe is 3 and the magical bonus 1.<br/>"
+ARMOUR_LEATHER(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_ABOUT}
 weight 3
 cost 13 IRON_PIECE
@@ -1504,7 +1533,7 @@ descr "A pair of pointy boots stands here."
 extra {}
 "A pair of pointy boots, much like wizards fancy. The toes of the boots
 form a funky curl."
-ARMOUR_CLOTHES(0,0)
+ARMOUR_CLOTHES(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_FEET}
 weight 1
 cost 1 COPPER_PIECE
@@ -1575,9 +1604,9 @@ names {"doctor gown","gown"}
 title "an Arcane College doctor gown"
 descr "A large, richly decorated gown lies here."
 extra {}
-"A large, richly embroidened gown, the mark of the College of Arcane Arts
+"A large, richly embroidered gown, the mark of the College of Arcane Arts
 clearly visible on each shoulder."
-ARMOUR_CLOTHES(0,0)
+ARMOUR_CLOTHES(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_ABOUT}
 weight 2
 cost 4 SILVER_PIECE
@@ -1592,7 +1621,7 @@ descr "A broad, richly decorated sash lies here."
 extra {}
 "A broad silken sash, richly decorated. The mark of the College of Arcane
 Arts is visible on the sash."
-ARMOUR_CLOTHES(0,0)
+ARMOUR_CLOTHES(BONUS_AVERAGE, BONUS_AVERAGE)  // Xyzzy: 0,0
 manipulate {MANIPULATE_TAKE,MANIPULATE_WEAR_CHEST}
 cost 4 SILVER_PIECE
 rent 12 IRON_PIECE
@@ -1604,9 +1633,9 @@ names {"rake"}
 title "a rake"
 descr "A rake lies here, awaiting someone to step on it."
 extra {}
-"A large gardening rake. You can use it as a primitive weapon, but it's
-combat capabilities are severly limited."
-WEAPON_DEF(WPN_QUARTERSTAFF,0,-3)
+"A large gardening rake. You can use it as a primitive weapon, but its
+combat capabilities are severely limited."
+WEAPON_DEF(WPN_QUARTERSTAFF, BONUS_AVERAGE, BONUS_BAD_MINUS)  // Xyzzy: 0,-3
 manipulate {MANIPULATE_TAKE,MANIPULATE_WIELD}
 cost 3 IRON_PIECE
 end

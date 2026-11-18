@@ -4,633 +4,364 @@
  $Date: 2005/06/28 20:17:48 $
  $Revision: 2.7 $
  */
-#ifndef _MUD_UTILS_H
-#define _MUD_UTILS_H
+#pragma once
 
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#include "constants.h"
+#include "npc_data.h"
+#include "obj_data.h"
+#include "pc_data.h"
+#include "room_data.h"
+#include "weather.h"
+#include "zone_type.h"
 
-#include "structs.h"
-#include "essential.h"
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 
-extern const sbit8 time_light[];
+// clang-format off
+/* ..................................................................... */
+// Forward declarations
+inline ubit8 CHAR_LEVEL(const unit_data *ch);
+inline bool CHAR_AWAKE(const unit_data *ch);
+
+#define PK_RELAXED 0
+#define PK_STRICT 1
+
+[[maybe_unused]] inline bool IS_BEGINNER(const unit_data *ch) { return CHAR_LEVEL(ch) <= START_LEVEL; }
+inline bool IS_MORTAL(const unit_data *ch) { return CHAR_LEVEL(ch) < IMMORTAL_LEVEL; }
+inline bool IS_IMMORTAL(const unit_data *ch) { return CHAR_LEVEL(ch) >= IMMORTAL_LEVEL; }
+inline bool IS_GOD(const unit_data *ch) { return CHAR_LEVEL(ch) >= GOD_LEVEL; }
+[[maybe_unused]] inline bool IS_CREATOR(const unit_data *ch) { return CHAR_LEVEL(ch) >= CREATOR_LEVEL; }
+inline bool IS_OVERSEER(const unit_data *ch) { return CHAR_LEVEL(ch) >= OVERSEER_LEVEL; }
+inline bool IS_ADMINISTRATOR(const unit_data *ch) { return CHAR_LEVEL(ch) >= ADMINISTRATOR_LEVEL; }
+inline bool IS_ULTIMATE(const unit_data *ch) { return CHAR_LEVEL(ch) == ULTIMATE_LEVEL;}
 
 /* ..................................................................... */
 
-#define PK_RELAXED            0
-#define PK_STRICT             1
-
-#define IS_BEGINNER(ch)      (CHAR_LEVEL(ch) <= START_LEVEL)
-#define IS_MORTAL(ch)        (CHAR_LEVEL(ch) <  IMMORTAL_LEVEL)
-#define IS_IMMORTAL(ch)      (CHAR_LEVEL(ch) >= IMMORTAL_LEVEL)
-#define IS_GOD(ch)           (CHAR_LEVEL(ch) >= GOD_LEVEL)
-#define IS_CREATOR(ch)       (CHAR_LEVEL(ch) >= CREATOR_LEVEL)
-#define IS_OVERSEER(ch)      (CHAR_LEVEL(ch) >= OVERSEER_LEVEL)
-#define IS_ADMINISTRATOR(ch) (CHAR_LEVEL(ch) >= ADMINISTRATOR_LEVEL)
-#define IS_ULTIMATE(ch)      (CHAR_LEVEL(ch) == ULTIMATE_LEVEL)
-
-/* ..................................................................... */
-
-/*  Do NOT use these macros unless you know PRECISELY what you are doing!!!
+/*  Do NOT use these functions unless you know PRECISELY what you are doing!!!
  *  and only if you have to assign directly to them (as in db_utils.c)
  */
-#define U_CHAR(u)   ((char_data *) (dynamic_cast<const char_data *>(u)))
-#define U_NPC(u)    ((npc_data *) (dynamic_cast<const npc_data *>(u)))
-#define U_PC(u)     ((pc_data *) (dynamic_cast<const pc_data *>(u)))
-#define U_OBJ(u)    ((obj_data *) (dynamic_cast<const obj_data *>(u)))
-#define U_ROOM(u)   ((room_data *) (dynamic_cast<const room_data *>(u)))
 
 #ifdef MUD_DEBUG
-#define DEBUG_HISTORY
-#define UNIT_TYPE_DEBUG
+    #define DEBUG_HISTORY
+    #define UNIT_TYPE_DEBUG
 #endif
 
+inline char_data *UCHAR(const unit_data *u)
+{
 #ifdef UNIT_TYPE_DEBUG
-#define UCHAR(u)   (assert(u && IS_CHAR(u)),	U_CHAR(u))
-#define UNPC(u)    (assert(u && IS_NPC(u)),	U_NPC(u))
-#define UPC(u)     (assert(u && IS_PC(u)),	U_PC(u))
-#define UOBJ(u)    (assert(u && IS_OBJ(u)),	U_OBJ(u))
-#define UROOM(u)   (assert(u && IS_ROOM(u)), U_ROOM(u))
-#else
-#define UCHAR(u)   U_CHAR(u)
-#define UNPC(u)    U_NPC(u)
-#define UPC(u)     U_PC(u)
-#define UOBJ(u)    U_OBJ(u)
-#define UROOM(u)   U_ROOM(u)
+    assert(u && u->isChar());
 #endif
+    return const_cast<char_data *>(dynamic_cast<const char_data *>(u));
+}
+
+inline npc_data *UNPC(const unit_data *u)
+{
+#ifdef UNIT_TYPE_DEBUG
+    assert(u && u->isNPC());
+#endif
+    return const_cast<npc_data *>(dynamic_cast<const npc_data *>(u));
+}
+
+inline pc_data *UPC(const unit_data *u)
+{
+#ifdef UNIT_TYPE_DEBUG
+    assert(u && u->isPC());
+#endif
+    return const_cast<pc_data *>(dynamic_cast<const pc_data *>(u));
+}
+
+inline obj_data *UOBJ(const unit_data *u)
+{
+#ifdef UNIT_TYPE_DEBUG
+    assert(u && u->isObj());
+#endif
+    return const_cast<obj_data *>(dynamic_cast<const obj_data *>(u));
+}
+
+inline room_data *UROOM(const unit_data *u)
+{
+#ifdef UNIT_TYPE_DEBUG
+    assert(u && u->isRoom());
+#endif
+    return const_cast<room_data *>(dynamic_cast<const room_data *>(u));
+}
 
 /* ..................................................................... */
 
+inline ubit8 ROOM_RESISTANCE(unit_data *room) { return UROOM(room)->getRoomMagicalResistance(); }
 
+inline ubit8 ROOM_LANDSCAPE(const unit_data *unit) { return UROOM(unit)->getLandscapeTerrain(); }
 
-#define UNIT_FUNC(unit) \
-   ((unit)->func)
+inline ubit8 ROOM_FLAGS(const unit_data *unit) { return UROOM(unit)->getRoomFlags(); }
 
-#define UNIT_FILE_INDEX(unit)   \
-   ((unit)->fi)
+inline room_direction_data *ROOM_EXIT(unit_data *unit, size_t exit) { return UROOM(unit)->getRoomDirectionDataForExit(exit); }
 
-#define UNIT_MANIPULATE(unit)  \
-  ((unit)->manipulate)
+inline int ROOM_NUM(const unit_data *unit) { return UROOM(unit)->getRoomNumber(); }
 
-#define UNIT_FLAGS(unit)       \
-  ((unit)->flags)
+inline int ROOM_SC(const unit_data *unit) { return UROOM(unit)->getStrongComponent(); }
 
-#define UNIT_WEIGHT(unit)    \
-   ((unit)->weight)
-
-#define UNIT_BASE_WEIGHT(unit)    \
-   ((unit)->base_weight)
-
-#define UNIT_SIZE(unit)   \
-   ((unit)->size)
-
-#define UNIT_CAPACITY(unit)  \
-  ((unit)->capacity)
-
-#define UNIT_BRIGHT(unit)   \
-  ((unit)->bright)
-
-#define UNIT_LIGHTS(unit)   \
-  ((unit)->light)
-
-#define UNIT_ILLUM(unit)    \
-  ((unit)->illum)
-
-#define UNIT_CHARS(unit)   \
-  ((unit)->chars)
-
-#define UNIT_CONTAINS(unit)   \
-  ((unit)->inside)
-
-#define UNIT_IN(unit)  \
-  ((unit)->outside)
-
-#define UNIT_AFFECTED(unit)   \
-  ((unit)->affected)
-
-#define UNIT_NAME(unit)  \
-  (UNIT_NAMES(unit).Name())
-
-#define UNIT_KEY(unit)   \
-  ((unit)->key)
-
-#define UNIT_OPEN_FLAGS(unit)   \
-  ((unit)->open_flags)
-
-#define UNIT_OPEN_DIFF(unit)   \
-  ((unit)->open_diff)
-
-#define UNIT_TYPE(unit)   \
-  ((unit)->status)
-
-#define UNIT_NAMES(unit)    \
-  ((unit)->names)
-
-#define UNIT_ALIGNMENT(unit)  \
-   ((unit)->alignment)
-
-#define UNIT_HIT(unit)     \
-   ((unit)->hp)
-
-#define UNIT_MAX_HIT(unit) \
-   ((unit)->max_hp)
-
-#define UNIT_MINV(u)  ((u)->minv)
-
-
-
-#define UNIT_TITLE(unit)  \
-((unit)->title)
-
-#define UNIT_OUT_DESCR(unit)  \
-((unit)->out_descr)
-
-#define UNIT_IN_DESCR(unit)  \
-((unit)->in_descr)
-
-#define UNIT_EXTRA(unit)  \
-   ((unit)->extra)
+inline std::vector<room_data::vertex_descriptor> &ROOM_PATH(unit_data *unit) { return UROOM(unit)->getPath(); }
+inline std::vector<room_data::vertex_descriptor> &ROOM_DISTANCE(unit_data *unit) { return UROOM(unit)->getDistance();}
 
 /* ..................................................................... */
 
-#define IS_ROOM(unit)  \
-   (UNIT_TYPE(unit) == UNIT_ST_ROOM)
+inline ubit8 OBJ_RESISTANCE(unit_data *obj) { return UOBJ(obj)->getMagicResistance(); }
 
-#define IS_OBJ(unit)   \
-   (UNIT_TYPE(unit) == UNIT_ST_OBJ)
+inline sbit32 OBJ_VALUE(const unit_data *unit, size_t index) { return UOBJ(unit)->getValueAtIndex(index); }
 
-#define IS_NPC(unit)   \
-   (UNIT_TYPE(unit) == UNIT_ST_NPC)
+inline ubit32 OBJ_PRICE(const unit_data *unit) { return UOBJ(unit)->getPriceInGP(); }
 
-#define IS_PC(unit)    \
-   (UNIT_TYPE(unit) == UNIT_ST_PC)
+inline ubit32 OBJ_PRICE_DAY(unit_data *unit) { return UOBJ(unit)->getPricePerDay(); }
 
-#define IS_CHAR(unit)  \
-   (IS_SET(UNIT_TYPE(unit), UNIT_ST_PC | UNIT_ST_NPC))
+inline ubit8 OBJ_TYPE(const unit_data *unit) { return UOBJ(unit)->getObjectItemType(); }
 
+inline ubit8 OBJ_EQP_POS(unit_data *unit) { return UOBJ(unit)->getEquipmentPosition(); }
 
-
-/* ............................FILE INDEX STUFF..................... */
-
-#define FI_ZONENAME(fi)   \
-   ((fi)->zone->name)
-
-#define FI_NAME(fi)   \
-   ((fi)->name)
-
-/* ............................UNIT SUPERSTRUCTURES..................... */
-
-#define UNIT_IS_TRANSPARENT(u)  \
-  (!IS_SET(UNIT_FLAGS(u),UNIT_FL_BURIED) && \
-   IS_SET(UNIT_FLAGS(u),UNIT_FL_TRANS) && \
-   !IS_SET(UNIT_OPEN_FLAGS(u),EX_CLOSED))
-
-#define UNIT_FI_ZONE(unit)   \
-   ((unit)->fi->zone)
-
-#define UNIT_FI_ZONENAME(unit)   \
-   (UNIT_FILE_INDEX(unit) ? FI_ZONENAME(UNIT_FILE_INDEX(unit)) : "NO-ZONE")
-
-#define UNIT_FI_NAME(unit)   \
-   (UNIT_FILE_INDEX(unit) ? FI_NAME(UNIT_FILE_INDEX(unit)) : "NO-NAME")
-
-#define UNIT_WEAR(unit, part)    \
-   (IS_SET(UNIT_MANIPULATE(unit), part))
-
-#define UNIT_IS_OUTSIDE(unit)  \
-   (!IS_SET(UNIT_FLAGS(UNIT_IN(unit)), UNIT_FL_INDOORS))
-
-extern int sunlight;
-
-#define UNIT_OUTSIDE_LIGHT(unit)                 \
-  (!IS_SET(UNIT_FLAGS(unit),UNIT_FL_INDOORS) ?  \
-   time_light[sunlight] : 0)
-
-#define UNIT_IS_DARK(unit)  \
-   (UNIT_LIGHTS(unit)+      \
-    UNIT_OUTSIDE_LIGHT(unit)+\
-    (UNIT_IN(unit)?UNIT_LIGHTS(UNIT_IN(unit)):0) < 0)
-
-#define UNIT_IS_LIGHT(unit) \
-  (UNIT_LIGHTS(unit)+       \
-   UNIT_OUTSIDE_LIGHT(unit)+\
-   (UNIT_IN(unit)?UNIT_LIGHTS(UNIT_IN(unit)):0) >= 0)
-
-#define UNIT_SEX(unit) \
-   (IS_CHAR(unit) ? CHAR_SEX(unit) : SEX_NEUTRAL)
-
-#define UNIT_IS_GOOD(ch)    (UNIT_ALIGNMENT(ch) >= 350)
-#define UNIT_IS_EVIL(ch)    (UNIT_ALIGNMENT(ch) <= -350)
-#define UNIT_IS_NEUTRAL(ch) (!UNIT_IS_GOOD(ch) && !UNIT_IS_EVIL(ch))
-
-#define UNIT_CONTAINING_W(u) \
-   (UNIT_WEIGHT(u) - UNIT_BASE_WEIGHT(u))
-
-
-/* ..................................................................... */
-
-
-#define ROOM_RESISTANCE(room)  \
-  (UROOM(room)->resistance)
-
-#define ROOM_LANDSCAPE(unit)   \
-  (UROOM(unit)->movement_type)
-
-#define ROOM_FLAGS(unit)       \
-  (UROOM(unit)->flags)
-
-#define ROOM_EXIT(unit, exit)  \
-  (UROOM(unit)->dir_option[exit])
-
-#define ROOM_NUM(unit)  \
-  (UROOM(unit)->num)
-
-#define ROOM_SC(unit)  \
-  (UROOM(unit)->sc)
-
-#define ROOM_WAITD(unit)  \
-  (UROOM(unit)->waiting_dijkstra)
-
-#define ROOM_PATH(unit)  \
-  (UROOM(unit)->path)
-
-#define ROOM_DISTANCE(unit)  \
-  (UROOM(unit)->distance)
-/* ..................................................................... */
-
-#define OBJ_RESISTANCE(obj)  \
-  (UOBJ(obj)->resistance)
-
-#define OBJ_VALUE(unit, index)   \
-  (UOBJ(unit)->value[index])
-
-#define OBJ_PRICE(unit)  \
-  (UOBJ(unit)->cost)
-
-#define OBJ_PRICE_DAY(unit)  \
-  (UOBJ(unit)->cost_per_day)
-
-#define OBJ_TYPE(unit)  \
-  (UOBJ(unit)->type)
-
-#define OBJ_EQP_POS(unit) \
-  (UOBJ(unit)->equip_pos)
-
-#define OBJ_FLAGS(obj)  \
-   (UOBJ(obj)->flags)
+inline ubit8 OBJ_FLAGS(unit_data *obj) { return UOBJ(obj)->getObjectFlags(); }
 
 /* ...........................OBJECT SUPERSTRUCTURES..................... */
 
-#define OBJ_HAS_EXTRA(obj,stat)  \
-   (IS_SET(OBJ_EXTRA(obj), stat))
-
-#define UNIT_IS_EQUIPPED(obj) \
-   (IS_OBJ(obj) && OBJ_EQP_POS(obj))
+inline bool UNIT_IS_EQUIPPED(unit_data *obj) { return obj->isObj() && OBJ_EQP_POS(obj); }
 
 /* ..................................................................... */
 
-/*#define CHAR_DEX_RED(ch)     \  (UCHAR(ch)->points.dex_reduction)*/
+inline const descriptor_data *CHAR_DESCRIPTOR(const unit_data *ch) { return UCHAR(ch)->getDescriptor(); }
 
-#define CHAR_DESCRIPTOR(ch)  \
-  (UCHAR(ch)->descriptor)
+inline descriptor_data *CHAR_DESCRIPTOR(unit_data *ch) { return UCHAR(ch)->getDescriptor(); }
 
-#define CHAR_OFFENSIVE(unit) \
-   (UCHAR(unit)->points.offensive)
+inline sbit16 CHAR_OFFENSIVE(const unit_data *unit) { return UCHAR(unit)->getOffensiveBonus(); }
 
-#define CHAR_DEFENSIVE(unit) \
-   (UCHAR(unit)->points.defensive)
+inline sbit16 CHAR_DEFENSIVE(const unit_data *unit) { return UCHAR(unit)->getDefensiveBonus(); }
 
-#define CHAR_FLAGS(unit)  \
-  (UCHAR(unit)->points.flags)
+inline ubit32 CHAR_FLAGS(const unit_data *unit) { return UCHAR(unit)->getCharacterFlags(); }
 
-#define CHAR_SEX(ch)         \
-  (UCHAR(ch)->points.sex)
+inline unit_data *CHAR_LAST_ROOM(unit_data *unit) { return UCHAR(unit)->getLastLocation(); }
 
-#define CHAR_LAST_ROOM(unit) \
-   (UCHAR(unit)->last_room)
+inline const char *CHAR_LAST_ATTACKER(const unit_data *unit) { return UCHAR(unit)->getLastAttacker(); }
 
-#define CHAR_LAST_ATTACKER(unit) \
-   (UCHAR(unit)->last_attacker)
+inline ubit8 CHAR_LAST_ATTACKER_TYPE(const unit_data *unit) { return UCHAR(unit)->getLastAttackerType(); }
 
-#define CHAR_LAST_ATTACKER_TYPE(unit) \
-   (UCHAR(unit)->last_attacker_type)
+inline ubit8 CHAR_POS(const unit_data *ch) { return UCHAR(ch)->getPosition(); }
 
-#define CHAR_POS(ch)      \
-  (UCHAR(ch)->points.position)
+inline ubit8 CHAR_LEVEL(const unit_data *ch) { return UCHAR(ch)->getLevel(); }
 
-#define CHAR_LEVEL(ch)    \
-   (UCHAR(ch)->points.level)
+inline ubit16 CHAR_RACE(const unit_data *ch) { return UCHAR(ch)->getRace(); }
 
-#define CHAR_RACE(ch) \
-   (UCHAR(ch)->points.race)
+inline sbit16 CHAR_ABILITY(const unit_data *ch, size_t index) { return UCHAR(ch)->getAbilityAtIndex(index); }
 
-#define CHAR_ABILITY(ch, index)  \
-   (UCHAR(ch)->points.abilities[index])
+inline sbit16 CHAR_STR(const unit_data *ch) { return UCHAR(ch)->getSTR(); }
 
-#define CHAR_STR(ch)      \
-   (CHAR_ABILITY(ch, ABIL_STR))
+inline sbit16 CHAR_DEX(const unit_data *ch) { return UCHAR(ch)->getDEX(); }
 
-#define CHAR_DEX(ch)      \
-   (CHAR_ABILITY(ch, ABIL_DEX))
+inline sbit16 CHAR_CON(const unit_data *ch) { return UCHAR(ch)->getCON(); }
 
-#define CHAR_CON(ch)      \
-   (CHAR_ABILITY(ch, ABIL_CON))
+inline sbit16 CHAR_CHA(const unit_data *ch) { return UCHAR(ch)->getCHA(); }
 
-#define CHAR_CHA(ch)      \
-   (CHAR_ABILITY(ch, ABIL_CHA))
+inline sbit16 CHAR_BRA(const unit_data *ch) { return UCHAR(ch)->getBRA(); }
 
-#define CHAR_BRA(ch)      \
-   (CHAR_ABILITY(ch, ABIL_BRA))
+inline sbit16 CHAR_MAG(const unit_data *ch) { return UCHAR(ch)->getMAG(); }
 
-#define CHAR_MAG(ch)      \
-   (CHAR_ABILITY(ch, ABIL_MAG))
+inline sbit16 CHAR_DIV(const unit_data *ch) { return UCHAR(ch)->getDIV(); }
 
-#define CHAR_DIV(ch)      \
-   (CHAR_ABILITY(ch, ABIL_DIV))
+inline sbit16 CHAR_HPP(const unit_data *ch) { return UCHAR(ch)->getHPP(); }
 
-#define CHAR_HPP(ch)      \
-   (CHAR_ABILITY(ch, ABIL_HP))
+inline sbit16 CHAR_ENDURANCE(const unit_data *ch) { return UCHAR(ch)->getEndurance(); }
 
-#define CHAR_ENDURANCE(ch)    \
-   (UCHAR(ch)->points.endurance)
-
-#define CHAR_MANA(ch)     \
-   (UCHAR(ch)->points.mana)
+inline sbit16 CHAR_MANA(const unit_data *ch) { return UCHAR(ch)->getMana(); }
 
 /* NOT to be used unless by db.... */
-#define CHAR_MONEY(ch) \
-  (UCHAR(ch)->money)
+[[maybe_unused]] inline const char *CHAR_MONEY(const unit_data *ch) { return UCHAR(ch)->getMoney(); }
 
-#define CHAR_EXP(ch)      \
-   (UCHAR(ch)->points.exp)
+inline char *CHAR_MONEY(unit_data *ch) { return UCHAR(ch)->getMoney(); }
 
-#define CHAR_ATTACK_TYPE(ch)      \
-  (UCHAR(ch)->points.attack_type)
+inline sbit32 CHAR_EXP(const unit_data *ch) { return UCHAR(ch)->getPlayerExperience(); }
 
-#define CHAR_NATURAL_ARMOUR(ch)   \
-  (UCHAR(ch)->points.natural_armour)
+inline ubit8 CHAR_ATTACK_TYPE(const unit_data *ch) { return UCHAR(ch)->getAttackType(); }
 
-#define CHAR_SPEED(ch)   \
-  (UCHAR(ch)->points.speed)
+inline ubit8 CHAR_NATURAL_ARMOUR(const unit_data *ch) { return UCHAR(ch)->getNaturalArmor(); }
 
-#define CHAR_COMBAT(ch)  \
-  (UCHAR(ch)->Combat)
+inline sbit16 CHAR_SPEED(const unit_data *ch) { return UCHAR(ch)->getSpeed(); }
 
-#define CHAR_FIGHTING(ch)  \
-  (UCHAR(ch)->Combat ? CHAR_COMBAT(ch)->Melee() : (class unit_data *) NULL)
+inline cCombat *CHAR_COMBAT(unit_data *ch) { return UCHAR(ch)->getCombat(); }
 
-#define CHAR_MASTER(ch)  \
-  (UCHAR(ch)->master)
+inline unit_data *CHAR_FIGHTING(unit_data *ch) { return UCHAR(ch)->getCombat() ? CHAR_COMBAT(ch)->Melee() : nullptr; }
 
-#define CHAR_FOLLOWERS(ch)  \
-  (UCHAR(ch)->followers)
+inline unit_data *CHAR_MASTER(unit_data *ch) { return UCHAR(ch)->getMaster(); }
 
+inline char_follow_type *CHAR_FOLLOWERS(const unit_data *ch) { return UCHAR(ch)->getFollowers(); }
 /* ...........................CHAR SUPERSTRUCTURES....................... */
 
-#define CHAR_IS_READY(ch)    \
-   (CHAR_AWAKE(ch) && (CHAR_POS(ch) != POSITION_FIGHTING))
+inline bool CHAR_IS_READY(unit_data *ch) { return CHAR_AWAKE(ch) && (CHAR_POS(ch) != POSITION_FIGHTING); }
 
-#define CHAR_IS_SNOOPING(ch)  \
-   (CHAR_DESCRIPTOR(ch) ? (CHAR_DESCRIPTOR(ch)->snoop.snooping) : \
-                          (class unit_data *) NULL)
+inline unit_data *CHAR_IS_SNOOPING(unit_data *ch) { return CHAR_DESCRIPTOR(ch) ? CHAR_DESCRIPTOR(ch)->getSnoopData().getSnooping() : nullptr; }
 
-#define CHAR_IS_SNOOPED(ch) \
-   (CHAR_DESCRIPTOR(ch) ? (CHAR_DESCRIPTOR(ch)->snoop.snoop_by) : \
-                          (class unit_data *)  NULL)
+inline unit_data *CHAR_IS_SNOOPED(unit_data *ch) { return CHAR_DESCRIPTOR(ch) ? CHAR_DESCRIPTOR(ch)->getSnoopData().getSnoopBy() : nullptr; }
 
-#define CHAR_IS_SWITCHED(ch) \
-   (CHAR_DESCRIPTOR(ch) ? (CHAR_DESCRIPTOR(ch)->original) : \
-                          (class unit_data *) NULL)
+inline unit_data *CHAR_IS_SWITCHED(unit_data *ch) { return CHAR_DESCRIPTOR(ch) ? CHAR_DESCRIPTOR(ch)->getOriginalCharacter() : nullptr; }
 
-#define CHAR_SNOOPING(ch) \
-  (CHAR_IS_SNOOPING(ch) ? (CHAR_DESCRIPTOR(ch)->snoop.snooping) : (ch))
+[[maybe_unused]] inline unit_data *CHAR_SNOOPING(unit_data *ch) { return CHAR_IS_SNOOPING(ch) ? (CHAR_DESCRIPTOR(ch)->getSnoopData().getSnooping()) : (ch); }
 
-#define CHAR_SNOOPED(ch) \
-  (CHAR_IS_SNOOPED(ch) ? (CHAR_DESCRIPTOR(ch)->snoop.snoop_by) : (ch))
+[[maybe_unused]] inline unit_data *CHAR_SNOOPED(unit_data *ch) { return CHAR_IS_SNOOPED(ch) ? (CHAR_DESCRIPTOR(ch)->getSnoopData().getSnoopBy()) : (ch); }
 
-#define CHAR_ORIGINAL(ch) \
-   (CHAR_IS_SWITCHED(ch) ? (CHAR_DESCRIPTOR(ch)->original) : (ch))
+inline unit_data *CHAR_ORIGINAL(unit_data *ch)
+{
+    return CHAR_IS_SWITCHED(ch) ? CHAR_DESCRIPTOR(ch)->getOriginalCharacter() : ch;
+}
 
-#define CHAR_AWAKE(ch)        \
-   (CHAR_POS(ch) > POSITION_SLEEPING)
+inline bool CHAR_AWAKE(const unit_data *ch) { return CHAR_POS(ch) > POSITION_SLEEPING; }
 
-#define CHAR_HAS_FLAG(ch, flags) \
-   (IS_SET(CHAR_FLAGS(ch), (flags)))
+inline bool CHAR_HAS_FLAG(const unit_data *ch, ubit32 flags) { return IS_SET(CHAR_FLAGS(ch), (flags)); }
 
-#define CHAR_ROOM_EXIT(ch, door)                  \
-   (IS_ROOM(UNIT_IN(ch)) ? ROOM_EXIT(UNIT_IN(ch), (door)) : \
-                           (class unit_data *) NULL)
+[[maybe_unused]] inline room_direction_data *CHAR_ROOM_EXIT(unit_data *ch, size_t door) { return ch->getUnitIn()->isRoom() ? ROOM_EXIT(ch->getUnitIn(), door) : nullptr; }
 
-#define CHAR_VISION(ch)    \
-  (!CHAR_HAS_FLAG(ch, CHAR_BLIND))
+inline bool CHAR_VISION(const unit_data *ch) { return !CHAR_HAS_FLAG(ch, CHAR_BLIND); }
 
-#define CHAR_CAN_SEE(ch, unit) \
-  (!IS_CHAR(ch) || (CHAR_VISION(ch) &&					\
-   !IS_SET(UNIT_FLAGS(unit), UNIT_FL_BURIED) &&		\
-   (CHAR_LEVEL(ch) >= UNIT_MINV(unit)) &&		\
-   (CHAR_LEVEL(ch) >= CREATOR_LEVEL ||			\
-    (UNIT_IS_LIGHT(UNIT_IN(ch)) &&			\
-     (!IS_SET(UNIT_FLAGS(unit), UNIT_FL_INVISIBLE) ||	\
-      CHAR_HAS_FLAG(ch, CHAR_DETECT_INVISIBLE))))))
+inline bool CHAR_CAN_SEE(const unit_data *ch, const unit_data *unit)
+{
+    // Made the decision that you can always see what you are inside, so you can e.g. knock a coffin you've been buried in
+    return !ch->isChar() ||
+           (CHAR_VISION(ch) && (!IS_SET(unit->getUnitFlags(), UNIT_FL_BURIED) || ch->getUnitIn() == unit) && CHAR_LEVEL(ch) >= unit->getLevelOfWizardInvisibility() &&
+            (CHAR_LEVEL(ch) >= CREATOR_LEVEL ||
+             (ch->getUnitIn()->isLight() && (!IS_SET(unit->getUnitFlags(), UNIT_FL_INVISIBLE) || CHAR_HAS_FLAG(ch, CHAR_DETECT_INVISIBLE)))));
+}
 
-#define CHAR_CAN_GO(ch, door) \
-   (ROOM_EXIT(UNIT_IN(ch),door) && (ROOM_EXIT(UNIT_IN(ch),door)->to_room) \
-    && !IS_SET(ROOM_EXIT(UNIT_IN(ch), door)->exit_info, EX_CLOSED))
+inline bool CHAR_CAN_SEE(unit_data *ch, unit_data *unit)
+{
+    return CHAR_CAN_SEE(const_cast<const unit_data *>(ch), const_cast<const unit_data *>(unit));
+}
 
+[[maybe_unused]] inline bool CHAR_CAN_GO(unit_data *ch, size_t door) { return ROOM_EXIT(ch->getUnitIn(), door) && ROOM_EXIT(ch->getUnitIn(), door)->getToRoom() && !IS_SET(ROOM_EXIT(ch->getUnitIn(), door)->getDoorFlags(), EX_CLOSED); }
 
 /* ..................................................................... */
 
-#define PC_ACCESS_LEVEL(pc) \
-  (UPC(pc)->nAccessLevel)
+inline ubit8 PC_ACCESS_LEVEL(unit_data *pc) { return UPC(pc)->getAccessLevel(); }
 
-#define PC_CRACK_ATTEMPTS(pc) \
-  (UPC(pc)->crack_attempts)
+inline ubit16 PC_CRACK_ATTEMPTS(unit_data *pc) { return UPC(pc)->getNumberOfCrackAttempts(); }
 
-#define PC_SETUP(pc)   \
-  (UPC(pc)->setup)
+inline terminal_setup_type &PC_SETUP(unit_data *pc) { return UPC(pc)->getTerminalSetupType(); }
 
+inline ubit16 PC_LIFESPAN(unit_data *pc) { return UPC(pc)->getLifespan(); }
 
-#define PC_LIFESPAN(pc)   \
-  (UPC(pc)->lifespan)
+inline pc_account_data &PC_ACCOUNT(unit_data *pc) { return UPC(pc)->getPCAccountData(); }
 
-#define PC_ACCOUNT(pc) \
-  (UPC(pc)->account)
+inline pc_account_data &PC_ACCOUNT(const unit_data *pc) { return UPC(pc)->getPCAccountData(); }
 
-#define PC_VIRTUAL_LEVEL(pc) \
-  (UPC(pc)->vlvl)
+inline ubit16 PC_VIRTUAL_LEVEL(unit_data *pc) { return UPC(pc)->getVirtualPlayerLevel(); }
 
-#define PC_INFO(pc) \
-  (UPC(pc)->info)
+inline extra_list &PC_INFO(unit_data *pc) { return UPC(pc)->getAdministrationInformation(); }
 
-#define PC_SETUP_ECHO(pc)   \
-  (UPC(pc)->setup.echo)
+inline ubit8 PC_SETUP_ECHO(unit_data *pc) { return UPC(pc)->getTerminalSetupType().echo; }
 
-#define PC_SETUP_REDRAW(pc)   \
-  (UPC(pc)->setup.redraw)
+inline ubit8 PC_SETUP_REDRAW(unit_data *pc) { return UPC(pc)->getTerminalSetupType().redraw; }
 
-#define PC_SETUP_WIDTH(pc)   \
-  (UPC(pc)->setup.width)
+inline ubit8 PC_SETUP_WIDTH(unit_data *pc) { return UPC(pc)->getTerminalSetupType().width; }
 
-#define PC_SETUP_HEIGHT(pc)   \
-  (UPC(pc)->setup.height)
+inline ubit8 PC_SETUP_HEIGHT(unit_data *pc) { return UPC(pc)->getTerminalSetupType().height; }
 
-#define PC_SETUP_TELNET(pc)   \
-  (UPC(pc)->setup.telnet)
+inline ubit8 PC_SETUP_TELNET(unit_data *pc) { return UPC(pc)->getTerminalSetupType().telnet; }
 
-#define PC_SETUP_EMULATION(pc)   \
-  (UPC(pc)->setup.emulation)
+inline ubit8 PC_SETUP_EMULATION(unit_data *pc) { return UPC(pc)->getTerminalSetupType().emulation; }
 
-#define PC_SETUP_COLOUR(pc)   \
-  (UPC(pc)->setup.colour_convert)
+inline ubit8 PC_SETUP_COLOUR(unit_data *pc) { return UPC(pc)->getTerminalSetupType().colour_convert; }
 
-#define PC_GUILD(pc)  \
-  (UPC(pc)->guild)
+inline const char *PC_GUILD(unit_data *pc) { return UPC(pc)->getGuild(); }
 
-#define PC_PROMPTSTR(pc)  \
-  (UPC(pc)->promptstr)
+[[maybe_unused]] inline const char *PC_PROMPTSTR(unit_data *pc) { return UPC(pc)->getPromptString(); }
 
-#define PC_PROFESSION(pc)  \
-  (UPC(pc)->profession)
+inline sbit8 PC_PROFESSION(unit_data *pc) { return UPC(pc)->getProfession(); }
 
-#define PC_GUILD_TIME(pc)  \
-  (UPC(pc)->guild_time)
+inline extra_list &PC_QUEST(unit_data *pc) { return UPC(pc)->getQuestInformation(); }
 
-#define PC_QUEST(pc)   \
-  (UPC(pc)->quest)
+inline sbit8 PC_COND(unit_data *ch, size_t i) { return UPC(ch)->getConditionAtIndex(i); }
 
-#define PC_COND(ch, i)  \
-  (UPC(ch)->conditions[i])
+inline sbit32 PC_ABILITY_POINTS(unit_data *ch) { return UPC(ch)->getAbilityPoints(); }
 
-#define PC_ABILITY_POINTS(ch) \
-  (UPC(ch)->ability_points)
+inline sbit32 PC_SKILL_POINTS(unit_data *ch) { return UPC(ch)->getSkillPoints(); }
 
-#define PC_SKILL_POINTS(ch) \
-  (UPC(ch)->skill_points)
+inline ubit8 PC_ABI_LVL(unit_data *ch, size_t index) { return UPC(ch)->getAbilityLevelAtIndex(index); }
 
+inline sbit16 PC_SKI_SKILL(unit_data *ch, size_t index) { return UPC(ch)->getSkillAtIndex(index); }
 
+inline ubit8 PC_SKI_LVL(unit_data *ch, size_t index) { return UPC(ch)->getSkillLevelAtIndex(index); }
 
-#define PC_ABI_LVL(ch, index)  \
-   (UPC(ch)->ability_lvl[index])
+inline ubit8 PC_WPN_LVL(unit_data *ch, size_t index) { return UPC(ch)->getWeaponSkillLevelAtIndex(index); }
 
-#define PC_SKI_SKILL(ch, index)  \
-  (UPC(ch)->skills[index])
+inline sbit16 PC_WPN_SKILL(unit_data *ch, size_t index) { return UPC(ch)->getWeaponSkillAtIndex(index); }
 
+inline ubit8 PC_SPL_LVL(unit_data *ch, size_t index) { return UPC(ch)->getSpellLevelAtIndex(index); }
 
-#define PC_SKI_LVL(ch, index)  \
-  (UPC(ch)->skill_lvl[index])
+inline sbit16 PC_SPL_SKILL(unit_data *ch, size_t index) { return UPC(ch)->getSpellSkillAtIndex(index); }
 
-#define PC_WPN_LVL(ch, index)  \
-  (UPC(ch)->weapon_lvl[index])
+inline ubit16 PC_CRIMES(unit_data *unit) { return UPC(unit)->getNumberOfCrimesCommitted(); }
 
-#define PC_WPN_SKILL(ch, index)  \
-  (UPC(ch)->weapons[index])
+inline const char *PC_PWD(unit_data *unit) { return UPC(unit)->getPassword(); }
 
-#define PC_SPL_LVL(ch, index)  \
-  (UPC(ch)->spell_lvl[index])
+inline const char *PC_FILENAME(unit_data *unit) { return UPC(unit)->getFilename(); }
 
-#define PC_SPL_SKILL(ch, index)  \
-  (UPC(ch)->spells[index])
+inline sbit32 PC_ID(unit_data *unit) { return UPC(unit)->getPlayerUID(); }
 
-#define PC_CRIMES(unit)  \
-  (UPC(unit)->nr_of_crimes)
+inline const char *PC_BANK(const unit_data *unit) { return UPC(unit)->getBank(); }
 
-#define PC_PWD(unit)  \
-  (UPC(unit)->pwd)
+inline ubit16 PC_FLAGS(unit_data *unit) { return UPC(unit)->getAllPCFlags(); }
 
-#define PC_LASTHOST(unit)  \
-  (UPC(unit)->lasthosts)
+inline pc_time_data &PC_TIME(unit_data *unit) { return UPC(unit)->getPCTimeInformation(); }
 
-#define PC_FILENAME(unit)  \
-  (UPC(unit)->filename)
-
-#define PC_ID(unit) \
-   (UPC(unit)->id)
-
-#define PC_BANK(unit) \
-  (UPC(unit)->bank)
-
-#define PC_FLAGS(unit)   \
-  (UPC(unit)->flags)
-
-#define PC_TIME(unit)  \
-   (UPC(unit)->m_time)
-
-#define PC_HOME(ch)     \
-   (UPC(ch)->hometown)
+inline const char *PC_HOME(unit_data *ch) { return UPC(ch)->getHometown(); }
 /* .................... PC SUPER STRUCTURE ............................. */
 
-#define PC_IMMORTAL(ch) (IS_PC(ch) && CHAR_LEVEL(ch) >= 200)
+inline bool PC_IMMORTAL(unit_data *ch) { return ch->isPC() && CHAR_LEVEL(ch) >= 200; }
 
-#define PC_MORTAL(ch)   (IS_PC(ch) && CHAR_LEVEL(ch) <  200)
+[[maybe_unused]] inline bool PC_MORTAL(unit_data *ch) { return ch->isPC() && CHAR_LEVEL(ch) < 200; }
 
-#define PC_IS_UNSAVED(ch)  (PC_TIME(ch).played == 0)
-
-/* ..................................................................... */
-
-#define NPC_WPN_SKILL(ch, index)  \
-  (UNPC(ch)->weapons[index])
-
-#define NPC_SPL_SKILL(ch, index)  \
-  (UNPC(ch)->spells[index])
-
-#define NPC_DEFAULT(unit)  \
-   (UNPC(unit)->default_pos)
-
-#define NPC_FLAGS(unit)  \
-   (UNPC(unit)->flags)
+inline bool PC_IS_UNSAVED(unit_data *ch) { return PC_TIME(ch).getTotalTimePlayedInSeconds() == 0; }
 
 /* ..................................................................... */
 
-#define UNIT_TITLE_STRING(unit) \
-   (UNIT_TITLE(unit).c_str())
+inline sbit16 NPC_WPN_SKILL(unit_data *ch, size_t index)
+{
+    return UNPC(ch)->getWeaponSkillAtIndex(index);
+}
 
-#define UNIT_OUT_DESCR_STRING(unit) \
-   (UNIT_OUT_DESCR(unit).c_str())
+inline sbit16 NPC_SPL_SKILL(unit_data *ch, size_t index)
+{
+    return UNPC(ch)->getSpellSkillAtIndex(index);
+}
 
-#define UNIT_IN_DESCR_STRING(unit) \
-   (UNIT_IN_DESCR(unit).c_str())
+inline ubit8 NPC_DEFAULT(unit_data *unit)
+{
+    return UNPC(unit)->getDefaultPosition();
+}
 
-#define TITLENAME(unit) \
-  (IS_PC(unit) ? UNIT_NAME(unit) : UNIT_TITLE_STRING(unit))
+inline ubit8 NPC_FLAGS(unit_data *unit)
+{
+    return UNPC(unit)->getAllNPCFlags();
+}
 
-#define SOMETON(unit) \
-   ((UNIT_SEX(unit) == SEX_NEUTRAL) ? "something" : "someone")
+inline const char *TITLENAME(unit_data *unit) { return unit->isPC() ? unit->getNames().Name() : unit->getTitle().c_str(); }
 
+inline const char *SOMETON(const unit_data *unit) { return unit->getSex() == SEX_NEUTRAL ? "something" : "someone"; }
 
 /* Title, Name or Someone/Something */
-#define UNIT_SEE_TITLE(ch, unit) \
-  (CHAR_CAN_SEE(ch, unit) ? TITLENAME(unit) : SOMETON(unit))
+inline const char *UNIT_SEE_TITLE(unit_data *ch, unit_data *unit) { return CHAR_CAN_SEE(ch, unit) ? TITLENAME(unit) : SOMETON(unit); }
 
-#define UNIT_SEE_NAME(ch, unit)   \
-  (CHAR_CAN_SEE(ch, unit) ? UNIT_NAME(unit) : SOMETON(unit))
-
-
+inline const char *UNIT_SEE_NAME(const unit_data *ch, const unit_data *unit) { return CHAR_CAN_SEE(ch, unit) ? unit->getNames().Name() : SOMETON(unit); }
 /* ..................................................................... */
 
 /* Invis people aren't supposed to have sex... /gnort */
 
-#define B_HSHR(ch) \
-  ((UNIT_SEX(ch) == SEX_NEUTRAL) ? "its" : \
-   ((CHAR_SEX(ch) == SEX_MALE) ? "his" : "her"))
+inline const char *B_HSHR(const unit_data *ch) { return ch->getSex() == SEX_NEUTRAL ? "its" : (ch->getSex() == SEX_MALE) ? "his" : "her"; }
 
-#define HSHR(to, ch)   \
-  (CHAR_CAN_SEE((to), (ch)) ? B_HSHR(ch) : "their")
+inline const char *HSHR(const unit_data *to, const unit_data *ch) { return CHAR_CAN_SEE((to), (ch)) ? B_HSHR(ch) : "their"; }
 
-#define B_HESH(ch) \
-  ((UNIT_SEX(ch) == SEX_NEUTRAL) ? "it" : \
-   ((CHAR_SEX(ch) == SEX_MALE) ? "he" : "she"))
+inline const char *B_HESH(const unit_data *ch) { return ch->getSex() == SEX_NEUTRAL ? "it" : (ch->getSex() == SEX_MALE) ? "he" : "she"; }
 
-#define HESH(to, ch)   \
-  (CHAR_CAN_SEE((to), (ch)) ? B_HESH(ch) : "they")
+inline const char *HESH(const unit_data *to, const unit_data *ch) { return CHAR_CAN_SEE(to, ch) ? B_HESH(ch) : "they"; }
 
-#define B_HMHR(ch) \
-  ((UNIT_SEX(ch) == SEX_NEUTRAL) ? "it" : \
-   ((CHAR_SEX(ch) == SEX_MALE) ? "him" : "her"))
+inline const char *B_HMHR(const unit_data *ch) { return ch->getSex() == SEX_NEUTRAL ? "it" : ch->getSex() == SEX_MALE ? "him" : "her"; }
 
-#define HMHR(to, ch)  \
-  (CHAR_CAN_SEE((to), (ch)) ? B_HMHR(ch) : "them")
+inline const char *HMHR(const unit_data *to, const unit_data *ch) { return CHAR_CAN_SEE(to, ch) ? B_HMHR(ch) : "them"; }
 
-#define UNIT_ANA(unit) ANA(*UNIT_NAME(unit))
+inline const char *UNIT_ANA(unit_data *unit) { return ANA(*unit->getNames().Name()); }
 
-#endif /* _MUD_UTILS_H */
+// clang-format on

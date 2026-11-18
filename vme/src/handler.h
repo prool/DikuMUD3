@@ -4,75 +4,61 @@
  $Date: 2004/03/20 06:13:21 $
  $Revision: 2.3 $
  */
+#pragma once
 
-#ifndef _MUD_HANDLER_H
-#define _MUD_HANDLER_H
-
+#include "descriptor_data.h"
+#include "extra.h"
+#include "unit_fptr.h"
 #include "unitfind.h"
+#include "zone_type.h"
 
-class descriptor_data *unit_is_edited (class unit_data * u);
+#include <string>
 
-void unit_messg (class unit_data * ch, class unit_data * unit,
-                 const char *type, const char *mesg_s, const char *mesg_o);
+descriptor_data *unit_is_edited(unit_data *u);
 
-const char *single_unit_messg (class unit_data * unit,
-                               const char *type,
-                               const char *pSubStr, const char *mesg);
+extra_descr_data *quest_add(unit_data *ch, const char *name, const char *descr);
 
-void szonelog (class zone_type *zone, const char *fmt, ...);
+void insert_in_unit_list(unit_data *u);
+void remove_from_unit_list(unit_data *unit);
 
-/* From pcsave.c - I'm just tired of specifying them everywhere */
-void save_player (class unit_data * pc);
-class unit_data *load_player (const char *pName);
-void load_contents (const char *pFileName, class unit_data * unit);
-void save_player_contents (class unit_data * pc, int fast);
+unit_fptr *find_fptr(unit_data *u, ubit16 index);
+unit_fptr *create_fptr(unit_data *u, ubit16 index, ubit16 priority, ubit16 beat, ubit16 flags, void *data);
+void destroy_fptr(unit_data *u, unit_fptr *f);
 
-
-/* handler.c */
-class extra_descr_data *quest_add (class unit_data * ch,
-                                    const char *name, const char *descr);
-
-void insert_in_unit_list (class unit_data * u);
-void remove_from_unit_list (class unit_data * unit);
-
-class unit_fptr *find_fptr (class unit_data * u, ubit16 index);
-class unit_fptr *create_fptr(class unit_data *u, ubit16 index, ubit16 priority,
-                              ubit16 beat, ubit16 flags, void *data);
-void destroy_fptr (class unit_data * u, class unit_fptr *f);
-
-void stop_following (class unit_data * ch);
-void start_following (class unit_data * ch, class unit_data * leader);
+void stop_following(unit_data *ch);
+void start_following(unit_data *ch, unit_data *leader);
 void stop_snoopwrite(unit_data *unit);
 void stop_fightfollow(unit_data *unit);
 
-void modify_bright (class unit_data * unit, int bright);
-void trans_set (class unit_data * u);
-void trans_unset (class unit_data * u);
+void modify_bright(unit_data *unit, int bright);
+void trans_set(unit_data *u);
+void trans_unset(unit_data *u);
 
-class unit_data *equipment (class unit_data * ch, ubit8 pos);
-class unit_data *equipment_type (class unit_data * ch, int pos, ubit8 type);
-void equip_char (class unit_data * ch, class unit_data * obj, ubit8 pos);
+unit_data *equipment(unit_data *ch, ubit8 pos);
+unit_data *equipment_type(unit_data *ch, int pos, ubit8 type);
+void equip_char(unit_data *ch, unit_data *obj, ubit8 pos);
 
-class unit_data *unequip_object (class unit_data * obj);
-void recalc_dex_red (class unit_data * ch);
+void equip_transfer_affect(unit_data *ch, unit_affected_type *af);
+void unequip_transfer_affect(unit_data *ch, unit_affected_type *af);
+unit_data *unequip_object(unit_data *obj);
 
-int unit_recursive (class unit_data * from, class unit_data * to);
-class zone_type *unit_zone (const class unit_data * unit);
-class unit_data *unit_room (class unit_data * unit);
+int unit_recursive(unit_data *from, unit_data *to);
+zone_type *unit_zone(const unit_data *unit);
+unit_data *unit_room(unit_data *unit);
 
 /* If the transfered unit MIGHT be money, remember to pile_money() it!!!!! */
-void unit_up (class unit_data * unit);
-void unit_from_unit (class unit_data * unit);
-void unit_down (class unit_data * unit, class unit_data * to);
-void unit_to_unit (class unit_data * unit, class unit_data * to);
+void unit_up(unit_data *unit);
+void unit_from_unit(unit_data *unit);
+void unit_down(unit_data *unit, unit_data *to);
+void unit_to_unit(unit_data *unit, unit_data *to);
 
-void extract_unit (class unit_data * unit);
+void extract_unit(unit_data *unit);
 
-void weight_change_unit (class unit_data * unit, int weight);
+void weight_change_unit(unit_data *unit, int weight);
 
-class unit_data *find_unit_in_list_num (int num, class unit_data * list);
-class unit_data *find_unit_num (int num);
-
-string unit_trace_up(class unit_data *unit);
-
-#endif /* _MUD_HANDLER_H */
+std::string unit_trace_up(unit_data *unit);
+void intern_unit_to_unit(unit_data *, unit_data *, ubit1);
+void snoop(unit_data *ch, unit_data *victim);
+void switchbody(unit_data *ch, unit_data *victim);
+void unsnoop(unit_data *ch, int mode);
+void unswitchbody(unit_data *npc);

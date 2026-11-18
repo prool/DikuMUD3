@@ -4,91 +4,94 @@
  $Date: 2001/04/29 03:46:05 $
  $Revision: 2.1 $
  */
+#pragma once
 
-#ifndef _MUD_COMBAT_H
-#define _MUD_COMBAT_H
+#include "essential.h"
 
-#ifdef __cplusplus
+#include <utility>
+#include <vector>
+
+class cCombat;
+class unit_data;
 
 class cCombatList
 {
 public:
-    cCombatList ();
-    ~cCombatList ();
-    void PerformViolence ();
-    void add (class cCombat * pc);
-    void sub (class cCombat * pc);
-    void status (const class unit_data * ch);
+    cCombatList();
+    ~cCombatList();
+    void PerformViolence();
+    void add(cCombat *pc);
+    void sub(cCombat *pc);
+    void status(const unit_data *ch);
 
 private:
-    void Sort ();
+    void Sort();
 
-    class cCombat **pElems;
-    int nMaxTop;			// No of allocated elements
-    int nTop;			// Current Max
-    int nIdx;			// Updated when in Perform() and doing Sub()
+    cCombat **pElems;
+    int nMaxTop; ///< No of allocated elements
+    int nTop;    ///< Current Max
+    int nIdx;    ///< Updated when in Perform() and doing Sub()
 };
 
 class cCombat
 {
-    friend class cCombatList;
+    friend cCombatList;
 
 public:
-    cCombat (class unit_data * owner, int bMelee = FALSE);
-    ~cCombat ();
+    cCombat(unit_data *owner, int bMelee = FALSE);
+    ~cCombat();
 
-    class unit_data *Opponent (int i = 0);
-    class unit_data *FindOpponent (class unit_data * tmp);
+    unit_data *Opponent(int i = 0);
+    unit_data *FindOpponent(unit_data *tmp);
 
-    inline class unit_data *Owner (void)
-    {
-        return pOwner;
-    }
-    inline class unit_data *Melee (void)
-    {
-        return pMelee;
-    }
-    inline int When ()
-    {
-        return nWhen;
-    }
-    inline int NoOpponents (void)
-    {
-        return nNoOpponents;
-    }
+    inline unit_data *Owner() { return pOwner; }
+    inline unit_data *Melee() { return pMelee; }
+    inline int When() { return nWhen; }
+    inline int NoOpponents() { return nNoOpponents; }
 
-    void changeSpeed (int delta);
-    void setMelee (class unit_data * victim);
-    void setCommand (const char *arg);
+    int calculateHastedActions(int actions, int hastePercentage);
+    void changeSpeed(int delta, int speedPercentage);
+    void setMelee(unit_data *victim);
+    void setCommand(const char *arg);
 
-    void addOpponent (class unit_data * victim, int bMelee);
-    void subOpponent (class unit_data * victim);
-    void status (const class unit_data * ch);
+    void addOpponent(unit_data *victim, int bMelee);
+    void subOpponent(unit_data *victim);
+    void status(const unit_data *ch);
+
+    void toJSON(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer) const;
+
+    /// Send this round's '$combat' packet if the owner is on a web client
+    void sendWebRound();
+
+    /// The owner took a blow from att this round; step is its 0-8 damage_index()
+    void addRoundBlow(const unit_data *att, int step);
+    void clearRoundBlows() { vRoundBlows.clear(); }
+    /// This round's blows on the owner: by viewer, or by anyone else
+    std::vector<int> roundBlowSteps(const unit_data *viewer, bool byViewer) const;
 
 private:
-    void add (class unit_data * victim);
-    void sub (int idx);
-    int findOpponentIdx (class unit_data * tmp);
+    void add(unit_data *victim);
+    void sub(int idx);
+    int findOpponentIdx(unit_data *tmp);
 
-    int nWhen;			// What tick to attack / command at
-    class unit_data *pOwner;	// The owning unit
-    class unit_data *pMelee;	// The melee or kill pointer
-    class unit_data **pOpponents;	// Array of opponents (given damage)
-    int nNoOpponents;		// Number of opponents
-    char cmd[MAX_INPUT_LENGTH + 1];	// A combat command
+    int nAttackNo;                  ///< Counter for which attack is being performed
+    int nWhen;                      ///< What tick to attack / command at
+    unit_data *pOwner;              ///< The owning unit
+    unit_data *pMelee;              ///< The melee or kill pointer
+    unit_data **pOpponents;         ///< Array of opponents (given damage)
+    int nNoOpponents;               ///< Number of opponents
+    char cmd[MAX_INPUT_LENGTH + 1]; ///< A combat command
+    int nRound{0};                  ///< Combat rounds performed by this element
+    bool bWebSent{false};           ///< A '$combat' packet was sent to the owner
+    /// Blows taken this round. The attacker is only compared, never followed: it may be gone.
+    std::vector<std::pair<const unit_data *, int>> vRoundBlows;
 };
 
-extern class cCombatList CombatList;
+void set_fighting(unit_data *ch, unit_data *vict, int bMelee = FALSE);
+void add_fighting(unit_data *ch, unit_data *vict, int bMelee = FALSE);
+void stop_fighting(unit_data *ch, unit_data *victim = nullptr);
+void stat_combat(unit_data *ch, unit_data *u, const char *pStr);
+void stat_spell(unit_data *god, unit_data *u, const char *pStr);
+void combat_web_death(unit_data *ch);
 
-void set_fighting (class unit_data * ch,
-                   class unit_data * vict, int bMelee = FALSE);
-void add_fighting (class unit_data * ch,
-                   class unit_data * vict, int bMelee = FALSE);
-void stop_fighting (class unit_data * ch, class unit_data * victim = NULL);
-
-void stat_combat(class unit_data * ch, class unit_data * u, const char *pStr);
-void stat_spell(class unit_data *god, class unit_data *u, const char *pStr);
-
-#endif
-
-#endif
+extern cCombatList g_CombatList;

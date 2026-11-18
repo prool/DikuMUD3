@@ -4,12 +4,9 @@
  $Date: 2001/04/29 03:46:06 $
  $Revision: 2.1 $
  */
+#pragma once
 
-#ifndef _MUD_GUILD_H
-#define _MUD_GUILD_H
+#include "interpreter.h"
 
-int char_guild_level (class unit_data * ch);
-void advance_guild_level (class unit_data * ch);
-
-
-#endif
+int char_guild_level(unit_data *ch);
+int char_guild_level(unit_data *ch, const char *pGuildName);

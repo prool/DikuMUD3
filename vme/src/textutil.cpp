@@ -5,31 +5,21 @@
  $Revision: 2.4 $
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-
-#include "structs.h"
-#include "utils.h"
-#include "utility.h"
 #include "textutil.h"
+
+#include "color.h"
 #include "common.h"
+#include "db.h"
+#include "formatter.h"
+#include "slog.h"
 
-const char *fillwords[] = {
-    "a",
-    "an",
-    "at",
-    "from",
-    "in",
-    "on",
-    "of",
-    "the",
-    "to",
-    "with",
-    "into",
-    NULL};
+#include <cctype>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
+const char *g_fillwords[] = {"a", "an", "at", "from", "in", "on", "of", "the", "to", "with", "into", nullptr};
 
 /*  From char * input stream 'str' copy characters into 'buf' until
  *  end of string or newline. Returns position of 'str' after copied
@@ -37,18 +27,28 @@ const char *fillwords[] = {
  */
 char *str_line(const char *str, char *buf)
 {
-    if (str == NULL || buf == NULL)
-        return NULL;
+    if (str == nullptr || buf == nullptr)
+    {
+        return nullptr;
+    }
 
     for (; *str == ' ' || *str == '\n' || *str == '\r'; str++)
+    {
         ;
+    }
 
     if (*str == '\0')
-        return NULL;
+    {
+        return nullptr;
+    }
 
     for (; (*buf = *str); buf++, str++)
+    {
         if (*str == '\n' || *str == '\r')
+        {
             break;
+        }
+    }
 
     *buf = '\0'; /* Erase last separator */
 
@@ -58,22 +58,43 @@ char *str_line(const char *str, char *buf)
 /* Make a string lowercase, and also return length of string */
 int str_lower(char *s)
 {
-    int l;
+    int l = 0;
 
     for (l = 0; *s; s++, l++)
+    {
         if (isupper(*s))
+        {
             *s = tolower(*s);
+        }
+    }
 
     return l;
 }
 
+int str_lower(std::string &s)
+{
+    for (size_t i = 0; i < s.length(); ++i)
+    {
+        if (isupper(s[i]))
+        {
+            s[i] = tolower(s[i]);
+        }
+    }
+
+    return static_cast<int>(s.length());
+}
+
 int str_upper(char *s)
 {
-    int l;
+    int l = 0;
 
     for (l = 0; *s; s++, l++)
+    {
         if (islower(*s))
+        {
             *s = toupper(*s);
+        }
+    }
 
     return l;
 }
@@ -82,16 +103,24 @@ int str_upper(char *s)
 
 int str_lower(const char *s, char *d, int nBufSize)
 {
-    int l;
+    int l = 0;
 
     for (l = 0; *s && (l < nBufSize); s++, d++, l++)
+    {
         if (isupper(*s))
+        {
             *d = tolower(*s);
+        }
         else
+        {
             *d = *s;
+        }
+    }
 
     if (l < nBufSize)
+    {
         *d = 0;
+    }
     else
     {
         slog(LOG_ALL, 0, "ERROR: str_lower destination buffer too small!");
@@ -107,15 +136,21 @@ char *str_repeatchar(int n, char c)
     static char buf[256];
 
     if (n > 255)
+    {
         n = 255;
+    }
 
     if (n < 0)
+    {
         n = 0;
+    }
 
     buf[n] = '\0';
 
     for (; n;)
+    {
         buf[--n] = c;
+    }
 
     return buf;
 }
@@ -130,28 +165,24 @@ char *spc(int n)
  *  of the integer 'n'
  *  I've made it the easy way :)
  */
-#ifdef DOS
-char *itoa_dos(int n)
-#else
-char *itoa(int n)
-#endif
+const char *itoa(int n)
 {
-    static char buf[32]; /* 32 digits can even cope with 64 bit ints */
+    static std::string buf; /* 32 digits can even cope with 64 bit ints */
 
-    sprintf(buf, "%d", n);
-    return buf;
+    buf = diku::format_to_str("%d", n);
+    return buf.c_str();
 }
 
 /*  Return a pointer to the string containing the ascii reresentation
  *  of the integer 'n'
  *  I've made it the easy way :)
  */
-char *ltoa(long n)
+const char *ltoa(long n)
 {
-    static char buf[32]; /* 32 digits can even cope with 64 bit ints */
+    static std::string buf; /* 32 digits can even cope with 64 bit ints */
 
-    sprintf(buf, "%ld", n);
-    return buf;
+    buf = diku::format_to_str("%ld", n);
+    return buf.c_str();
 }
 
 /*  STR Convention: "str_" [n] [c] <meaning>
@@ -167,16 +198,26 @@ char *ltoa(long n)
 int str_ccmp(const char *s, const char *d)
 {
     if (s == d)
+    {
         return 0;
+    }
 
-    if (s == NULL)
+    if (s == nullptr)
+    {
         return -1;
-    else if (d == NULL)
+    }
+    else if (d == nullptr)
+    {
         return 1;
+    }
 
     for (; tolower(*s) == tolower(*d); s++, d++)
+    {
         if (*s == '\0')
+        {
             return 0;
+        }
+    }
 
     return (tolower(*s) - tolower(*d));
 }
@@ -187,16 +228,26 @@ int str_ccmp(const char *s, const char *d)
 int str_nccmp(const char *s, const char *d, int n)
 {
     if (s == d)
+    {
         return 0;
+    }
 
-    if (s == NULL)
+    if (s == nullptr)
+    {
         return -1;
-    else if (d == NULL)
+    }
+    else if (d == nullptr)
+    {
         return 1;
+    }
 
     for (n--; tolower(*s) == tolower(*d); s++, d++, n--)
+    {
         if (*s == '\0' || n <= 0)
+        {
             return 0;
+        }
+    }
 
     return (tolower(*s) - tolower(*d));
 }
@@ -204,7 +255,7 @@ int str_nccmp(const char *s, const char *d, int n)
 /* Allocate space for a copy of source */
 char *str_dup(const char *source)
 {
-    char *dest;
+    char *dest = nullptr;
 
     if (source)
     {
@@ -214,17 +265,23 @@ char *str_dup(const char *source)
         return dest;
     }
 
-    return NULL;
+    return nullptr;
 }
 
 /*  As defined by 2nd Ed. of K&R ANSI C
  *  Return pointer to first occurence of ct in cs - or NULL
  *  Used to determine ei. "from" and "in"
+ *  An empty ct is found nowhere (the loop below would read past its end)
  */
-char *str_str(register const char *cs, register const char *ct)
+char *str_str(const char *cs, const char *ct)
 {
-    register char *si;
-    register char *ti;
+    char *si = nullptr;
+    char *ti = nullptr;
+
+    if (*ct == '\0')
+    {
+        return nullptr;
+    }
 
     do
     {
@@ -232,12 +289,16 @@ char *str_str(register const char *cs, register const char *ct)
         ti = (char *)ct;
 
         while (*si++ == *ti++)
+        {
             if (*ti == '\0')
+            {
                 return (char *)cs;
+            }
+        }
 
     } while (*cs++);
 
-    return NULL;
+    return nullptr;
 }
 
 /*  As defined by 2nd Ed. of K&R ANSI C, but non case sensitive
@@ -262,59 +323,94 @@ const char *str_cstr(const char *cs, const char *ct)
 }
 
 /* return string without leading spaces */
-char *skip_blanks(const char *string)
+const char *skip_blanks(const char *string)
 {
-    if (string == NULL)
-        return NULL;
+    if (string == nullptr)
+    {
+        return nullptr;
+    }
 
-    for (; *string && isspace(*string); string++)
+    for (; *string && isspace(static_cast<unsigned char>(*string)); string++)
+    {
         ;
+    }
 
-    return (char *)string;
+    return string;
 }
 
 /* return string without leading spaces */
-char *skip_spaces(const char *string)
+const char *skip_spaces(const char *string)
 {
-    if (string == NULL)
-        return NULL;
+    if (string == nullptr)
+    {
+        return nullptr;
+    }
 
     for (; *string && isaspace(*string); string++)
+    {
         ;
+    }
 
-    return (char *)string;
+    return string;
+}
+
+char *strip_surrounding_quotes(char *str)
+{
+    size_t len = strlen(str);
+    if (len >= 2 && str[0] == '"' && str[len - 1] == '"')
+    {
+        str[len - 1] = '\0';
+        return str + 1;
+    }
+    return str;
 }
 
 void strip_trailing_blanks(char *str)
 {
-    if (!*str) /* empty string: return at once      */
+    if (!*str)
+    { /* empty string: return at once      */
         return;
+    }
 
-    for (; *str; ++str) /* wind to end of string             */
+    for (; *str; ++str)
+    { /* wind to end of string             */
         ;
+    }
 
-    if (!isspace(*--str)) /* Not a spaceterminated string      */
-        return;           /* This is mainly for `inter-code' strings */
+    if (!isspace(*--str))
+    {           /* Not a spaceterminated string      */
+        return; /* This is mainly for `inter-code' strings */
+    }
 
-    while (isspace(*--str)) /* rewind to last nonspace character */
+    while (isspace(*--str))
+    { /* rewind to last nonspace character */
         ;
+    }
 
     *++str = '\0'; /* step ahead and end string         */
 }
 
 void strip_trailing_spaces(char *str)
 {
-    if (!*str) /* empty string: return at once      */
+    if (!*str)
+    { /* empty string: return at once      */
         return;
+    }
 
-    for (; *str; ++str) /* wind to end of string             */
+    for (; *str; ++str)
+    { /* wind to end of string             */
         ;
+    }
 
-    if (!isaspace(*--str)) /* Not a spaceterminated string      */
-        return;            /* This is mainly for `inter-code' strings */
+    if (!isaspace(*--str))
+    {           /* Not a spaceterminated string      */
+        return; /* This is mainly for `inter-code' strings */
+    }
 
-    while (isaspace(*--str)) /* rewind to last nonspace character */
+    while (isaspace(*--str))
+    { /* rewind to last nonspace character */
         ;
+    }
 
     *++str = '\0'; /* step ahead and end string         */
 }
@@ -322,8 +418,10 @@ void strip_trailing_spaces(char *str)
 /* Returns true is arg is empty */
 ubit1 str_is_empty(const char *arg)
 {
-    if (arg == NULL)
+    if (arg == nullptr)
+    {
         return TRUE;
+    }
 
     return *(skip_blanks(arg)) == '\0';
 }
@@ -332,12 +430,20 @@ ubit1 str_is_empty(const char *arg)
 ubit1 str_is_number(const char *str)
 {
     if (!*str)
+    {
         return FALSE;
+    }
     if ((*str == '-') || (*str == '+'))
+    {
         str++;
+    }
     for (; *str; str++)
+    {
         if (!isdigit(*str))
+        {
             return FALSE;
+        }
+    }
 
     return TRUE;
 }
@@ -356,10 +462,13 @@ ubit1 next_word_is_number(const char *str)
 int search_block(const char *oarg, const char **list, ubit1 exact)
 {
     char arg[4096];
-    register int i, l;
+    int i = 0;
+    int l = 0;
 
-    if (list == NULL)
+    if (list == nullptr)
+    {
         return -1;
+    }
 
     /* Make into lower case, and get length of string */
     l = str_lower(oarg, arg, sizeof(arg));
@@ -367,17 +476,27 @@ int search_block(const char *oarg, const char **list, ubit1 exact)
     if (exact)
     {
         for (i = 0; list[i]; i++)
+        {
             if (strcmp(arg, list[i]) == 0)
+            {
                 return i;
+            }
+        }
     }
     else
     {
         if (!l)
+        {
             l = 1; /* Avoid "" to match the first available string */
+        }
 
         for (i = 0; list[i]; i++)
+        {
             if (strncmp(arg, list[i], l) == 0)
+            {
                 return i;
+            }
+        }
     }
 
     return -1;
@@ -385,11 +504,10 @@ int search_block(const char *oarg, const char **list, ubit1 exact)
 
 /* Block must end with null pointer                                  */
 /* Warning, argument 1 is made into lowercase!                       */
-int search_block_length(const char *oarg, int length,
-                        const char **list, ubit1 exact)
+int search_block_length(const char *oarg, int length, const char **list, ubit1 exact)
 {
     char arg[4096];
-    register int i;
+    int i = 0;
 
     /* Make into lower case, and get length of string */
     str_lower(oarg, arg, sizeof(arg));
@@ -397,17 +515,29 @@ int search_block_length(const char *oarg, int length,
     if (exact)
     {
         for (i = 0; list[i]; i++)
+        {
             if (!strncmp(arg, list[i], length))
+            {
                 if (list[i][length] <= ' ')
+                {
                     return i;
+                }
+            }
+        }
     }
     else
     {
         if (!length)
+        {
             length = 1; /* Avoid "" to match the first available string */
+        }
         for (i = 0; list[i]; i++)
+        {
             if (!strncmp(arg, list[i], length))
+            {
                 return i;
+            }
+        }
     }
 
     return -1;
@@ -415,22 +545,52 @@ int search_block_length(const char *oarg, int length,
 
 int fill_word(const char *argument)
 {
-    return (search_block(argument, fillwords, TRUE) >= 0);
+    return (search_block(argument, g_fillwords, TRUE) >= 0);
 }
 
 /* Exactly as str_next-word, except it wont change the case */
 char *str_next_word_copy(const char *argument, char *first_arg)
 {
+    return str_next_word_copy(argument, first_arg, SIZE_MAX);
+}
+
+/* As above, but copies at most size - 1 characters of the word; the rest of it is skipped */
+char *str_next_word_copy(const char *argument, char *first_arg, size_t size)
+{
+    argument = skip_spaces(argument);
+
+    for (; *argument > ' '; argument++)
+    {
+        if (size > 1)
+        {
+            *first_arg++ = *argument;
+            size--;
+        }
+    }
+
+    *first_arg = '\0';
+
+    return (char *) skip_spaces(argument);
+}
+
+/* Copy next word from argument into first_arg and make lowercase*/
+char *str_next_word_delim(const char *argument, char *first_arg, char delim)
+{
     /* Find first non blank */
     argument = skip_spaces(argument);
 
     /* Copy next word and make it lower case */
-    for (; *argument > ' '; argument++)
-        *first_arg++ = *argument;
+    for (; *argument && *argument != delim; argument++)
+    {
+        *first_arg++ = tolower(*argument);
+    }
 
     *first_arg = '\0';
 
-    return skip_spaces(argument);
+    if (*argument == delim)
+        argument++;
+
+    return (char *) skip_spaces(argument);
 }
 
 /* Copy next word from argument into first_arg and make lowercase*/
@@ -441,11 +601,13 @@ char *str_next_word(const char *argument, char *first_arg)
 
     /* Copy next word and make it lower case */
     for (; *argument > ' '; argument++)
+    {
         *first_arg++ = tolower(*argument);
+    }
 
     *first_arg = '\0';
 
-    return skip_spaces(argument);
+    return (char *) skip_spaces(argument);
 }
 
 /*  Find the first sub-argument of a string,
@@ -456,8 +618,9 @@ char *one_argument(const char *argument, char *first_arg)
     assert(argument && first_arg);
 
     do
+    {
         argument = str_next_word(argument, first_arg);
-    while (fill_word(first_arg));
+    } while (fill_word(first_arg));
 
     return (char *)argument;
 }
@@ -466,11 +629,17 @@ char *one_argument(const char *argument, char *first_arg)
 ubit1 is_abbrev(const char *arg1, const char *arg2)
 {
     if (!*arg1)
+    {
         return FALSE;
+    }
 
     for (; *arg1; arg1++, arg2++)
+    {
         if (tolower(*arg1) != tolower(*arg2))
+        {
             return FALSE;
+        }
+    }
 
     return TRUE;
 }
@@ -480,11 +649,17 @@ ubit1 is_abbrev(const char *arg1, const char *arg2)
 ubit1 is_multi_abbrev(const char *arg1, const char *arg2)
 {
     if (!*arg1)
+    {
         return FALSE;
+    }
 
     for (; *arg1 && !isspace(*arg1); arg1++, arg2++)
+    {
         if (tolower(*arg1) != tolower(*arg2))
+        {
             return FALSE;
+        }
+    }
 
     return TRUE;
 }
@@ -494,16 +669,20 @@ ubit1 is_multi_abbrev(const char *arg1, const char *arg2)
 int search_block_abbrevs(const char *oarg, const char **list, const char **end)
 {
     char arg[4096];
-    char buf1[MAX_INPUT_LENGTH], buf2[MAX_INPUT_LENGTH];
-    char *s, *ps, *bestpos;
-    const char *d;
-    int i;
-    int match, bestidx;
+    char buf1[MAX_INPUT_LENGTH];
+    char buf2[MAX_INPUT_LENGTH];
+    char *s = nullptr;
+    char *ps = nullptr;
+    char *bestpos = nullptr;
+    const char *d = nullptr;
+    int i = 0;
+    int match = 0;
+    int bestidx = 0;
 
     i = str_lower(skip_spaces(oarg), arg, sizeof(arg));
 
     bestidx = -1;
-    bestpos = NULL;
+    bestpos = nullptr;
 
     for (i = 0; list[i]; i++)
     {
@@ -514,12 +693,14 @@ int search_block_abbrevs(const char *oarg, const char **list, const char **end)
             d = str_next_word(d, buf2);
             if (is_multi_abbrev(buf1, buf2))
             {
-                s = skip_spaces(s);
-                d = skip_spaces(d);
+                s = (char *) skip_spaces(s);
+                d = (char *) skip_spaces(d);
                 match++;
             }
             else
+            {
                 break;
+            }
         }
         if (match && ps > bestpos)
         {
@@ -555,7 +736,8 @@ char *str_cc(const char *s1, const char *s2)
 
 void str_insert(char *str, char *itxt)
 {
-    int nlen, slen;
+    int nlen = 0;
+    int slen = 0;
 
     nlen = strlen(itxt);
     slen = strlen(str);
@@ -566,46 +748,105 @@ void str_insert(char *str, char *itxt)
 
 /*
    Scan the string 'str' for the string OLD and replace each
-   occurence with new. Does not handle memory overrun so str
-   must be large enough to hold it.
+   occurence with new. An empty OLD changes nothing. The search resumes after each replacement, so text
+   that new brings in is not searched again (as in the std::string overload).
+   Does not handle memory overrun so str must be large enough to hold it.
    */
 void str_substitute(const char *old, const char *newstr, char *str)
 {
-    char *b;
-    int olen, nlen, slen;
+    char *b = nullptr;
+    char *from = str;
+    int olen = 0;
+    int nlen = 0;
+    int slen = 0;
 
     if (!str)
+    {
         return;
+    }
 
     if (!old)
+    {
         return;
+    }
 
     if (!newstr)
+    {
         nlen = 0;
+    }
     else
+    {
         nlen = strlen(newstr);
+    }
 
     olen = strlen(old);
+    if (olen == 0)
+    {
+        return;
+    }
+
     slen = strlen(str);
 
-    while ((b = str_str(str, old)))
+    while ((b = str_str(from, old)))
     {
+        // The tail after the match plus its NUL
+        const int tail = slen - (int)(b - str) - olen + 1;
+
         if (nlen <= olen)
         {
             if (nlen != 0)
             {
                 memcpy(b, newstr, nlen);
             }
-            memmove(b + nlen, b + olen, slen - (b - str + olen) + 1);
-            slen -= olen - nlen;
+            memmove(b + nlen, b + olen, tail);
         }
         else
         {
-            memmove(b + nlen, b + olen, slen - (b - str));
+            memmove(b + nlen, b + olen, tail);
             memcpy(b, newstr, nlen);
-            slen += nlen - olen;
+        }
+
+        slen += nlen - olen;
+        from = b + nlen;
+    }
+}
+
+/// Escapes src for use inside a quoted HTML attribute value:
+/// & < > ' " become entities, so a name can't end the attribute or tag
+std::string str_html_attr_escape(const char *src)
+{
+    std::string dest;
+
+    if (src == nullptr)
+    {
+        return dest;
+    }
+
+    for (const char *p = src; *p; p++)
+    {
+        switch (*p)
+        {
+            case '&':
+                dest.append("&amp;");
+                break;
+            case '<':
+                dest.append("&lt;");
+                break;
+            case '>':
+                dest.append("&gt;");
+                break;
+            case '\'':
+                dest.append("&#39;");
+                break;
+            case '"':
+                dest.append("&quot;");
+                break;
+            default:
+                dest.push_back(*p);
         }
     }
+
+    return dest;
 }
 
 // Search is the string to search for in subject and replace with replace
@@ -614,7 +855,9 @@ void str_substitute(const std::string &search, const std::string &replace, std::
     size_t pos = 0;
 
     if (search.empty())
+    {
         return;
+    }
 
     while ((pos = subject.find(search, pos)) != std::string::npos)
     {
@@ -626,33 +869,23 @@ void str_substitute(const std::string &search, const std::string &replace, std::
 /* Remove all occurences of c in s */
 void str_rem(char *s, char c)
 {
-    int diff;
+    int diff = 0;
 
     if (c == '\0')
+    {
         return;
+    }
 
     for (diff = 0; *(s + diff);)
     {
         if (*s == c)
+        {
             diff++;
+        }
         else
+        {
             s++;
-
-        *s = *(s + diff);
-    }
-}
-
-/* Remove all occurences of control codes in s, keeps \n and \r */
-void str_rem_codes(char *s)
-{
-    int diff;
-
-    for (diff = 0; *(s + diff);)
-    {
-        if ((*s < ' ') && (*s != '\n') && (*s != '\r'))
-            diff++;
-        else
-            s++;
+        }
 
         *s = *(s + diff);
     }
@@ -673,7 +906,9 @@ void str_amp_html(const char *s, char *d)
             s++; // Skip &
         }
         else
+        {
             *d++ = *s++;
+        }
     }
     *d = 0;
 }
@@ -695,7 +930,9 @@ void str_nr_brnr(const char *s, char *d)
             s += 2;
         }
         else
+        {
             *d++ = *s++;
+        }
     }
     *d = 0;
 }
@@ -706,6 +943,7 @@ void str_blank_punct(char *s)
     static char c[3] = {' ', ' ', 0};
 
     for (; *s; s++)
+    {
         if (ispunct(*s))
         {
             c[0] = *s;
@@ -713,25 +951,32 @@ void str_blank_punct(char *s)
             str_insert(s + 1, c);
             s += 2;
         }
+    }
 }
 
 /* Remove all multiple space occurences in s */
-void str_remspc(register char *s)
+void str_remspc(char *s)
 {
-    register char *cp;
+    char *cp = nullptr;
 
     while (*s && (*s != ' ' || *(s + 1) != ' '))
+    {
         s++;
+    }
 
     if (*s == 0)
+    {
         return;
+    }
 
     cp = s;
 
     while (*cp)
     {
         while (*cp == ' ' && *(cp + 1) == ' ')
+        {
             cp++;
+        }
 
         *s++ = *cp++;
     }
@@ -740,7 +985,7 @@ void str_remspc(register char *s)
 
 void str_chraround(char *str, char c)
 {
-    int l;
+    int l = 0;
 
     l = strlen(str);
     memmove(str + 1, str, l);
@@ -761,20 +1006,29 @@ void str_chraround(char *str, char c)
 
 const char *is_name_raw(const char *arg, char const *const *names) // MS2020 const char *names[])
 {
-    register int i, j;
+    int i = 0;
+    int j = 0;
 
     for (i = 0; names[i]; i++)
     {
         for (j = 0; names[i][j]; j++)
+        {
             if (tolower(arg[j]) != tolower(names[i][j]))
+            {
                 break;
+            }
+        }
 
         if (!names[i][j])
+        {
             if (!arg[j] || isaspace(arg[j]))
+            {
                 return (arg + j);
+            }
+        }
     }
 
-    return NULL;
+    return nullptr;
 }
 
 /*
@@ -793,23 +1047,27 @@ const char *is_name_raw(const char *arg, char const *const *names) // MS2020 con
 char *is_name(char *arg, char const *const *names) // MS2020 const char *names[])
 {
     for (; isaspace(*arg); arg++)
+    {
         ;
+    }
 
     if (!*arg)
-        return 0;
+    {
+        return nullptr;
+    }
 
     str_remspc(arg);
 
-    return (char *) is_name_raw(arg, names);
+    return (char *)is_name_raw(arg, names);
 }
 
 /* Create an empty namelist */
-char **create_namelist(void)
+char **create_namelist()
 {
-    char **list;
+    char **list = nullptr;
 
     CREATE(list, char *, 1);
-    list[0] = NULL;
+    list[0] = nullptr;
 
     return list;
 }
@@ -818,17 +1076,20 @@ char **create_namelist(void)
 //
 int len_namelist(const char **namelist)
 {
-	if (namelist == NULL)
-		return 0;
+    if (namelist == nullptr)
+    {
+        return 0;
+    }
 
-	int i;
+    int i = 0;
 
-	for (i=0; namelist[i]; i++)
-		;
+    for (i = 0; namelist[i]; i++)
+    {
+        ;
+    }
 
-	return i;
+    return i;
 }
-
 
 /* Add a new name to the end of an existing namelist */
 char **add_name(const char *name, char **namelist)
@@ -838,12 +1099,14 @@ char **add_name(const char *name, char **namelist)
     assert(name && namelist);
 
     while (namelist[pos])
+    {
         pos++;
+    }
 
     RECREATE(namelist, char *, pos + 2);
 
     namelist[pos] = str_dup(name);
-    namelist[pos + 1] = NULL;
+    namelist[pos + 1] = nullptr;
 
     return namelist;
 }
@@ -851,7 +1114,7 @@ char **add_name(const char *name, char **namelist)
 /* free space allocated to a namelist */
 void free_namelist(char **list)
 {
-    char **original;
+    char **original = nullptr;
 
     assert(list);
 
@@ -859,7 +1122,7 @@ void free_namelist(char **list)
 
     while (*list)
     {
-        free(*list);
+        FREE(*list);
         list++;
         /* MS: Well, ugly but we have to do while free macro is in use! */
     }
@@ -877,13 +1140,19 @@ char *str_ccmp_next_word(const char *buf, const char *next_word)
     buf = skip_spaces(buf);
 
     for (; *next_word; next_word++, buf++)
+    {
         if (*next_word != *buf)
-            return NULL;
+        {
+            return nullptr;
+        }
+    }
 
-    if (!*buf || isaspace(*buf)) /* Buf must end here or be word separated */
+    if (!*buf || isaspace(*buf))
+    { /* Buf must end here or be word separated */
         return (char *)buf;
+    }
 
-    return NULL;
+    return nullptr;
 }
 
 /*  Must receive a string of the format 'name@zone\0' or
@@ -893,14 +1162,17 @@ char *str_ccmp_next_word(const char *buf, const char *next_word)
  */
 void split_fi_ref(const char *str, char *zone, char *name)
 {
-    char *c, *t;
-    int l;
+    char *c = nullptr;
+    char *t = nullptr;
+    int l = 0;
 
     *zone = 0;
     *name = 0;
 
     if (!str)
+    {
         return;
+    }
 
     str = skip_spaces(str);
 
@@ -912,7 +1184,9 @@ void split_fi_ref(const char *str, char *zone, char *name)
 
         l = MIN(strlen(c + 1), FI_MAX_ZONENAME);
         if ((t = strchr(c + 1, ' ')))
+        {
             l = MIN(l, t - (c + 1));
+        }
         strncpy(zone, c + 1, l);
         zone[l] = 0;
         str_lower(zone);
@@ -926,7 +1200,9 @@ void split_fi_ref(const char *str, char *zone, char *name)
 
         l = MIN(strlen(c + 1), FI_MAX_UNITNAME);
         if ((t = strchr(c + 1, ' ')))
+        {
             l = MIN(l, t - (c + 1));
+        }
         strncpy(name, c + 1, l);
         name[l] = 0;
         str_lower(zone);
@@ -955,7 +1231,7 @@ void split_fi_ref(const char *str, char *zone, char *name)
 
 char *catnames(char *s, char **names)
 {
-    char **nam;
+    char **nam = nullptr;
     ubit1 ok = FALSE;
 
     if (names)
@@ -969,11 +1245,15 @@ char *catnames(char *s, char **names)
             TAIL(s);
         }
         if (ok)
+        {
             s--; /* remove the comma */
+        }
         strcpy(s, "}");
     }
     else
+    {
         sprintf(s, "NULL");
+    }
 
     TAIL(s);
 
@@ -992,25 +1272,25 @@ void str_cescape_format(const char *src, char *dest)
         {
             switch (*src)
             {
-            case 'n':
-                *dest = '\n';
-                src++;
-                break;
-            case 'r':
-                *dest = '\r';
-                src++;
-                break;
-            case '\\':
-                break;
-            case 0:
-                dest++;    // Save the backslash
-                *dest = 0; // terminate dest
-                break;
-            default:
-                dest++;       // Save the backslash
-                *dest = *src; // Copy the unknown code
-                src++;
-                break;
+                case 'n':
+                    *dest = '\n';
+                    src++;
+                    break;
+                case 'r':
+                    *dest = '\r';
+                    src++;
+                    break;
+                case '\\':
+                    break;
+                case 0:
+                    dest++;    // Save the backslash
+                    *dest = 0; // terminate dest
+                    break;
+                default:
+                    dest++;       // Save the backslash
+                    *dest = *src; // Copy the unknown code
+                    src++;
+                    break;
             }
         }
         dest++;
@@ -1041,7 +1321,6 @@ char *str_escape_format(const char *src, int formatting)
     return str_dup(dest);
 }
 
-
 // Adapted from
 // Copyright (c) 2008-2009 Bjoern Hoehrmann <bjoern@hoehrmann.de>
 // See http://bjoern.hoehrmann.de/utf-8/decoder/dfa/ for details.
@@ -1049,20 +1328,31 @@ char *str_escape_format(const char *src, int formatting)
 #define UTF8_REJECT 1
 
 static const uint8_t utf8d[] = {
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 00..1f
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 20..3f
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 40..5f
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 60..7f
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9, // 80..9f
-  7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7, // a0..bf
-  8,8,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, // c0..df
-  0xa,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x3,0x4,0x3,0x3, // e0..ef
-  0xb,0x6,0x6,0x6,0x5,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8,0x8, // f0..ff
-  0x0,0x1,0x2,0x3,0x5,0x8,0x7,0x1,0x1,0x1,0x4,0x6,0x1,0x1,0x1,0x1, // s0..s0
-  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1, // s1..s2
-  1,2,1,1,1,1,1,2,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1, // s3..s4
-  1,2,1,1,1,1,1,1,1,2,1,1,1,1,1,1,1,1,1,1,1,1,1,3,1,3,1,1,1,1,1,1, // s5..s6
-  1,3,1,1,1,1,1,3,1,3,1,1,1,1,1,1,1,3,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // s7..s8
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, // 00..1f
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, // 20..3f
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, // 40..5f
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, // 60..7f
+    1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+    9,   9,   9,   9,   9,   9,   9,   9,   9,   9,   9,   9,   9,   9,   9,   9, // 80..9f
+    7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,
+    7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7,   7, // a0..bf
+    8,   8,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,
+    2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   // c0..df
+    0xa, 0x3, 0x3, 0x3, 0x3, 0x3, 0x3, 0x3, 0x3, 0x3, 0x3, 0x3, 0x3, 0x4, 0x3, 0x3, // e0..ef
+    0xb, 0x6, 0x6, 0x6, 0x5, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, 0x8, // f0..ff
+    0x0, 0x1, 0x2, 0x3, 0x5, 0x8, 0x7, 0x1, 0x1, 0x1, 0x4, 0x6, 0x1, 0x1, 0x1, 0x1, // s0..s0
+    1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,
+    1,   0,   1,   1,   1,   1,   1,   0,   1,   0,   1,   1,   1,   1,   1,   1, // s1..s2
+    1,   2,   1,   1,   1,   1,   1,   2,   1,   2,   1,   1,   1,   1,   1,   1,
+    1,   1,   1,   1,   1,   1,   1,   2,   1,   1,   1,   1,   1,   1,   1,   1, // s3..s4
+    1,   2,   1,   1,   1,   1,   1,   1,   1,   2,   1,   1,   1,   1,   1,   1,
+    1,   1,   1,   1,   1,   1,   1,   3,   1,   3,   1,   1,   1,   1,   1,   1, // s5..s6
+    1,   3,   1,   1,   1,   1,   1,   3,   1,   3,   1,   1,   1,   1,   1,   1,
+    1,   3,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1, // s7..s8
 };
 
 ubit32 inline utf8_decode(ubit32 *state, ubit32 *codep, ubit8 byte)
@@ -1070,16 +1360,16 @@ ubit32 inline utf8_decode(ubit32 *state, ubit32 *codep, ubit8 byte)
     ubit32 type = utf8d[byte];
 
     *codep = (*state != UTF8_ACCEPT) ? (byte & 0x3fu) | (*codep << 6) : (0xff >> type) & (byte);
-    *state = utf8d[256 + *state*16 + type];
+    *state = utf8d[256 + *state * 16 + type];
 
     return *state;
 }
 
-
 void str_correct_utf8(char *src)
 {
     ubit32 codepoint = 0;
-    ubit32 prev = 0, current = 0;
+    ubit32 prev = 0;
+    ubit32 current = 0;
     char *s = src;
 
     for (; *s; prev = current, s++)
@@ -1093,15 +1383,19 @@ void str_correct_utf8(char *src)
             {
                 s--;
                 *s = '?';
-                if (s >= src) 
-                    s--; // end of for means we'll start checking this '?'
                 if (s >= src)
+                {
+                    s--; // end of for means we'll start checking this '?'
+                }
+                if (s >= src)
+                {
                     s--; // so go back yet another char so we'll check the char before '?'
+                }
 
                 // s can become 1 less than src, but for loop above +1 and then it's equal src
                 // MS: Code on the website most definitely seemed wrong
-                // so if prev was not accept, then because I fear it might 
-                // be a 3 character sequence, I go back 
+                // so if prev was not accept, then because I fear it might
+                // be a 3 character sequence, I go back
             }
         }
     }
@@ -1109,9 +1403,8 @@ void str_correct_utf8(char *src)
 
 void str_correct_utf8(std::string &src)
 {
-    str_correct_utf8((char *) src.c_str());
+    str_correct_utf8((char *)src.c_str());
 }
-
 
 // This validates a string to be UTF-8 cool
 // Illegal characters become question marks
@@ -1119,14 +1412,16 @@ void str_correct_utf8(std::string &src)
 void obs_str_correct_utf8(std::string &src)
 {
     int nLen = src.length();
-    
+
     for (int pos = 0; pos < nLen; ++pos)
     {
         if ((src[pos] & 0x80) == 0) // lead bit is zero, must be a single ascii
         {
-             // ignore all odd/control ascii characters.
+            // ignore all odd/control ascii characters.
             if ((src[pos] < 32) && (src[pos] != '\n') && (src[pos] != '\r'))
+            {
                 src[pos] = '?';
+            }
             continue;
         }
         else if ((src[pos] & 0xE0) == 0xC0) // 110x xxxx
@@ -1157,10 +1452,11 @@ void obs_str_correct_utf8(std::string &src)
             src[pos] = '?'; // Must be a UTF8 error of sorts
         }
         else
+        {
             src[pos] = '?'; // Must be a UTF8 error of sorts
+        }
     } // end for
 }
-
 
 // This both encodes and prepares string for interpreter.
 // Removes all leading and trailing whitespace.
@@ -1171,7 +1467,9 @@ void obs_str_correct_utf8(std::string &src)
 char *html_encode_utf8(const char *src)
 {
     if (!src)
-        return NULL;
+    {
+        return nullptr;
+    }
 
     int nLen = strlen(src);
     std::string sBuffer;
@@ -1180,45 +1478,51 @@ char *html_encode_utf8(const char *src)
 
     // First skip all leading whitespace
     while (isspace(src[pos]))
+    {
         pos++;
+    }
 
     for (; pos < nLen; ++pos)
     {
         if ((src[pos] & 0x80) == 0) // lead bit is zero, must be a single ascii
         {
-            if (src[pos] < 32) // ignore all odd/control ascii characters.
+            if (src[pos] < 32)
+            { // ignore all odd/control ascii characters.
                 continue;
+            }
 
             switch (src[pos])
             {
-            case ' ':
-            { // Trim all whitespace to one space
-                sBuffer.append(" ");
-                while (isspace(src[pos + 1]))
-                    pos++;
-                continue;
-            }
-            case '&':
-            {
-                sBuffer.append("&amp;");
-                continue;
-            }
-            case '\"':
-            {
-                sBuffer.append("&quot;");
-                continue;
-            }
-            case '<':
-            {
-                sBuffer.append("&lt;");
-                continue;
-            }
-            case '>':
-            {
-                sBuffer.append("&gt;");
-                continue;
-            }
-            } //Switch
+                case ' ':
+                { // Trim all whitespace to one space
+                    sBuffer.append(" ");
+                    while (isspace(src[pos + 1]))
+                    {
+                        pos++;
+                    }
+                    continue;
+                }
+                case '&':
+                {
+                    sBuffer.append("&amp;");
+                    continue;
+                }
+                case '\"':
+                {
+                    sBuffer.append("&quot;");
+                    continue;
+                }
+                case '<':
+                {
+                    sBuffer.append("&lt;");
+                    continue;
+                }
+                case '>':
+                {
+                    sBuffer.append("&gt;");
+                    continue;
+                }
+            } // Switch
             sBuffer.append(&src[pos], 1);
             continue;
         }
@@ -1264,13 +1568,11 @@ char *html_encode_utf8(const char *src)
 
 // Helper function to wrap javascript into something. This something might change
 // so it was easier to write a helper function. E.g. to onload for image. who knows.
-std::string scriptwrap(const char *str)
+std::string scriptwrap(const std::string &str)
 {
-    std::string mystr;
-
-    mystr = "<script>";
-    mystr.append(str);
-    mystr.append("</script>");
+    std::string mystr{"<script>"};
+    mystr += str;
+    mystr += "</script>";
 
     return mystr;
 }
@@ -1291,7 +1593,9 @@ int my_str_replace_space(char *sbuf)
             char *src = sbuf + 2;
 
             while (isdigit(*src) && rep < (int)sizeof(Buf) - 1)
+            {
                 Buf[rep++] = *src++;
+            }
             Buf[rep] = 0;
 
             char buf2[10];
@@ -1307,11 +1611,96 @@ int my_str_replace_space(char *sbuf)
     return 0;
 }
 
+// Removes control codes, keeping \n and \r. The old ESC + letter codes (see
+// mplex/translate.h) go whole, with the text the old protocol never showed:
+// ESC I .. ESC J, and ESC K..O name ESC P. Without a terminator only the code
+// goes, except a known colour name after ESC O. ANSI (ESC [ .. letter) goes too.
+static void str_rem_old_codes(char *s, const color_type *colours)
+{
+    char *d = s;
+
+    while (*s)
+    {
+        if ((unsigned char)*s < ' ' && *s != '\x1B')
+        {
+            if (*s == '\n' || *s == '\r')
+            {
+                *d++ = *s;
+            }
+            s++;
+            continue;
+        }
+        if (*s != '\x1B')
+        {
+            *d++ = *s++;
+            continue;
+        }
+
+        char code = s[1];
+
+        if (code == '[')
+        {
+            // ANSI: parameters up to and including the final letter
+            s += 2;
+            while (*s && !isalpha((unsigned char)*s))
+            {
+                s++;
+            }
+            if (*s)
+            {
+                s++;
+            }
+            continue;
+        }
+
+        if (!isalpha((unsigned char)code))
+        {
+            s++; // Not a code: drop the ESC, keep the character after it
+            continue;
+        }
+        s += 2;
+
+        char end = (code == 'I') ? 'J' : (code >= 'K' && code <= 'O') ? 'P' : 0;
+        if (!end)
+        {
+            continue;
+        }
+
+        const char terminator[] = {'\x1B', end, 0};
+        if (char *e = strstr(s, terminator))
+        {
+            s = e + 2;
+        }
+        else if (code == 'O' && colours)
+        {
+            // The whole word must be a colour name, so "time" doesn't match "timeless"
+            char *e = s;
+            while (isalnum((unsigned char)*e) || *e == '_')
+            {
+                e++;
+            }
+            std::string name(s, e - s);
+            std::string full_name;
+            if (!colours->get(name, full_name).empty() && full_name == name)
+            {
+                s = e;
+            }
+        }
+    }
+
+    *d = 0;
+}
+
 //
 // Changes old codes such as &l &c to HTML
 // Only used in char conversion of units < v70
 // so no bother with mem leaks of strings
-char *fix_old_codes_to_html(const char *c)
+char *fix_old_codes_to_html(const std::string &c, const color_type *colours)
+{
+    return fix_old_codes_to_html(c.c_str(), colours);
+}
+
+char *fix_old_codes_to_html(const char *c, const color_type *colours)
 {
     char buf[2 * MAX_STRING_LENGTH];
     int bPre = 0;
@@ -1319,8 +1708,7 @@ char *fix_old_codes_to_html(const char *c)
     assert(strlen(c) < sizeof(buf) / 2);
     strcpy(buf, c);
 
-    // Remove all codes (anything less than ' ')
-    str_rem_codes(buf);
+    str_rem_old_codes(buf, colours);
 
     // Make sure && is unique by using ESC which we just removed
     str_substitute("&&", "\x1B", buf);
@@ -1366,18 +1754,20 @@ char *fix_old_codes_to_html(const char *c)
     str_substitute(">", "&gt;", buf);
 
     // replace &s[0-9] with spaces
-    //sed -i -- 's/&s[0-9][0-9]/ /g' *.zon
+    // sed -i -- 's/&s[0-9][0-9]/ /g' *.zon
     // replace &s[00-99] with spaces
-    //sed -i -- 's/&s[0-9]/ /g' *.zon
+    // sed -i -- 's/&s[0-9]/ /g' *.zon
 
     str_substitute("&[default]", "</div>", buf);
 
     while (my_str_replace_space(buf))
+    {
         ;
+    }
 
     // I'm hoping this is not necessary to change
     // Replace &[name] with <div class='name'>
-    //sed -i -- 's/&\[\([^]]*\)\]/\<div class\=\x27\1\x27\>/g' *.zon
+    // sed -i -- 's/&\[\([^]]*\)\]/\<div class\=\x27\1\x27\>/g' *.zon
 
     str_substitute("\x1B", "&amp;", buf);
 
@@ -1392,14 +1782,14 @@ char *fix_old_codes_to_html(const char *c)
 
 /* Get the contents between <htmltag> and convert it to lowercase
  *    p must point to first <.
- *    Copies the tag between <> into pTag. 
- *    Copies at most nTagMax bytes (incl \0) 
+ *    Copies the tag between <> into pTag.
+ *    Copies at most nTagMax bytes (incl \0)
  *    returns position right after > and returns p if no >
  */
 const char *getHTMLTag(const char *p, char *pTag, int nTagMax)
 {
-    const char *c;
-    int n;
+    const char *c = nullptr;
+    int n = 0;
 
     *pTag = 0;
 
@@ -1408,15 +1798,19 @@ const char *getHTMLTag(const char *p, char *pTag, int nTagMax)
     p++; // Skip '<'
 
     c = strchr(p, '>');
-    if (c == NULL)
+    if (c == nullptr)
+    {
         return p;
+    }
 
     n = c - p + 1; // How many chars including \0
 
-    n = min(n, nTagMax);
+    n = std::min(n, nTagMax);
 
     for (int i = 0; i < n; i++)
+    {
         pTag[i] = tolower(*(p + i));
+    }
 
     pTag[n - 1] = 0;
 
@@ -1432,36 +1826,48 @@ const char *getHTMLTag(const char *p, char *pTag, int nTagMax)
  */
 int getHTMLValue(const char *name, const char *p, char *pTag, int nTagMax)
 {
-    const char *c;
+    const char *c = nullptr;
 
     *pTag = 0;
 
     c = strstr(p, name);
-    if (c == NULL)
+    if (c == nullptr)
+    {
         return 0;
+    }
 
     c += strlen(name);
     c = skip_blanks(c); // skip any whitespace before equal
     if (*c != '=')
+    {
         return 0;
+    }
     c++;                // skip equal
     c = skip_blanks(c); // skip any whitespace after equal
 
     if (*c != '\'')
+    {
         return 0;
+    }
 
     c++; // Skip '
 
-    const char *ce;
+    const char *ce = nullptr;
     ce = strchr(c, '\''); // Find the last ' for the value
-    if (ce == NULL)
+    if (ce == nullptr)
+    {
         return 0;
+    }
 
-    if (ce - c <= 1) // If the string is empty
+    if (ce - c <= 1)
+    { // If the string is empty
         return 0;
+    }
 
-    if (ce - c > nTagMax - 1) // Not enough space
+    if (ce - c > nTagMax - 1)
+    { // Not enough space
         return 0;
+    }
 
     strncpy(pTag, c, ce - c);
     pTag[ce - c] = 0;
@@ -1469,10 +1875,301 @@ int getHTMLValue(const char *name, const char *p, char *pTag, int nTagMax)
     return ce - c;
 }
 
-/* 
- * Given an HTML tag pOldTag without <>, change the value of the attribute pAttr to pNewVal 
+// Decodes the HTML entity that p starts with into out, for clients that
+// show text as it is: &amp; &lt; &gt; &quot; &apos; &nbsp; in any case, and
+// numeric ones (&#39; &#xA0;). Characters past ASCII are written as UTF-8,
+// and a no-break space as a plain blank. Returns how many bytes it wrote
+// (at most 4, the size out must have) and moves p past the entity, or
+// returns 0 and leaves p alone if p doesn't start one (or it would decode
+// to a control character).
+int decodeHTMLEntity(const char *&p, char *out)
+{
+    static const struct
+    {
+        const char *entity;
+        char c;
+    } named[] = {{"&amp;", '&'}, {"&lt;", '<'}, {"&gt;", '>'}, {"&quot;", '"'}, {"&apos;", '\''}, {"&nbsp;", ' '}};
+
+    if (p[0] != '&')
+    {
+        return 0;
+    }
+
+    if (p[1] != '#')
+    {
+        for (const auto &e : named)
+        {
+            size_t l = strlen(e.entity);
+            if (strncasecmp(p, e.entity, l) == 0)
+            {
+                out[0] = e.c;
+                p += l;
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    bool bHex = p[2] == 'x' || p[2] == 'X';
+    const char *digits = p + (bHex ? 3 : 2);
+    const char *d = digits;
+    unsigned long cp = 0;
+    for (; bHex ? isxdigit(static_cast<unsigned char>(*d)) : isdigit(static_cast<unsigned char>(*d)); d++)
+    {
+        cp = cp * (bHex ? 16 : 10) + (isdigit(static_cast<unsigned char>(*d)) ? *d - '0' : tolower(*d) - 'a' + 10);
+        if (cp > 0x10ffff)
+        {
+            return 0; // Past any character (checked each digit, so cp can't overflow)
+        }
+    }
+    if (d == digits || *d != ';')
+    {
+        return 0;
+    }
+
+    // Control characters would go to the terminal as they are (C1 ones too)
+    if (cp < ' ' || (cp >= 0x7f && cp < 0xa0) || (cp >= 0xd800 && cp <= 0xdfff))
+    {
+        return 0;
+    }
+    if (cp == 0xa0)
+    {
+        cp = ' ';
+    }
+
+    // UTF-8: the lead byte, then 6 bits in each continuation byte
+    static const unsigned char lead[] = {0, 0, 0xc0, 0xe0, 0xf0};
+    int n = cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4;
+    for (int i = n - 1; i > 0; i--)
+    {
+        out[i] = static_cast<char>(0x80 | (cp & 0x3f));
+        cp >>= 6;
+    }
+    out[0] = static_cast<char>(lead[n] | cp);
+
+    p = d + 1;
+    return n;
+}
+
+// True if s starts with an http:// or https:// address
+static bool isWebAddress(const char *s)
+{
+    return strncasecmp(s, "http://", 7) == 0 || strncasecmp(s, "https://", 8) == 0;
+}
+
+// The web address of an <a ...> tag, for clients that can't follow links.
+// tagText points just past the '<' in the original text, and the tag ends at
+// the first '>' (as for getHTMLTag()). It is read as sent, because
+// getHTMLTag() lowercases and addresses such as wiki pages are
+// case-sensitive. Unlike getHTMLValue(), this walks the attributes one by
+// one, so "href" must be a whole attribute name (any case, not part of
+// data-href or of another attribute's value), and the value may use either
+// quote, or none. Entities in the value (&amp; etc.) are decoded, a blank
+// from one (&nbsp;) written as %20 as it would split the printed address,
+// and control characters dropped.
+// Only http:// and https:// addresses count, so command links
+// (<a cmd='...'>) give nothing: pHref is then empty.
+void getHTMLLinkTarget(const char *tagText, char *pHref, int nHrefMax)
+{
+    const char *c = tagText;
+    const char *val = nullptr;
+    const char *valEnd = nullptr;
+
+    *pHref = 0;
+
+    while (*c && *c != '>' && !isspace(static_cast<unsigned char>(*c))) // Skip the element name
+    {
+        c++;
+    }
+
+    // Find the first href, as a browser does
+    for (;;)
+    {
+        while (isspace(static_cast<unsigned char>(*c)) || *c == '/')
+        {
+            c++;
+        }
+        if (*c == 0 || *c == '>')
+        {
+            return; // No href
+        }
+
+        const char *name = c;
+        while (*c && *c != '>' && *c != '=' && *c != '/' && !isspace(static_cast<unsigned char>(*c)))
+        {
+            c++;
+        }
+        bool bHref = c - name == 4 && strncasecmp(name, "href", 4) == 0;
+        val = valEnd = c; // No '=' means an empty value
+
+        c = skip_blanks(c);
+        if (*c == '=')
+        {
+            c = skip_blanks(c + 1);
+            char quote = (*c == '\'' || *c == '"') ? *c++ : 0;
+            val = c;
+            while (*c && *c != '>' && (quote ? *c != quote : !isspace(static_cast<unsigned char>(*c))))
+            {
+                c++;
+            }
+            valEnd = c;
+            if (quote && *c++ != quote)
+            {
+                return; // Not closed inside the tag
+            }
+        }
+
+        if (bHref)
+        {
+            break;
+        }
+    }
+
+    // Blanks around the address don't count, as in a browser
+    while (val < valEnd && isspace(static_cast<unsigned char>(*val)))
+    {
+        val++;
+    }
+    while (valEnd > val && isspace(static_cast<unsigned char>(valEnd[-1])))
+    {
+        valEnd--;
+    }
+
+    int n = 0;
+    for (const char *v = val; v < valEnd;)
+    {
+        // An entity can't run past valEnd: the quote, blank or '>' there
+        // can't be part of one. What it decodes to is never a control char.
+        char aChars[4];
+        int nChars = decodeHTMLEntity(v, aChars);
+        if (nChars == 1 && aChars[0] == ' ')
+        {
+            memcpy(aChars, "%20", 3); // Shorter than the entity: see AppendLinkAddress() in mplex
+            nChars = 3;
+        }
+        else if (nChars == 0)
+        {
+            // Control characters (newline, ESC, ...) would go to the terminal as
+            // they are, and 0xFF starts a telnet command (IAC); browsers drop tabs
+            // and newlines from addresses too
+            auto uch = static_cast<unsigned char>(*v++);
+            if (uch < ' ' || uch == 0x7f || uch == 0xff)
+            {
+                continue;
+            }
+            aChars[0] = static_cast<char>(uch);
+            nChars = 1;
+        }
+
+        if (n + nChars > nHrefMax - 1)
+        {
+            *pHref = 0;
+            return; // Not enough space
+        }
+        memcpy(pHref + n, aChars, nChars);
+        n += nChars;
+    }
+    pHref[n] = 0;
+
+    // Checked after decoding, as entities can spell the scheme too
+    if (!isWebAddress(pHref))
+    {
+        *pHref = 0;
+    }
+}
+
+// Whether c ends the name in a tag, as in <data>, <data/> or <data type=...>
+static bool isTagNameEnd(char c)
+{
+    return c == '>' || c == '/' || isspace(static_cast<unsigned char>(c));
+}
+
+// If p starts a <data> tag (any case), returns where the text after its
+// packet starts: past its </data>, or past the tag itself if it is
+// self-closed (<data/>). Without a '>' or a </data> the rest of the text is
+// data, so the end of it is returned. Returns p if p doesn't start one.
+const char *skipHTMLData(const char *p)
+{
+    if (p[0] != '<' || strncasecmp(p + 1, "data", 4) != 0 || !isTagNameEnd(p[5]))
+    {
+        return p;
+    }
+
+    const char *pEnd = p + strlen(p);
+    const char *gt = strchr(p + 5, '>');
+    if (gt == nullptr)
+    {
+        return pEnd;
+    }
+
+    const char *last = gt; // Just past the last char before the '>', blanks aside
+    while (isspace(static_cast<unsigned char>(last[-1])))
+    {
+        last--;
+    }
+    if (last[-1] == '/')
+    {
+        return gt + 1;
+    }
+
+    for (const char *c = strchr(gt, '<'); c; c = strchr(c + 1, '<'))
+    {
+        if (c[1] == '/' && strncasecmp(c + 2, "data", 4) == 0 && isTagNameEnd(c[6]))
+        {
+            gt = strchr(c + 6, '>');
+            return gt ? gt + 1 : pEnd;
+        }
+    }
+    return pEnd;
+}
+
+// True when p is nothing but <data> packets (blanks around them aside).
+bool str_is_html_data(const char *p)
+{
+    bool bData = false;
+
+    for (;;)
+    {
+        while (isspace(static_cast<unsigned char>(*p)))
+        {
+            p++;
+        }
+        if (*p == '\0')
+        {
+            return bData;
+        }
+
+        const char *pAfter = skipHTMLData(p);
+        if (pAfter == p)
+        {
+            return false;
+        }
+        p = pAfter;
+        bData = true;
+    }
+}
+
+std::string str_remove_html_data(const char *src)
+{
+    std::string dest;
+
+    for (const char *p = src; *p;)
+    {
+        const char *pAfter = skipHTMLData(p);
+        if (pAfter != p)
+        {
+            p = pAfter;
+            continue;
+        }
+        dest.push_back(*p++);
+    }
+    return dest;
+}
+
+/*
+ * Given an HTML tag pOldTag without <>, change the value of the attribute pAttr to pNewVal
  * and put the result in pNewTag
- * 
+ *
  * pOldTag: the HTML tag, e.g. div class='default'
  * pATtr    the attribute to change, e.g. class
  * pNewVal  the new value to put into the class, e.g. hello
@@ -1482,23 +2179,29 @@ int getHTMLValue(const char *name, const char *p, char *pTag, int nTagMax)
  */
 int substHTMLTagClass(const char *pOldTag, const char *pAttr, const char *pNewVal, char *pNewTag, int nTagMax)
 {
-    const char *c;
+    const char *c = nullptr;
 
     *pNewTag = 0;
 
     c = strstr(pOldTag, pAttr);
-    if (c == NULL)
+    if (c == nullptr)
+    {
         return 0;
+    }
 
     c += strlen(pAttr);
     c = skip_blanks(c); // skip any whitespace before equal
     if (*c != '=')
+    {
         return 0;
+    }
     c++;                // skip equal
     c = skip_blanks(c); // skip any whitespace after equal
 
     if (*c != '\'')
+    {
         return 0;
+    }
 
     c++; // Skip '
 
@@ -1507,22 +2210,28 @@ int substHTMLTagClass(const char *pOldTag, const char *pAttr, const char *pNewVa
     strcat(pNewTag, pNewVal); // Copy in the new value
     strcat(pNewTag, "\'");    // Add the ending '
 
-    const char *ce;
+    const char *ce = nullptr;
 
     c = strchr(c, '\''); // Find the last ' for the value
-    if (c == NULL)       // Missing ending '
+    if (c == nullptr)
+    { // Missing ending '
         return 0;
+    }
 
     c++; // Skip the '
 
     ce = c;
     TAIL(ce); // find the remaineder of the string
 
-    if (ce - c <= 0) // If the string is empty, we are done
+    if (ce - c <= 0)
+    { // If the string is empty, we are done
         return 1;
+    }
 
-    if (strlen(pNewTag) + strlen(c) >= (size_t)nTagMax - 1) // Not enough space
+    if (strlen(pNewTag) + strlen(c) >= (size_t)nTagMax - 1)
+    { // Not enough space
         return 0;
+    }
 
     strcat(pNewTag, c);
 
@@ -1532,18 +2241,17 @@ int substHTMLTagClass(const char *pOldTag, const char *pAttr, const char *pNewVa
 // given the attribute colorstr return <div class='colorstr'>. Dont make colorstr too insanely long.
 const char *divcolor(const char *colorstr)
 {
-    static char buf[256];
+    static std::string buf;
 
-    sprintf(buf, "<div class='%s'>", colorstr);
+    buf = diku::format_to_str("<div class='%s'>", colorstr);
 
-    return buf;
+    return buf.c_str();
 }
-
 
 // Encode str to JSON encoding (format X)
 std::string str_json_encode(const char *str)
 {
-    string s;
+    std::string s;
 
     s = str;
 
@@ -1556,18 +2264,18 @@ std::string str_json_encode(const char *str)
 // As str_json_encode but wraps string in quotes
 std::string str_json_encode_quote(const char *str)
 {
-    string s;
+    std::string s;
 
     s = "\"";
     s.append(str_json_encode(str));
     s.append("\"");
 
     return s;
-} 
+}
 
 std::string str_json(const char *lbl, ubit64 nInt)
 {
-    string s;
+    std::string s;
 
     s.append("\"");
     s.append(str_json_encode(lbl));
@@ -1580,7 +2288,7 @@ std::string str_json(const char *lbl, ubit64 nInt)
 
 std::string str_json(const char *lbl, const char *str)
 {
-    string s;
+    std::string s;
 
     s.append("\"");
     s.append(lbl);
@@ -1588,7 +2296,9 @@ std::string str_json(const char *lbl, const char *str)
     s.append(": ");
     s.append("\"");
     if (str)
+    {
         s.append(str_json_encode(str));
+    }
     s.append("\"");
 
     return s;
@@ -1599,35 +2309,44 @@ std::string str_json(const char *lbl, const std::string &str)
     return str_json(lbl, str.c_str());
 }
 
-
-// Kind of like strncmp except it returns true if the string matches 
+// Kind of like strncmp except it returns true if the string matches
 // up to the first \0 character. Necessary hack as a bridge between
-// old and new password system to both rectify incorrect salt in 
+// old and new password system to both rectify incorrect salt in
 // set pwd <player> and to handle increase in stored password length
 // return 0 = match, 1 = differ
 int pwdcompare(const char *p1, const char *p2, int nMax)
 {
-    int i;
+    int i = 0;
 
-    if ((p1 == NULL) || (p2 == NULL))
+    if ((p1 == nullptr) || (p2 == nullptr))
+    {
         return 1;
+    }
 
-    for (i=0; i < nMax; i++)
+    for (i = 0; i < nMax; i++)
     {
         if (p1[i] != p2[i])
         {
             if ((p1[i] == 0) || (p2[i] == 0))
             {
                 if (i < 10)
+                {
                     return 1;
+                }
                 else
-                    return 0;                
+                {
+                    return 0;
+                }
             }
             else
+            {
                 return 1;
+            }
         }
-        else if (p1[i] == 0) // They are both zero
+        else if (p1[i] == 0)
+        { // They are both zero
             return 1;
+        }
     }
 
     return 0;

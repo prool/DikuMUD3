@@ -28,6 +28,87 @@ creators {"quinn","god","gnort","carter","cabal"}
 
 %dil
 
+
+// For example call with SFB_CMD, "SFB_CMD"
+dilbegin aware listener(waitflag : integer, waitstring: string);
+var
+  as : string;
+  ms : string;
+  ts : string;
+  tt : string;
+  cs : string;
+  ecs : string;
+  args : string;
+code
+{
+   heartbeat := PULSE_SEC *30;
+
+:start:
+   wait(waitflag, TRUE);
+
+   if (command(CMD_AUTO_TICK))
+      tt := "CMD_AUTO_TICK";
+   else if (command(CMD_AUTO_COMBAT))
+      tt := "CMD_AUTO_COMBAT";
+   else if (command(CMD_AUTO_DEATH))
+      tt := "CMD_AUTO_DEATH";
+   else if (command(CMD_AUTO_UNKNOWN))
+      tt := "CMD_AUTO_UNKNOWN";
+   else if (command(CMD_AUTO_EXTRACT))
+      tt := "CMD_AUTO_EXTRACT";
+   else if (command(CMD_AUTO_MSG))
+      tt := "CMD_AUTO_MSG";
+   else if (command(CMD_AUTO_SAVE))
+      tt := "CMD_AUTO_SAVE";
+   else if (command(CMD_AUTO_ENTER))
+      tt := "CMD_AUTO_ENTER";
+   else if (command(CMD_AUTO_DAMAGE))
+      tt := "CMD_AUTO_DAMAGE";
+   else if (command(CMD_AUTO_PLAY))
+      tt := "CMD_AUTO_PLAY";
+   else if (command(CMD_AUTO_LEAVE))
+      tt := "CMD_AUTO_LEAVE";
+   else if (command(CMD_AUTO_EDIT))
+      tt := "CMD_AUTO_EDIT";
+   else
+      tt := "CMD_AUTO UNKNOWN";
+
+   if (activator)
+      as := activator.symname;
+   else
+      as := "no-activator";
+
+   if (medium)
+      ms := medium.symname;
+   else
+      ms := "no-medium";
+
+   if (target)
+      ts := target.symname;
+   else
+      ts := "no-target";
+
+   if (cmdstr)
+      cs := cmdstr;
+   else
+      cs := "NULL";
+
+   if (excmdstr)
+      ecs := excmdstr;
+   else
+      ecs := "NULL";
+
+   if (argument)
+      args := argument;
+   else
+      args := "NULL";
+
+   log(waitstring + ",  "+tt+",  activator="+as+ ",  excmdstr="+ecs+",  cmdstr="+cs+",  argument="+args+",  medium="+ms+",  target="+ts);
+   goto start;
+}
+dilend
+
+
 dilbegin do_plog(arg:string);
 var
  u:unitptr;
@@ -37,7 +118,7 @@ code
 
 if (arg=="")
 {
-sendtext ("Log who?",self);
+sendtext ("Log who?<br/>",self);
 quit;
 }
 
@@ -112,7 +193,7 @@ block;
 if (argument=="off")
   quit;
 
-  sendtext ("You must type tester off",self);
+  sendtext ("You must type tester off<br/>",self);
 
   goto start;
 
@@ -200,7 +281,7 @@ if (getword(argument) != self.name)
 if (getword(argument) != itoa(ID))
     goto start;
 
-sendtext ("Watchdog "+itoa(ID)+": "+argument, self);
+sendtext ("Watchdog "+itoa(ID)+": "+argument+"<br/>", self);
 goto start;
 }
 
@@ -241,8 +322,8 @@ goto loop;
 if (self.outside.zoneidx=="g_q")
 	{
 	log (self.outside.name+" cheating with power items and familiar");
-	sendtext ("You were caught cheating with your familiar and power items and are logged<br/>",self.outside.outside);
-	sendtext ("Your familiar and all on it have been destroyed.",self.outside.outside);
+	sendtext ("You were caught cheating with your familiar and power items and are logged.<br/>",self.outside.outside);
+	sendtext ("Your familiar and all on it have been destroyed.<br/>",self.outside.outside);
 	destroy (self);
 	}
 
@@ -258,10 +339,10 @@ if (self.outside.zoneidx=="g_q")
       if ((self.outside.type == UNIT_ST_PC) and (self.outside.level>220))
 	goto loop;
 
-      act("Powerful energy from the $3n shocks you, "+
+      act("Powerful energy from $3n shocks you, "+
 	  "it falls to the ground.",
 	  A_ALWAYS, self.outside, null, self, TO_CHAR);
-      act("Powerful energy from the $3n shocks $1n, "+
+      act("Powerful energy from $3n shocks $1n, "+
 	  "it falls to the ground.",
 	  A_ALWAYS, self.outside, null, self, TO_ROOM);
 
@@ -282,7 +363,7 @@ if (self.outside.zoneidx=="g_q")
    pause;
    if (self.outside.type == UNIT_ST_PC)
    {
-      if (isset(PC_SPIRIT, self.outside.pcflags))
+      if (isset(self.outside.pcflags, PC_SPIRIT))
          goto loop2;
 
       self.minv := 0;
@@ -319,8 +400,8 @@ code
    p := findunit(activator, argument, FIND_UNIT_HERE, null);
    if ((p == null) or (p.type != UNIT_ST_PC))
    {
-      act("No such player here to remake $2n for.",
-          A_HIDEINV, activator, p, null, TO_CHAR);
+      act("No such player here.",
+          A_HIDEINV, activator, null, null, TO_CHAR);
       goto start;
    }
 
@@ -391,8 +472,8 @@ addp (arg_2,paper);
 exec ("emote places the "+arg_1+" into a slot in the wall.",self);
 act ("You hear a large machine behind the wall grumble to life.",
 A_ALWAYS,self,null,null,TO_ALL);
-exec ("say Well thats all there is to it.",self);
-exec ("say Your article should be in the next issue of the paper.  buy one and see", self);
+exec ("say Well, that's all there is to it.",self);
+exec ("say Your article should be in the next issue of the paper. Buy one and see.", self);
 goto start;
 
 :no_subject:
@@ -440,7 +521,7 @@ else if (command("say"))
 /*  This specifies what happens if the pc says something */
 
 pause;
-exec("say Nod if it is what you want, shake your head" +
+exec("say Nod if it is what you want, shake your head " +
 "otherwise.", self);
 }
 else if (command("shake"))
@@ -516,8 +597,7 @@ title "The Grand Quest Hall"
 descr
 "    You have arrived in the vaulted Quest Hall, where gods discuss
 the tasks they will set for mortals. Many devious schemes and terrible
-secrets have echoed of its ancient stones. The owners of this place
-obviously have no need of exits, as none are provided."
+secrets have echoed off its ancient stones."
 movement SECT_INSIDE
 flags {UNIT_FL_SACRED}
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS, UNIT_FL_NO_TELEPORT}
@@ -546,7 +626,7 @@ title "The Hall of History"
 descr
 "
 The Hall of history, a swirling chaos of things that might have been
-and things that might be, is as insubstantial as it is vast and exitless.
+and things that might be, is as insubstantial as it is vast.
 Occasionally, lumps of potential history form here for the review of
 the gods, before being dumped into the mortal world."
 movement SECT_INSIDE
@@ -561,13 +641,40 @@ end
 
 			       papis_cottage
 
+names {"Papi's Cottage"}
 title "Papi's Cosy Cottage"
 descr
-" You are inside Papi's small wooden cottage. A fireplace is placed against
-the north wall and a large rocking chair is placed in front of the fire."
+"     You find yourself in a cozy, single-roomed cottage belonging to the god Papi. The warm, inviting atmosphere is created by the flickering glow of a stone fireplace in the center of the room. A comfortable-looking rocking chair sits near the fire, inviting you to take a moment of respite from your adventures. Intricate tapestries and Papi's personal mementos adorn the walls, providing a glimpse into the deity's life and interests.
+
+The room has no windows or doors, giving it an air of seclusion and privacy. The only visible exit is a set of enigmatic stairs leading down into darkness. At the bottom of the stairs, a shimmering portal beckons, with the faint inscription 'ᚡᚨᛚᚺᚯᛚᛚ' etched onto its surface. Once you descend, there's no turning back."
 flags {UNIT_FL_SACRED}
 flags {UNIT_FL_NO_WEATHER, UNIT_FL_INDOORS, UNIT_FL_NO_TELEPORT}
-up to papis_cottage;
+
+down to temple@udgaard descr
+"As you peer down the stairs, the mysterious portal emits a soft, otherworldly glow, inviting you to step through and leave the comfort of Papi's cottage behind.";
+
+extra {"fireplace", "stone fireplace"}
+"The beautifully crafted stone fireplace radiates warmth and comfort, casting flickering shadows across the room. It seems to be a testament to Papi's appreciation for the simple pleasures in life."
+
+extra {"rocking chair", "chair"}
+"The sturdy wooden rocking chair, well-worn from years of use, promises relaxation and serenity as it gently sways near the crackling fireplace."
+
+extra {"tapestries", "mementos"}
+"Exquisite tapestries and personal mementos cover the walls, telling the stories of Papi's divine journeys and the many souls touched along the way."
+
+// When the server comes up, send a message to the builder channel.
+// I'd like to know when the server (re)boots.
+//
+dilbegin BootToDiscord();
+code
+{
+   heartbeat := PULSE_SEC * 4;
+   pause;
+   pause;
+   dispatch("discord msg #build **BOOTING** Valhalla MUD.");
+   quit;
+}
+dilend
 end
 
 
@@ -603,7 +710,7 @@ end
 names "board_room"
 title "The Board Room of the Gods"
 descr
-"  You are floating in a endless void, infinity surrounding you on all sides.
+"  You are floating in an endless void, infinity surrounding you on all sides.
 The effect on your eyes and mind is a soothing one. By some freak accident of
 nature there is a pleasant little sofa group right next to you, set for tea."
 extra {"sofa group", "sofa"}
@@ -727,11 +834,11 @@ Valhalla is operated.<br/><br/>
 
 The Valhalla engine is being licensed out to different
 people interested in running a mud in a more professional manner. Currently,
-there is a Valhalla in Cananda, Denmark, California and Singapore. With these
+there is a Valhalla in Canada, Denmark, California and Singapore. With these
 engines come a stock of zones (write: look stock zones to see a
 listing of these zones).<br/><br/>
 
-Be sure that you read the builders agreement on the web site. The zones you
+Be sure that you read the builders' agreement on the web site. The zones you
 build here will only be used on Valhalla USA. If you currently
 have a zone 'out there' which you would like removed, please mail Papi and
 he will take care of it."
@@ -765,8 +872,8 @@ end
 names "gnort_home"
 title "Gnort's Hangout"
 descr
-"   Nothing much, just a wellstocked virtual bar and an unspecified number of a
-counting lounge chair. So called as noone has yet managed to count it."
+"   Nothing much, just a well-stocked virtual bar and an unspecified number of a
+counting lounge chair. So called as no one has yet managed to count it."
 flags {UNIT_FL_SACRED}
 flags {UNIT_FL_NO_WEATHER,UNIT_FL_INDOORS,UNIT_FL_PRIVATE,UNIT_FL_NO_TELEPORT}
 /*special SFUN_SOFA*/
@@ -781,9 +888,9 @@ nature brought you here, as no visible entries or exits are present. As you
 examine the room, you are struck with awe and wonder at the beauty of it.
 There are large paintings and etchings in the walls, representing the Lir of
 the world. The edge of the room is bathed in shadows, indicating the presence
-of strong magical powers, as the walls themselves glow with in inner light.
+of strong magical powers, as the walls themselves glow with an inner light.
 Standing in the midst of this beauty, you feel like a trespasser, not sure if
-you have violated someones sense of privacy. There is a musky, unfamiliar scent
+you have violated someone's sense of privacy. There is a musky, unfamiliar scent
 in the air, as if you were in the den of a pack of Wolves."
 flags {UNIT_FL_SACRED}
 flags {UNIT_FL_NO_WEATHER,UNIT_FL_INDOORS,UNIT_FL_PRIVATE,UNIT_FL_NO_TELEPORT}
@@ -803,13 +910,46 @@ end
 			aaaaa
 title "The Wiz Zone"
 descr
-"You are in the Wiz zone, be sure to visit the Builder's Bar"
+"You are in the Wiz zone, be sure to visit the Builders' Bar."
 flags {UNIT_FL_SACRED}
 flags {UNIT_FL_NO_WEATHER,UNIT_FL_INDOORS,UNIT_FL_PRIVATE,UNIT_FL_NO_TELEPORT}
 end
 
 
 %mobiles
+
+
+                           messenger
+
+names {"small messenger", "messenger"}
+title "a small messenger"
+descr "A small messenger is standing here."
+weight 10
+extra {}
+"He's tiny. As you look at him he mouths the words to you 'Don't kill the messenger'."
+
+BASE_NORSE_GOD(1, SEX_MALE, ARM_CLOTHES)
+
+dilcopy listener@wiz(SFB_CMD, "SFB_CMD");
+dilcopy listener@wiz(SFB_TICK, "SFB_TICK");
+dilcopy listener@wiz(SFB_DEAD, "SFB_DEAD");
+dilcopy listener@wiz(SFB_COM, "SFB_COM");
+dilcopy listener@wiz(SFB_MSG, "SFB_MSG");
+dilcopy listener@wiz(SFB_SAVE, "SFB_SAVE");
+dilcopy listener@wiz(SFB_AWARE, "SFB_AWARE");
+dilcopy listener@wiz(SFB_ACTIVATE, "SFB_ACTIVATE");
+dilcopy listener@wiz(SFB_PRE, "SFB_PRE");
+dilcopy listener@wiz(SFB_DONE, "SFB_DONE");
+dilcopy listener@wiz(SFB_EDIT, "SFB_EDIT");
+dilcopy listener@wiz(SFB_DILDESTROY, "SFB_DILDESTROY");
+dilcopy listener@wiz(SFB_PROMPT, "SFB_PROMPT");
+dilcopy listener@wiz(SFB_NOOP, "SFB_NOOP");
+dilcopy listener@wiz(SFB_PRIORITY, "SFB_PRIORITY"); // Shouldn't be activated
+dilcopy listener@wiz(SFB_RANTIME, "SFB_RANTIME"); // Shouldn't be activated
+
+end
+
+
 
      odin
 
@@ -827,10 +967,10 @@ end
 /* God of death */
 names {"reboot daemon", "daemon"}
 title "a reboot daemon"
-descr "A reboot daemon is playing here"
+descr "A reboot daemon is playing here."
 extra {}
 "Even though she's a daemon she looks quite harmless. But with daemons you just 
-never really know, do you. You probably shouldn't <a cmd='# daemon'>ruffle</a> its hair.
+never really know, do you? You probably shouldn't <a cmd='# daemon'>ruffle</a> her hair.
 If a reboot kicks off and you change your mind you can try to kill the daemon to prevent
 a reboot."
 BASE_DEMON_LESSER(1, SEX_FEMALE, ARM_CLOTHES)
@@ -852,7 +992,7 @@ code
    if (activator.level < 254)
    {
       act("$3n bites you very hard in your finger.", A_ALWAYS, activator, null, self, TO_CHAR);
-      act("$3n bites $1n  very hard in $1s finger.", A_ALWAYS, activator, null, self, TO_CHAR);
+      act("$3n bites $1n very hard in $1s finger.", A_ALWAYS, activator, null, self, TO_ROOM);
       if (activator.hp > 1)
          activator.hp := 1;
       goto start;
@@ -871,10 +1011,11 @@ code
    no := 0;
    u := ghead();
 
+   // Helper agents ($agent in their info) don't hold up a reboot; the shutdown saves them
    while (u.type == UNIT_ST_PC)
    {
       no := no + 1;
-      if (u.level < 200)
+      if ((u.level < 200) and (not ("$agent" in u.info)))
          i := i + 1;
       u := u.gnext;
    }
@@ -902,6 +1043,19 @@ end
 
 
 %objects
+
+                                  bag
+
+names {"bag", "wizard bag", "wizard's bag"}
+title "a wizard's bag"
+descr "A wizard's bag has been left here."
+manipulate {MANIPULATE_TAKE, MANIPULATE_HOLD, MANIPULATE_ENTER}
+CONTAINER_DEF(75)
+weight 2
+cost 5   IRON_PIECE
+dilcopy bagofholding@randomt(75, 2, 400);
+end
+
 
                            universe
 
@@ -943,7 +1097,7 @@ code
 
    i := shell("adopt.sh");
    act("You initiate the universe adoption process. *click* ("+itoa(i)+")", A_ALWAYS, pc, null, self, TO_CHAR);
-   act("$3n initiates the universe adoption process.", A_ALWAYS, pc, null, self, TO_ROOM);
+   act("$1n initiates the universe adoption process.", A_ALWAYS, pc, null, self, TO_ROOM);
    pause;
    act("Strange <a cmd='look #'>symbols</a> begin floating around the parallel universe.", A_ALWAYS, pc, null, self, TO_CHAR);
    unsecure(pc);
@@ -1010,6 +1164,7 @@ code
    wait(SFB_CMD, command("press") or command("push"));
 
    block;
+   pc := activator;
 
    if (argument != "button")
    {
@@ -1017,7 +1172,6 @@ code
       goto start;      
    }
 
-   pc := activator;
    if (pc.level < 254)
    {
       act("The button says 'clank' rather than 'click'. You don't seem to have the right divine touch.", A_ALWAYS, pc, null, self, TO_CHAR);
@@ -1072,6 +1226,54 @@ dilend
 end
 
 
+                  guild_advancer
+
+names {"gnarly wand", "wand"}
+title "a gnarly wand"
+descr "A gnarly wand is here."
+manipulate {MANIPULATE_TAKE}
+type ITEM_OTHER
+weight 1
+extra {}
+"<pre>Usage: guildup &lt;playername&gt;
+
+Will advance player's current guild level.
+</pre>"
+
+dilbegin gnarlywand();
+external
+  AdvGuildLevel@guilds(ch : unitptr);
+var
+  pc : unitptr;
+code
+{
+:start:
+   wait(SFB_CMD, command("guildup"));
+   if (activator != self.outside)
+      goto start;
+   if (activator.level < 255)
+   {
+      log("Not level 255");
+      goto start;
+   }
+   block;
+
+   pc := findunit(activator, argument, FIND_UNIT_SURRO, null);
+
+   if (pc == null)
+   {
+      log("No player");
+      goto start;
+   }
+
+   AdvGuildLevel@guilds(pc);
+
+   goto start;
+}
+dilend
+end
+
+
                            sticker
 
 names {"sticker"}
@@ -1082,7 +1284,7 @@ type ITEM_OTHER
 weight 1
 extra {}
 "Usage:<br/>
-personal <playername> <item>"
+personal &lt;playername&gt; &lt;item&gt;"
 
 dilcopy make_personal@wiz();
 
@@ -1093,10 +1295,10 @@ end
 names {"dil_board", "board"}
 title "the dil board"
 descr
-"In the middle of the void a bulletin board hangs unexplicably."
+"In the middle of the void a bulletin board hangs inexplicably."
 dilcopy board@boards("dil","","rem_res@boards","",100);
 
-HIT_TRANSFER(+5)
+HIT_TRANSFER(BONUS_EXCELLENT_PLUS)  // Xyzzy: +5
 
 end
 
@@ -1112,7 +1314,7 @@ end
 names {"wiz_board", "board"}
 title "the wizard board"
 descr
-"In the middle of the void a bulletin board hangs unexplicably."
+"In the middle of the void a bulletin board hangs inexplicably."
 dilcopy board@boards("wiz","admin_res@boards","admin_res@boards","admin_res@boards",100);
 end
 
@@ -1165,7 +1367,7 @@ code
           A_SOMEONE,targ,self,null,TO_REST);
           pc:=findunit (targ,"whistler",FIND_UNIT_WORLD,null);
 if (not ("$nobell" in pc.quests))
-          act ("You here a loud bell clanging ... someone wants coffee!.",
+          act ("You hear a loud bell clanging... someone wants coffee!",
           A_ALWAYS,pc,null,null,TO_CHAR);
           unsecure (targ);
       goto start;

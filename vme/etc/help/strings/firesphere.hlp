@@ -1,10 +1,31 @@
-The spells in this sphere allows you co conjure and control fire.<br/><br/>
-<br/>
-    Burn<br/>
-    Fireball<br/>
-    Firestorm<br/>
-    Fire blast<br/>
-<br/><br/>
-<br/>
-Try help on the individual spells.<br/><br/>
-<br/>
+<div class="mw-parser-output"><h1>Fire Sphere</h1>
+<p>The spells of the fire sphere burn: the sorcerers' bolts and storms of flame, the dark knights' hellfire and brimstone, and the burning rays of the sun. How strongly one burns depends on your skill in that spell and your magic; the sun spells and the dark knights' fires draw on your divine power instead.
+</p><p>The sphere itself is a category. It can't be practised: it rises by itself to half your best spell in it. It counts when you resist: against a fire spell aimed at you, you defend with your brain and the better of your fire sphere or half your skill in that spell (see <a cmd='#'>Help Spheres</a>). To resist fire better, see <a cmd='#'>Help Heat Resistance</a>; dragons may also breathe fire (see <a cmd='#'>Help Breath</a>).
+</p><p>The spells, and who teaches them (guild level, and how far when a guild teaches less than 100%):
+</p>
+<pre>sun ray       healer 31 (up to 80%), druid 41
+fire breath   no guild teaches it
+sun beam      druid 24, healer 26 (up to 80%)
+solar flare   druid 110
+burn          sorcerer 0
+fireball      sorcerer 14
+firestorm     sorcerer 28
+fire blast    sorcerer 150
+lava flow     dark knight 11
+hellfire      dark knight 32
+brimstone     dark knight 80
+soulfire      dark knight 100
+</pre>
+<p>Each spell has its own help: help and the spell's name.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Spheres</a>
+&gt; <a cmd='#'>Help Heat Resistance</a>
+&gt; <a cmd='#'>Help Sorcerer Spells</a>
+</pre>
+
+
+
+
+</div>

@@ -266,6 +266,13 @@ reset RESET_NOT
 
 %dil
 
+// Just to get rid of this on old players.
+dilbegin witness_timer();
+code
+{
+   quit;
+}
+dilend
 
 // =================================================
 // MS Sample code BEGIN
@@ -377,7 +384,7 @@ code
       {
          log("debug: PC "+criminal_symname+ " " + itoa(criminal_idx) + " is offline.");         
       }
-      else
+/*      else
       {
          log("debug: NPC "+criminal_symname+ " " + itoa(criminal_idx) + " is gone.");
          // The NPC is dead. So no more reward accumulation. 
@@ -385,29 +392,29 @@ code
          // be cashed in? I dont think we should go through the trouble and 
          // update the reard info on a head.
          //
-         return(0);
-      }
+      }*/
+      return(0);
    }
-   else // criminal != null
+
+   // Criminal != null
+   s := "$reward "+juris;
+   exd_char_reward := s in criminal.extra;
+
+   if (exd_char_reward == null)
    {
-      s := "$reward "+juris;
+      // Create blank $reward
+      namesl := {"$reward"};
+      addstring(namesl, "$reward " + juris);
+      addstring(namesl, "0"); // Gold
+      addstring(namesl, "0"); // XP
+      addstring(namesl, "0"); // Crime severity counter
+      addextra(criminal.extra, namesl, "");
       exd_char_reward := s in criminal.extra;
-      if (exd_char_reward == null)
-      {
-         // Create blank $reward
-         namesl := {"$reward"};
-         addstring(namesl, "$reward " + juris);
-         addstring(namesl, "0"); // Gold
-         addstring(namesl, "0"); // XP
-         addstring(namesl, "0"); // Crime severity counter
-         addextra(criminal.extra, namesl, "");
-         exd_char_reward := s in criminal.extra;
-      }
    }
 
    s := "$reward "+criminal.symname+" "+itoa(criminal.idx);
    sj:= s + " "+juris; 
-  exd_db_reward := sj in database.extra;
+   exd_db_reward := sj in database.extra;
 
    if (exd_db_reward == null)
    {
@@ -428,7 +435,7 @@ code
    // so let's update them. We know for sure we have the DB.
    // Criminal might be offline
 
-  cnt := atoi(exd_db_reward.names.[4]); // Crime Counter
+   cnt := atoi(exd_db_reward.names.[4]); // Crime Counter
    if (cnt == -1)
        return(0);  //char is in jail.  No crime score updates while in jail..
    if ("@_players" in criminal_symname)
@@ -475,21 +482,20 @@ code
    // [32..63] You're wanted alive by the guards. They'll try to arrest you.
    // [64..]   You're wanted dead or alive.
    if ((cnt > 31) and (cnt < 64))
-      {
-        // s := "A reward of " + s + " has been offered for the arrest of "+criminal.name;
-        // Changed this to fit this into the Arrest and jail time jailstay@midgaard DIL.
-        // --Dave
-         s := criminal.name + " is wanted for imprisonment."; 
-        set_char_flags@justice(criminal, "arrest");
-      }
-
+   {
+      // s := "A reward of " + s + " has been offered for the arrest of "+criminal.name;
+      // Changed this to fit this into the Arrest and jail time jailstay@midgaard DIL.
+      // --Dave
+      s := criminal.name + " is wanted for imprisonment."; 
+      set_char_flags@justice(criminal, "arrest");
+   }
    else if (cnt >= 64)
-     {
-       s := "A reward of " + s + " has been offered for the head of "+criminal.name;
-       set_char_flags@justice(criminal, "wanted");
-     }
-else
-     {
+   {
+      s := "A reward of " + s + " has been offered for the head of "+criminal.name;
+      set_char_flags@justice(criminal, "wanted");
+   }
+   else
+   {
        // I think it would be cool if players what have this score would start getting comments
        // from guards letting them know they are being watched.  Currently this score will not
        // be displayed on the wanted_poster.
@@ -497,7 +503,7 @@ else
 
        s := "On notice";
        set_char_flags@justice(criminal, "onnotice");
-     }
+   }
 
    exd_db_reward.descr := s;
    if (exd_char_reward)
@@ -517,6 +523,79 @@ else
    // all $reward on the board that matches his symname.
    //
    return(1);
+}
+dilend
+
+
+// Called via make_corpse when a unit is killed to clean up justice
+// 'self' is killed. crp is the corpse.
+//
+dilbegin die(crp : unitptr);
+var
+   jd : unitptr;
+   exd : extraptr;
+code
+{
+   // Copy any reward infor to corpse
+   //
+   exd := "$reward" in self.extra;
+
+   while (exd)
+   {
+      addextra(crp.extra, exd.names, exd.descr);
+      exd := "$reward" in exd.next;
+   }
+
+   if (self.type==UNIT_ST_PC)
+   {      
+      jd := findsymbolic("database@justice");
+  
+      //remove all entreis from the justice database
+      subextra(jd.extra, self.name);
+   }
+
+   return;
+}
+dilend
+
+
+// FindCriminal
+//    Given a name, locate it in the reward list.
+//
+dilbegin unitptr FindCriminal(criminalName : string);
+var
+   jd : unitptr;
+   u : unitptr;
+   jd_exp : extraptr;
+   sl : stringlist;
+
+code
+{
+   jd := findsymbolic("database@justice");
+   jd_exp := jd.extra;
+
+   while (jd_exp)
+   {
+      if (length(jd_exp.names) < 1)
+         goto skipit;
+
+      sl := split(jd_exp.name, " ");
+
+      if (sl.[0] == "$reward")
+      {          
+         u := findsymbolic(sl.[1], atoi(sl.[2]));
+
+         if (u)
+            if (criminalName in u.names)
+               return (u);
+      } 
+
+      :skipit:
+      jd_exp := jd_exp.next;
+   }
+
+   u := null;
+   return (u);
 }
 dilend
 
@@ -615,6 +694,7 @@ nextdude : extraptr;;
 jd_exp : extraptr;
 ch_exp : extraptr;
 ch_key : string;
+removed : integer;
 code 
 {
   jd := findsymbolic("database@justice");
@@ -628,7 +708,10 @@ jd_exp := jd.extra;
  if (left(jd_exp.name, 7) == "$reward")  
    { 
      if (jd_key == jd_exp.names.[0])
-     subextra(jd.extra, jd_exp.names.[0]); 
+     {
+       subextra(jd.extra, jd_exp.names.[0]); 
+       removed := TRUE;
+     }
    } 
     jd_exp := nextdude;
   }  
@@ -642,6 +725,9 @@ jd_exp := jd.extra;
    ch_exp := nextdude;
   }
 //log("Cleared all char reward extras from "+criminal.name);
+// every death comes here: save only when the database changed
+if (removed)
+   sendto("save", jd);
 return;
 }
 else
@@ -686,45 +772,46 @@ return(FALSE);
 }
 dilend
 
+
+
 //DIL to set char flags for criminals
 // "normal" - sets outlaw off and protected on.
 // "arrest" - sets outlaw on and protected on.
 // "wanted" - outlaw is on and protected os off.
 // "onnotice" - sets outlaw off and protected off.
-
+//
 dilbegin set_char_flags(char : unitptr, setting : string);
 
 code
 {
    if (setting == "normal")
    {
-      if(isset(self.charflags, CHAR_OUTLAW))
+      if(isset(char.charflags, CHAR_OUTLAW))
          unset(char.charflags, CHAR_OUTLAW);
-      if(not(isset(self.charflags, CHAR_PROTECTED)))
+      if(not(isset(char.charflags, CHAR_PROTECTED)))
          set(char.charflags, CHAR_PROTECTED);
    }
    else if (setting == "wanted")
    {
-      if(isset(self.charflags, CHAR_PROTECTED))
+      if(isset(char.charflags, CHAR_PROTECTED))
          unset(char.charflags, CHAR_PROTECTED);
-      if(not(isset(self.charflags, CHAR_OUTLAW)))
+      if(not(isset(char.charflags, CHAR_OUTLAW)))
          set(char.charflags, CHAR_OUTLAW);
    }
    else if (setting == "arrest")
       set(char.charflags, CHAR_OUTLAW | CHAR_PROTECTED); //set protection flags
    else if (setting == "onnotice")
    {
-      if(isset(self.charflags, CHAR_OUTLAW))
+      if(isset(char.charflags, CHAR_OUTLAW))
          unset(char.charflags, CHAR_OUTLAW);
-      if(isset(self.charflags, CHAR_PROTECTED))
+      if(isset(char.charflags, CHAR_PROTECTED))
          unset(char.charflags, CHAR_PROTECTED);
    }
    else 
       log("ERROR: Unknown char flag setting: "+setting+"  in set_char_flags.");
 
-return;
+   return;
 }
-
 dilend
 
 // Called when a PC logs in
@@ -735,40 +822,47 @@ var
    exd : extraptr;
    nextdude : extraptr;
    now : integer;
-   i : integer;
-   u : unitptr;
-   sl : stringlist;
-   t : string;
+   daysold : integer;
 code
 {
-   exd := "$witness" in self.info;
+   exd := self.extra;
    now := realtime;
 
    while (exd)
    {
       nextdude := exd.next;
 
-      if (left(exd.names.[0], 8) == "$witness")
+      if (length(exd.names) >= 1)
       {
-         if ("@_players" in exd.names.[0])
+         if (left(exd.names.[0], 8) == "$witness")
          {
             // How many full days is it old?
-            i := (now - atoi(exd.names.[2])) / (3600*24);
-           
-            // Delete witness a player after 14 days
-            if (i > 1)
-               subextra(self.info, exd.names.[0]);
-         }
-         else  // It's a NPC
-         {
-            sl := getwords(exd.names.[0]);
-            // .[1] is jurisdiction, .[2] is symname, .[3] is idx
-            u := findsymbolic(sl.[2], atoi(sl.[3]));
-            if (u == null)
-               subextra(self.info, exd.names.[0]);
+            daysold := (now - atoi(exd.names.[2])) / (3600*24);
+
+            if  ("@_players" in exd.names.[0])  // It's a PC
+            {           
+               // Delete witness a player after 14 days
+               if (daysold > 14)
+               {
+                  subextra(self.extra, exd.names.[0]);
+               }
+            }
+            else  // It's a NPC
+            {
+               if (daysold > 2)  // Delete NPCs after 2 days
+               {
+                  subextra(self.extra, exd.names.[0]);
+               }
+
+               /* OBSOLETE sl := getwords(exd.names.[0]);
+               // .[1] is jurisdiction, .[2] is symname, .[3] is idx
+               u := findsymbolic(sl.[2], atoi(sl.[3]));
+               if (u == null)
+                  subextra(self.info, exd.names.[0]);*/
+            }
          }
       }
-
+      
       exd := nextdude;
    }
    
@@ -805,7 +899,10 @@ code
    else if (crime_type == CRIME_STEALING)
       crime_name := "stealing";
    else
+   {
       log("activate_accuse() illegal crime_type");
+      goto cleanup;
+   }
 
    startroom := self.outside.nameidx + "@" + self.outside.zoneidx;
    accuse_room  := "accuse_room@"+jurisdiction;   //+self.outside.zoneidx;
@@ -818,7 +915,7 @@ code
    heartbeat := PULSE_SEC*4;
    pause;
    pause;
-   act("$1n says, I would like to report a crime!",
+   act("$1n says, 'I would like to report a crime!'",
                A_HIDEINV, self, null, null, TO_ROOM);
    acc_cmd := "accuse "+criminal_name+" "+crime_name;
 
@@ -862,6 +959,8 @@ dilend
 
 
 
+
+
 // This function is called by log_crime in C and will set a $witness extra on any person who witnesses
 // a crime.  If the witness is an NPC it will copy the activate_accuse() DIL to the witness.
 //
@@ -882,7 +981,7 @@ code
 
    if (show)
    {
-      act("You just witnessed a crime committed by $1n.", A_ALWAYS, criminal, null, witness, TO_VICT);
+      act("You have just witnessed a crime committed by $1n.", A_ALWAYS, criminal, null, witness, TO_VICT);
    }
    
      add_witness(witness, criminal,victimname, crime_type);
@@ -946,7 +1045,7 @@ code
        if (left(suspects.names.[0], 7) == "$reward") 
          {
           r_juris := getwords(suspects.names.[1]);
-          if ((atoi(suspects.names.[4]) >= 62) and (juris == r_juris.[3]))
+          if ((atoi(suspects.names.[4]) >= 64) and (juris == r_juris.[3]))
               wanted_dead := wanted_dead + suspects.descr+ "<BR>";
           else if ((atoi(suspects.names.[4]) >=32) and (juris == r_juris.[3]))
               wanted_alive := wanted_alive + suspects.descr+ "<br>";
@@ -968,7 +1067,7 @@ code
    else
       sendtext("None at this time.<br>", activator);
 
-   sendtext("<br><b><div class=cpy>Wanted Alive</b></div></b><br><br>",activator);
+   sendtext("<br><b><div class=cpy>Wanted Alive</div></b><br><br>",activator);
 
    if (length(wanted_alive) > 0)
       sendtext(wanted_alive+"<br>", activator);
@@ -1002,8 +1101,6 @@ dilend
 // data matches it will call update_criminal. It also removes the $witness extra from the accuser
 // once a sucessful accusation is made.
 //
-
-
 dilbegin fnpri(FN_PRI_MISSION-1) accuse();
 external
    integer add_reward(criminal_symname : string, criminal_idx : integer, crime_type: integer);   
@@ -1021,12 +1118,16 @@ var
    c_data : stringlist;
    juris : string;
    accused : unitptr;
+   j : integer;
+   seen : stringlist;
+   elsewhere : integer;
 
 code
 {
 
    :start:
    found := 0;
+   elsewhere := 0;
    heartbeat := PULSE_SEC * 1;
 
    wait (SFB_CMD, command ("accuse") );
@@ -1056,32 +1157,63 @@ code
       w_ptr := activator.extra;
       while (w_ptr)
       {
-          if (left(w_ptr.names.[0], 8) == "$witness") //if ("$witness" in w_ptr.name)
-         {
-            if (atoi(w_ptr.names.[3]) == CRIME_STEALING)
-               crime := "stealing";
-            else 
-               crime := "murder"; 
+         if (length(w_ptr.names) < 1)
+            goto skipit;
 
-            act("<a cmd='accuse #'>" + w_ptr.names.[1] + " "+crime, A_SOMEONE, activator, null, null, TO_CHAR);
-            i := i + 1;
+         if (left(w_ptr.names.[0], 8) == "$witness") //if ("$witness" in w_ptr.name)
+         {
+            if (length(w_ptr.names) < 4)
+            {
+               log("inconsistent $witness extra");
+               goto skipit;
+            }
+
+            // Each crime seen is in names.[3] on (add_witness adds a later one at the end)
+            seen := null;
+            j := 3;
+            while (j < length(w_ptr.names))
+            {
+               if (atoi(w_ptr.names.[j]) == CRIME_STEALING)
+                  crime := "stealing";
+               else 
+                  crime := "murder"; 
+
+               if (not (crime in seen))
+               {
+                  addstring(seen, crime);
+                  act("<a cmd='accuse #'>" + w_ptr.names.[1] + " "+crime+"</a>", A_SOMEONE, activator, null, null, TO_CHAR);
+                  i := i + 1;
+               }
+               j := j + 1;
+            }
 
          }
+
+         :skipit:
          w_ptr := w_ptr.next;
       }
       if (i == 0)
          act("None.", A_SOMEONE, activator, null, null, TO_CHAR);
       block;
       goto start;
-   }   
+   }
+
+   if (length(args) < 1)
+   {
+      act("$1n says, 'Yes... who?'", A_SOMEONE, self, null, null, TO_ROOM);
+      block;
+      goto start;
+   }
 
    // this is to deal with NPCs that have spaces in their names 
+   // ("accuse <name> [of] murder|stealing": an "of" before the crime is dropped)
    criminal := args.[0];
    arg_count := 1;
    while (arg_count < length(args) -1)
    {
-    criminal := criminal +" "+ args.[arg_count];
-    arg_count := arg_count +1;
+      if (not((arg_count == length(args) - 2) and (args.[arg_count] == "of")))
+         criminal := criminal +" "+ args.[arg_count];
+      arg_count := arg_count +1;
    }
   
    crime := args.[length(args)-1];
@@ -1097,7 +1229,7 @@ code
    {
       if (crime == "")
       {
-         act("$1n says, 'What do you wish to accuse $3t of?'",
+         act("$1n says, 'What do you wish to accuse $3t of? Murder or stealing?'",
                A_SOMEONE, self, activator, criminal, TO_ROOM);
          block;
          goto start;
@@ -1107,18 +1239,18 @@ code
    if (not(strcmp(crime, "murder")))
    {
       crime_type := CRIME_MURDER;
-      act("$1n says, 'Murder... lets see', and looks through his files.",
+      act("$1n says, 'Murder... let's see', and looks through his files.",
          A_SOMEONE, self, activator, null, TO_ROOM);
    }
    else if (not(strcmp(crime, "stealing")))
    {
       crime_type := CRIME_STEALING;
-      act("$1n says, 'Stealing... lets see', and looks through his files.",
+      act("$1n says, 'Stealing... let's see', and looks through his files.",
          A_SOMEONE, self, activator, null, TO_ROOM);
    }
    else
    {
-      act("$1n says, 'Are you accusing of murder or stealing?'",
+      act("$1n says, 'Are you accusing them of murder or stealing?'",
          A_SOMEONE, self, activator, null, TO_ROOM);
       block;
       goto start;
@@ -1127,13 +1259,37 @@ code
    w_ptr := activator.extra;
    while (w_ptr)
    {
+      if (length(w_ptr.names) < 1)
+         goto skipit2;
+
       if (left(w_ptr.names.[0], 8) == "$witness") 
       {
+         if (length(w_ptr.names) < 2)
+         {
+            log("$witness inconsistency 2");
+            goto skipit2;
+         }
+         // the crime must be one you saw (names.[3] on)
+         j := length(w_ptr.names);
          if (w_ptr.names.[1] == criminal)
+         {
+            j := 3;
+            while (j < length(w_ptr.names))
+            {
+               if (atoi(w_ptr.names.[j]) == crime_type)
+                  break;
+               j := j + 1;
+            }
+         }
+         if (j < length(w_ptr.names))
          {
             c_data := getwords(w_ptr.names.[0]);
             if (c_data.[1] != juris)
-               goto notmyproblem;
+            {
+               // Another jurisdiction's: this captain's may still come further down
+               elsewhere := 1;
+               goto skipit2;
+            }
             accused := findsymbolic(c_data.[2], atoi(c_data.[3]));
             if (accused)
                goto doaccuse;
@@ -1141,6 +1297,7 @@ code
                goto goneaccuse;
          }
       }
+      :skipit2:
       w_ptr := w_ptr.next;
    }
 goto end;
@@ -1150,26 +1307,33 @@ goto end;
    act("$1n says, 'Thank you very much $3N, I will stop $2t.'", A_SOMEONE, self, criminal, activator, TO_ROOM);
    if (activator.alignment > -1000)
       activator.alignment := activator.alignment +100;
-   subextra(activator.extra,w_ptr.names.[0]);
+   // Forget the crime accused; the memory goes only when no other crime is left in it
+   j := 3;
+   while (j < length(w_ptr.names))
+   {
+      if (atoi(w_ptr.names.[j]) == crime_type)
+         remove(w_ptr.names, j);
+      else
+         j := j + 1;
+   }
+   if (length(w_ptr.names) <= 3)
+      subextra(activator.extra,w_ptr.names.[0]);
    add_reward@justice(accused.symname, accused.idx, crime_type);    
    block; 
    goto start;  
 
-:goneaccuse: // Offline player or Dead monster
+:goneaccuse: // Offline player or Dead monster: nothing can be recorded
    found := 1;
    if ("@_players" in c_data.[2])
    {
-      act("$1n says, 'Thank you very much $3N, it seems $2t is in another dimension, but we'll deal with it later.'", A_SOMEONE, self, criminal, activator, TO_ROOM);
-      // XXX Save a transfer reward on the board or load the player... MS TODO
+      // Keep the witness's memory, so they can accuse once the criminal is back
+      act("$1n says, 'Thank you $3N, but $2t isn't in the realm right now. Come back and accuse them when they are.'", A_SOMEONE, self, criminal, activator, TO_ROOM);
    }
    else
    {
-      act("$1n says, 'Thank you very much $3N, but it seems $2t is no longer amoung us. Perhaps you can bring me the head?'", A_SOMEONE, self, criminal, activator, TO_ROOM);
+      act("$1n says, 'It seems $2t is no longer among us; justice has found them already. Perhaps you can bring me the head?'", A_SOMEONE, self, criminal, activator, TO_ROOM);
+      subextra(activator.extra, w_ptr.names.[0]);
    }
-   if (activator.alignment > -1000)
-      activator.alignment := activator.alignment + 100;
-   subextra(activator.extra, w_ptr.names.[0]);
-   add_reward@justice(c_data.[2], atoi(c_data.[3]), crime_type);
    block; 
    goto start;  
 
@@ -1179,12 +1343,13 @@ goto end;
    goto start; 
 
 :end:
+   if (elsewhere)
+      goto notmyproblem;
    if (found == 0)
       act("$1n says, 'Sorry $3n, but I don't find your evidence convincing.'", A_SOMEONE, self, null, activator, TO_ROOM);
 
    block;
    goto start;
-
 }
 dilend
 
@@ -1342,6 +1507,8 @@ code
 }
 dilend
 
+
+
 dilbegin dbclear_npc(u : unitptr);
 var
    j_extra : extraptr;
@@ -1354,12 +1521,18 @@ code
    {
       nextdude := j_extra.next;
 
-     if (left(j_extra.names.[0], 7) == "$reward")    
+      if (length(j_extra.names) < 1)
+         goto skipit;
+
+      if (left(j_extra.names.[0], 7) == "$reward")
+      {
          if ("@_players" in j_extra.names.[0])
-           goto end; 
-          else
-             subextra(u.extra, j_extra.names.[0]);
-     :end:
+            goto skipit; 
+         else
+            subextra(u.extra, j_extra.names.[0]);
+      }
+
+      :skipit:
       j_extra := nextdude;      
    }
 
@@ -1449,7 +1622,7 @@ title "the wizi safe"
 descr "A wizi safe in your inventory."
 manipulate {MANIPULATE_ENTER}
 open {EX_CLOSED, EX_LOCKED} difficulty 150
-CONTAINER_DEF(40000)
+CONTAINER_DEF(32767)  // the most a capacity holds
 weight 0
 minv 201  // It's wizi
 
@@ -1538,7 +1711,7 @@ names {"crime database", "database"}
 title "the crime database"
 descr  "A global crime database is standing on the floor."
 
-extra {}
+extra {"crime database", "database"} // Filled out to avoid OOB errs.
 "This is a global crime database. Do not zap this board unless you need a justice reset.
 Do a 'wstat board extra' to see the crime data on this board"
 

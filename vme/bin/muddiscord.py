@@ -4,7 +4,8 @@ import errno
 import time
 import asyncio
 import sys
-
+import traceback
+import time
 
 
 # See dispatcher.py for overall architecture
@@ -13,17 +14,29 @@ import sys
 # 
 # python3 -m pip install -U discord.py
 
+whodata = ""
+whotime = 0
+
 class MyClient(discord.Client):
     pipeMUD = None
     pipeDiscord = None
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        # discord.py 2.x: the intents are required. The default set plus
+        # message content, which is what lets the bridge read what people
+        # type in the channel (a privileged intent: it must also be switched
+        # on for the bot in the Discord developer portal).
+        intents = discord.Intents.default()
+        intents.message_content = True
+        super().__init__(*args, intents=intents, **kwargs)
         self.pipeMUD = self.OpenPipeWONB('pipeMUD')
         self.pipeDiscord = self.OpenPipeRONB('pipeDiscord')
 
-        # This is not a thread, it let's the loop of the library
-        # call this function. So we can't use blocking in the listener
+    async def setup_hook(self):
+        # discord.py 2.x runs this once logged in, the first point at which
+        # the event loop may be used (self.loop is not available in
+        # __init__ any more). Not a thread: the library's loop calls the
+        # listener, so it must not block.
         self.bg_task = self.loop.create_task(self.pipelistener())
 
 
@@ -114,13 +127,27 @@ class MyClient(discord.Client):
         mymsg = mymsg.replace("\r", "")
         mymsg = mymsg.replace("\n", "&&")  # Newline
 
-        print("Message from Discord to the MUD-> ", mymsg)
+        print("Message from Discord to the MUD-> [", mymsg, "]")
 
         # write the message received from Discord to pipeMUD so that
         # the MUD server receives it.
         #
-        str = "discord " + message.channel.name + " @ @" + message.author.name + " says, '" + mymsg + "'"
-        os.write(self.pipeMUD, str.encode())
+        # display_name is the server nickname or global name players know;
+        # since Discord's 2023 username change, name is the unique handle
+        str = "discord " + message.channel.name + " @ @" + message.author.display_name + " says, '" + mymsg + "'"
+
+        encmsg = str.encode()
+
+        try:
+            nBytes = os.write(self.pipeMUD, encmsg)
+            print('Message of ', len(encmsg), ' bytes sent, wrote ', nBytes, ' bytes')
+        except OSError as e:
+            if e.errno == errno.EAGAIN:
+                print('Warning: MUD pipe buffer full, message dropped')
+            else:
+                print('Error writing to MUD pipe:', e)
+        except Exception:
+            print("Exception: ", traceback.format_exc())
         #if message.content.startswith('$hello'):
         #    await message.channel.send('da robot replies Hello!')
 
@@ -141,13 +168,45 @@ class MyClient(discord.Client):
 
         return channel
 
+
+    async def editWho(self, w, l):
+        global whodata
+        global whotime
+
+        # If less than 15 seconds since last who update, defer
+        #
+        tnow = int( time.time() )
+        if tnow-whotime < 15:
+            whodata = l
+            print("editWho: Defer")
+            return
+
+        try:
+            print("editWho: Sending")
+            tmp = await w.edit(content=l)
+            whotime = tnow
+            whodata = ""
+            print("editWho: Done")
+        except discord.errors.Forbidden:
+            print("editWho: No permission to edit message")
+        except discord.errors.NotFound:
+            print("editWho: Message not found")
+        except discord.errors.HTTPException as e:
+            print("editWho: HTTP error:", e)
+        except Exception:
+            print("editWho Exception: ", traceback.format_exc())
+        return
+
+
     #
     # Listens to the named pipeDiscord for chat channel from MUD dispatcher
     #
     async def pipelistener(self):
         await self.wait_until_ready()
 
-        print('pipeLIstener running')
+        print('pipeListener running')
+
+        global whodata
 
         if self.resolveChannel('mud') == None:
             print('Cant find the default channel (MUD).')
@@ -161,9 +220,19 @@ class MyClient(discord.Client):
             print('Cant find the builder channel.')
 
         print("Getting my whomsg to pin and alter")
-        whomsg = await self.resolveChannel('mudstatus').fetch_message(802048971446157332)
-        if whomsg == None:
+        try:
+            whomsg = await self.resolveChannel('mudstatus').fetch_message(802048971446157332)
+            if whomsg == None:
+                print('Cant find the mudstatus channel message with ID 802048971446157332. Make one and change the ID')
+                sys.exit(1)
+        except discord.errors.NotFound:
             print('Cant find the mudstatus channel message with ID 802048971446157332. Make one and change the ID')
+            sys.exit(1)
+        except discord.errors.Forbidden:
+            print('No permission to access the mudstatus channel message with ID 802048971446157332')
+            sys.exit(1)
+        except Exception as e:
+            print('Error fetching whomsg:', e)
             sys.exit(1)
 
         print("Got whomsg and ready to begin")
@@ -180,12 +249,12 @@ class MyClient(discord.Client):
 
             while (True):
                 try:
-                    line = os.read(self.pipeDiscord, 1000)
+                    line = os.read(self.pipeDiscord, 5000)
                     if not line:
                         break
                     else:
                         content = line.decode("utf-8")
-                        print('Debug: Got line:', content)
+                        print('Debug: Got line: [', content, "]")
                         line = content.split("\n")
                         result.extend(line)
                 except OSError as e:
@@ -206,7 +275,7 @@ class MyClient(discord.Client):
                     if (line) and (line.strip()):
                         words = line.split(" ")
                         channel = None
-                        print("Line = ", line)
+                        print("Line = ", "["+line+"]")
 
                         if words[2][0] == "#":
                             print('words[2][1:] = ', words[2][1:])
@@ -221,17 +290,32 @@ class MyClient(discord.Client):
                         if words[1] == "who":
                             line = line[14:]  # remove "<discord> who " 
                             line = line.replace('&&', '\n')
-                            print('WHO update:\n', line)
-                            await whomsg.edit(content=line)
+                            print('WHO update:\n', "["+line+"]")
+                            try:
+                                await self.editWho(whomsg, line)
+                            except Exception:
+                                print("Exception: ", traceback.format_exc())
+                            print('Who update done.')
+
                         elif words[1] == "msg":
-                            print('Msg Line = ', line)
+                            print('Msg Line = ', "["+line+"]")
                             print('Partition = ', line.split(' ', 3)[-1])
-                            await channel.send(line.split(' ', 3)[-1])
+                            try:
+                                message = await channel.send(line.split(' ', 3)[-1])
+                                print('Send as message id = ', message.id)
+                            except discord.errors.Forbidden:
+                                print("No permission to send to channel")
+                            except discord.errors.HTTPException as e:
+                                print("HTTP error sending message:", e)
+                            except Exception:
+                                print("Exception: ", traceback.format_exc())
                         else:
                             print("Unknown type ", words[1])
                             continue
 
             await asyncio.sleep(1) # task runs every 1 seconds
+            if (whodata != ""):
+                await self.editWho(whomsg, whodata)
 
         print('Pipe listener end')
 

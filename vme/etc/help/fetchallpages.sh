@@ -1,791 +1,658 @@
-python getwikihelppage.py Accuse
-python getwikihelppage.py Acidball &
-python getwikihelppage.py Acidbreath &
-python getwikihelppage.py Aciddrop &
-python getwikihelppage.py Acidresistance &
-python getwikihelppage.py Acidsphere
-python getwikihelppage.py Acidswirl &
-python getwikihelppage.py Admin &
-python getwikihelppage.py Advanced &
-python getwikihelppage.py Adze &
-python getwikihelppage.py Affect
-python getwikihelppage.py Age &
-python getwikihelppage.py Aggressive &
-python getwikihelppage.py Aidundead &
-python getwikihelppage.py Alias &
-python getwikihelppage.py Alignment
-python getwikihelppage.py Ambush &
-python getwikihelppage.py Animatedead &
-python getwikihelppage.py Annihilateundead &
-python getwikihelppage.py Aoh &
-python getwikihelppage.py Appraisal
-python getwikihelppage.py Architect &
-python getwikihelppage.py Armour &
-python getwikihelppage.py Arrests &
-python getwikihelppage.py Ask &
-python getwikihelppage.py Assassinate
-python getwikihelppage.py Assassin &
-python getwikihelppage.py Assassinskills &
-python getwikihelppage.py Assassinspells &
-python getwikihelppage.py Assassinweapons &
-python getwikihelppage.py Assist
-python getwikihelppage.py Assrp &
-python getwikihelppage.py Attackswitch &
-python getwikihelppage.py Attributes &
-python getwikihelppage.py Auction &
-python getwikihelppage.py Awaken
-python getwikihelppage.py Backstab &
-python getwikihelppage.py Baculus &
-python getwikihelppage.py Badbreath &
-python getwikihelppage.py Balance &
-python getwikihelppage.py Ballchain
-python getwikihelppage.py Banish &
-python getwikihelppage.py Bank &
-python getwikihelppage.py Bardiche &
-python getwikihelppage.py Barkskin &
-python getwikihelppage.py Bash
-python getwikihelppage.py Bastard &
-python getwikihelppage.py Battleaxe &
-python getwikihelppage.py Becdecorbin &
-python getwikihelppage.py Beginners &
-python getwikihelppage.py Beheaded
-python getwikihelppage.py Billguisarme &
-python getwikihelppage.py Billhook &
-python getwikihelppage.py Bless &
-python getwikihelppage.py Blind &
-python getwikihelppage.py Blindingflash
-python getwikihelppage.py Blizzard &
-python getwikihelppage.py Boards &
-python getwikihelppage.py Boats &
-python getwikihelppage.py Bob &
-python getwikihelppage.py Boneskin
-python getwikihelppage.py Bot &
-python getwikihelppage.py Bounty &
-python getwikihelppage.py Brain &
-python getwikihelppage.py Brambles &
-python getwikihelppage.py Bravemode
-python getwikihelppage.py Break &
-python getwikihelppage.py Bribe &
-python getwikihelppage.py Brief &
-python getwikihelppage.py Brimstone &
-python getwikihelppage.py Broadsword
-python getwikihelppage.py Brownies &
-python getwikihelppage.py Bug &
-python getwikihelppage.py Buildera &
-python getwikihelppage.py Builder &
-python getwikihelppage.py Buildterm
-python getwikihelppage.py Burn &
-python getwikihelppage.py Bury &
-python getwikihelppage.py Bushido &
-python getwikihelppage.py Butcher &
-python getwikihelppage.py Butler
-python getwikihelppage.py Buy &
-python getwikihelppage.py Caccept &
-python getwikihelppage.py Calllightning &
-python getwikihelppage.py Calm &
-python getwikihelppage.py Cappoint
-python getwikihelppage.py Captain &
-python getwikihelppage.py Casthold &
-python getwikihelppage.py Casting &
-python getwikihelppage.py Causelightwounds &
-python getwikihelppage.py Causepanic
-python getwikihelppage.py Causeseriouswounds &
-python getwikihelppage.py Cbalance &
-python getwikihelppage.py Cdefect &
-python getwikihelppage.py Cdemote &
-python getwikihelppage.py Cdeposit
-python getwikihelppage.py Cequipment &
-python getwikihelppage.py Change &
-python getwikihelppage.py Channeling &
-python getwikihelppage.py Channels &
-python getwikihelppage.py Chargestaff
-python getwikihelppage.py Chargewand &
-python getwikihelppage.py Charmanimal &
-python getwikihelppage.py Checks &
-python getwikihelppage.py Chr &
-python getwikihelppage.py Churchknights
-python getwikihelppage.py Cinfo &
-python getwikihelppage.py Claim &
-python getwikihelppage.py Clancommands &
-python getwikihelppage.py Clandonate &
-python getwikihelppage.py Clanenter
-python getwikihelppage.py Clanexit &
-python getwikihelppage.py Clan &
-python getwikihelppage.py Clanmaster &
-python getwikihelppage.py Clanquartermaster &
-python getwikihelppage.py Clanres
-python getwikihelppage.py Clans &
-python getwikihelppage.py Clanstartup &
-python getwikihelppage.py Class &
-python getwikihelppage.py Claymore &
-python getwikihelppage.py Clear
-python getwikihelppage.py Clearskies &
-python getwikihelppage.py Clenchedfist &
-python getwikihelppage.py Clerics &
-python getwikihelppage.py Climb &
-python getwikihelppage.py Clist
-python getwikihelppage.py Close &
-python getwikihelppage.py Club &
-python getwikihelppage.py Coldresistance &
-python getwikihelppage.py Color &
-python getwikihelppage.py Colourbeam
-python getwikihelppage.py Colourspray &
-python getwikihelppage.py Columns &
-python getwikihelppage.py Combat &
-python getwikihelppage.py Command &
-python getwikihelppage.py Commands
-python getwikihelppage.py Commchannels &
-python getwikihelppage.py Comm &
-python getwikihelppage.py Communicate &
-python getwikihelppage.py Compact &
-python getwikihelppage.py Completepath
-python getwikihelppage.py Condemn &
-python getwikihelppage.py Coneofshards &
-python getwikihelppage.py Confusion &
-python getwikihelppage.py Conjurer &
-python getwikihelppage.py Conjurerskills
-python getwikihelppage.py Conjurerspells &
-python getwikihelppage.py Conjurerweapons &
-python getwikihelppage.py Consider &
-python getwikihelppage.py Constitution &
-python getwikihelppage.py Continualdarkness
-python getwikihelppage.py Continuallight &
-python getwikihelppage.py Contract &
-python getwikihelppage.py Contrib &
-python getwikihelppage.py Controlledteleport &
-python getwikihelppage.py Controlundead
-python getwikihelppage.py Cook &
-python getwikihelppage.py Copperpieces &
-python getwikihelppage.py Craftsmanship &
-python getwikihelppage.py Crank &
-python getwikihelppage.py Createfood
-python getwikihelppage.py Createwater &
-python getwikihelppage.py Creationsphere &
-python getwikihelppage.py Creators &
-python getwikihelppage.py Credit &
-python getwikihelppage.py Credits
-python getwikihelppage.py Cremove &
-python getwikihelppage.py Crossbow &
-python getwikihelppage.py Crowbill &
-python getwikihelppage.py Csrank &
-python getwikihelppage.py Cstore
-python getwikihelppage.py Ctitle &
-python getwikihelppage.py Cudgel &
-python getwikihelppage.py Cunstore &
-python getwikihelppage.py Curare &
-python getwikihelppage.py Cureblind
-python getwikihelppage.py Curelight &
-python getwikihelppage.py Cureserious &
-python getwikihelppage.py Curse &
-python getwikihelppage.py Curvesword &
-python getwikihelppage.py Cut
-python getwikihelppage.py Cutlass &
-python getwikihelppage.py Cwithdraw &
-python getwikihelppage.py Dagger &
-python getwikihelppage.py Darkelf &
-python getwikihelppage.py Darkknight
-python getwikihelppage.py Darkknightskills &
-python getwikihelppage.py Darkknightspel &
-python getwikihelppage.py Darkknightweapons &
-python getwikihelppage.py Darkness &
-python getwikihelppage.py Date
-python getwikihelppage.py Deathlygrasp &
-python getwikihelppage.py Decapitate &
-python getwikihelppage.py Deleteme &
-python getwikihelppage.py Deposit &
-python getwikihelppage.py Describe
-python getwikihelppage.py Detectalignment &
-python getwikihelppage.py Detectcurse &
-python getwikihelppage.py Detectinvisible &
-python getwikihelppage.py Detectionsphere &
-python getwikihelppage.py Detectmagic
-python getwikihelppage.py Detectpoison &
-python getwikihelppage.py Detectundead &
-python getwikihelppage.py Dexterity &
-python getwikihelppage.py Diagnostics &
-python getwikihelppage.py Dictionary
-python getwikihelppage.py Die &
-python getwikihelppage.py Dig &
-python getwikihelppage.py Direction &
-python getwikihelppage.py Dirk &
-python getwikihelppage.py Disarming
-python getwikihelppage.py Dispelgood &
-python getwikihelppage.py Dispelmagic &
-python getwikihelppage.py Displacemagic &
-python getwikihelppage.py Ditch &
-python getwikihelppage.py Divinationsphere
-python getwikihelppage.py Divineresistance &
-python getwikihelppage.py Donate &
-python getwikihelppage.py Donation &
-python getwikihelppage.py Doors &
-python getwikihelppage.py Down
-python getwikihelppage.py Dowse &
-python getwikihelppage.py Drag &
-python getwikihelppage.py Drop &
-python getwikihelppage.py Drowse &
-python getwikihelppage.py Druids
-python getwikihelppage.py Druidskills &
-python getwikihelppage.py Druidspells &
-python getwikihelppage.py Druidweapons &
-python getwikihelppage.py Drunk &
-python getwikihelppage.py Dump
-python getwikihelppage.py Dustdevil &
-python getwikihelppage.py Dwarves &
-python getwikihelppage.py Eaglecry &
-python getwikihelppage.py Earthquake &
-python getwikihelppage.py East
-python getwikihelppage.py Eat &
-python getwikihelppage.py Echo &
-python getwikihelppage.py Elbow &
-python getwikihelppage.py Electricalshock &
-python getwikihelppage.py Electricityresistance
-python getwikihelppage.py Electricitysphere &
-python getwikihelppage.py Elves &
-python getwikihelppage.py Email &
-python getwikihelppage.py Emotes &
-python getwikihelppage.py Endurancepoints
-python getwikihelppage.py Energydrain &
-python getwikihelppage.py Enerybolt &
-python getwikihelppage.py Entangle &
-python getwikihelppage.py Enter &
-python getwikihelppage.py Equipment
-python getwikihelppage.py Estoc &
-python getwikihelppage.py Evaluate &
-python getwikihelppage.py Evil &
-python getwikihelppage.py Examine &
-python getwikihelppage.py Exchange
-python getwikihelppage.py Exit &
-python getwikihelppage.py Exits &
-python getwikihelppage.py Experience &
-python getwikihelppage.py Expert &
-python getwikihelppage.py Extinguish
-python getwikihelppage.py Falchion &
-python getwikihelppage.py Familiar &
-python getwikihelppage.py Fart &
-python getwikihelppage.py Fashionweapon &
-python getwikihelppage.py Fauchardfork
-python getwikihelppage.py Fauchard &
-python getwikihelppage.py Fear &
-python getwikihelppage.py Female &
-python getwikihelppage.py Fighter &
-python getwikihelppage.py Fighterrp
-python getwikihelppage.py Fighterskills &
-python getwikihelppage.py Fighterweapons &
-python getwikihelppage.py Fightingstaff &
-python getwikihelppage.py Filching &
-python getwikihelppage.py Fill
-python getwikihelppage.py Finalrest &
-python getwikihelppage.py Findpath &
-python getwikihelppage.py Fireball &
-python getwikihelppage.py Fireblast &
-python getwikihelppage.py Firesphere
-python getwikihelppage.py Firestorm &
-python getwikihelppage.py Firstaid &
-python getwikihelppage.py Fishspine &
-python getwikihelppage.py Flail &
-python getwikihelppage.py Flamberge
-python getwikihelppage.py Flash &
-python getwikihelppage.py Flashinggrip &
-python getwikihelppage.py Fleeing &
-python getwikihelppage.py Focus &
-python getwikihelppage.py Follow
-python getwikihelppage.py Food &
-python getwikihelppage.py Footlance &
-python getwikihelppage.py Forage &
-python getwikihelppage.py Friend &
-python getwikihelppage.py Friendly
-python getwikihelppage.py Frostball &
-python getwikihelppage.py Frostbreath &
-python getwikihelppage.py Frostsphere &
-python getwikihelppage.py Gaff &
-python getwikihelppage.py Gain
-python getwikihelppage.py Gasbreath &
-python getwikihelppage.py Gate &
-python getwikihelppage.py Genders &
-python getwikihelppage.py Get &
-python getwikihelppage.py Give
-python getwikihelppage.py Glaive &
-python getwikihelppage.py Glowingfungus &
-python getwikihelppage.py Gnomes &
-python getwikihelppage.py Goldpieces &
-python getwikihelppage.py Good
-python getwikihelppage.py Gossip &
-python getwikihelppage.py Grab &
-python getwikihelppage.py Greatsword &
-python getwikihelppage.py Grolls &
-python getwikihelppage.py Groups
-python getwikihelppage.py Groupteleport &
-python getwikihelppage.py Guardguild &
-python getwikihelppage.py Guests &
-python getwikihelppage.py Guilds &
-python getwikihelppage.py Guisarme
-python getwikihelppage.py Halberd &
-python getwikihelppage.py Halfelves &
-python getwikihelppage.py Halflings &
-python getwikihelppage.py Halfogres &
-python getwikihelppage.py Halforcs
-python getwikihelppage.py Hammerofkai &
-python getwikihelppage.py Handaxe &
-python getwikihelppage.py Harm &
-python getwikihelppage.py Haste &
-python getwikihelppage.py Heads
-python getwikihelppage.py Healanimal &
-python getwikihelppage.py Healers &
-python getwikihelppage.py Healerskills &
-python getwikihelppage.py Healerspells &
-python getwikihelppage.py Healerweapons
-python getwikihelppage.py Heal &
-python getwikihelppage.py Heatresistance &
-python getwikihelppage.py Hedgewall &
-python getwikihelppage.py Hellfire &
-python getwikihelppage.py Help
-python getwikihelppage.py Herbs &
-python getwikihelppage.py Hide &
-python getwikihelppage.py Hire &
-python getwikihelppage.py History1 &
-python getwikihelppage.py History2
-python getwikihelppage.py History3 &
-python getwikihelppage.py History4 &
-python getwikihelppage.py History5 &
-python getwikihelppage.py History6 &
-python getwikihelppage.py Hit
-python getwikihelppage.py Hits &
-python getwikihelppage.py Holdanimal &
-python getwikihelppage.py Holdflight &
-python getwikihelppage.py Hold &
-python getwikihelppage.py Holdmonster
-python getwikihelppage.py Holdundead &
-python getwikihelppage.py Holygrasp &
-python getwikihelppage.py Holyshout &
-python getwikihelppage.py Holytouch &
-python getwikihelppage.py Holyword
-python getwikihelppage.py Home &
-python getwikihelppage.py Homes2 &
-python getwikihelppage.py Horses &
-python getwikihelppage.py Houses &
-python getwikihelppage.py Humans
-python getwikihelppage.py Hunger &
-python getwikihelppage.py Hunt &
-python getwikihelppage.py Iceball &
-python getwikihelppage.py Icestorm &
-python getwikihelppage.py Icethorn
-python getwikihelppage.py Idea &
-python getwikihelppage.py Identify &
-python getwikihelppage.py Ignore &
-python getwikihelppage.py Immortal &
-python getwikihelppage.py Improvedidentify
-python getwikihelppage.py Incapacitated &
-python getwikihelppage.py Info &
-python getwikihelppage.py Inform &
-python getwikihelppage.py Insult &
-python getwikihelppage.py Inventory
-python getwikihelppage.py Invisibility &
-python getwikihelppage.py Ironpieces &
-python getwikihelppage.py Jail &
-python getwikihelppage.py Javelin &
-python getwikihelppage.py Jeddart
-python getwikihelppage.py Joingroup &
-python getwikihelppage.py Join &
-python getwikihelppage.py Jolt &
-python getwikihelppage.py Junk &
-python getwikihelppage.py Just
-python getwikihelppage.py Key &
-python getwikihelppage.py Khorsabadassassin &
-python getwikihelppage.py Kick &
-python getwikihelppage.py Kill &
-python getwikihelppage.py Kindred
-python getwikihelppage.py Knee &
-python getwikihelppage.py Knock &
-python getwikihelppage.py Kopesh &
-python getwikihelppage.py Lance &
-python getwikihelppage.py Lantern
-python getwikihelppage.py Lavaflow &
-python getwikihelppage.py Laws &
-python getwikihelppage.py Laytrap &
-python getwikihelppage.py Leadership &
-python getwikihelppage.py Leafshield
-python getwikihelppage.py Leatherskin &
-python getwikihelppage.py Leave &
-python getwikihelppage.py Leaving &
-python getwikihelppage.py Letter &
-python getwikihelppage.py Level
-python getwikihelppage.py Levels &
-python getwikihelppage.py Lifeprotection &
-python getwikihelppage.py Lightbreath &
-python getwikihelppage.py Lightningbolt &
-python getwikihelppage.py Lightningsphere
-python getwikihelppage.py Lightningstorm &
-python getwikihelppage.py Lightwounds &
-python getwikihelppage.py List &
-python getwikihelppage.py Locateanimal
-python getwikihelppage.py Locate &
-python getwikihelppage.py Locateobject &
-python getwikihelppage.py Locateperson &
-python getwikihelppage.py Lochaber &
-python getwikihelppage.py Lock
-python getwikihelppage.py Loginguilds &
-python getwikihelppage.py Login &
-python getwikihelppage.py Loginraces &
-python getwikihelppage.py Longbow &
-python getwikihelppage.py Longsword
-python getwikihelppage.py Look &
-python getwikihelppage.py Lucern &
-python getwikihelppage.py Mace &
-python getwikihelppage.py Madness &
-python getwikihelppage.py Magiccandle
-python getwikihelppage.py Magicians &
-python getwikihelppage.py Magicusers &
-python getwikihelppage.py Maidenname &
-python getwikihelppage.py Mail &
-python getwikihelppage.py Maingauche
-python getwikihelppage.py Male &
-python getwikihelppage.py Manaboost &
-python getwikihelppage.py Manapoints &
-python getwikihelppage.py Map &
-python getwikihelppage.py Materialquality
-python getwikihelppage.py Mattock &
-python getwikihelppage.py Maul &
-python getwikihelppage.py Me &
-python getwikihelppage.py Mending &
-python getwikihelppage.py Mentor
-python getwikihelppage.py Meteorshower &
-python getwikihelppage.py Midgaard &
-python getwikihelppage.py Midgaardpaladins &
-python getwikihelppage.py Midgaardsorcerer &
-python getwikihelppage.py Militaryfork
-python getwikihelppage.py Mindshield &
-python getwikihelppage.py Mindsphere &
-python getwikihelppage.py Minorgate &
-python getwikihelppage.py Mire &
-python getwikihelppage.py Mode
-python getwikihelppage.py Money &
-python getwikihelppage.py Moneyorders &
-python getwikihelppage.py Monster &
-python getwikihelppage.py Morningstar &
-python getwikihelppage.py Morph &
-python getwikihelppage.py Mortallywounded
-python getwikihelppage.py Mount
-python getwikihelppage.py Movement &
-python getwikihelppage.py Movementpoints &
-python getwikihelppage.py Mudpuddle &
-python getwikihelppage.py Multiclasses &
-python getwikihelppage.py Multiplecharacters
-python getwikihelppage.py Naffect &
-python getwikihelppage.py Naginata &
-python getwikihelppage.py Names &
-python getwikihelppage.py Necro &
-python getwikihelppage.py Necromancerskills
-python getwikihelppage.py Necromancerspells &
-python getwikihelppage.py Necromancerweapons &
-python getwikihelppage.py Neutral &
-python getwikihelppage.py Newbie &
-python getwikihelppage.py Newbies
-python getwikihelppage.py Newplayercouncil &
-python getwikihelppage.py News &
-python getwikihelppage.py North &
-python getwikihelppage.py Noshout &
-python getwikihelppage.py Npc
-python getwikihelppage.py Oddweapon &
-python getwikihelppage.py Odinstatue &
-python getwikihelppage.py Offer &
-python getwikihelppage.py Off &
-python getwikihelppage.py Open
-python getwikihelppage.py Order &
-python getwikihelppage.py Paladins &
-python getwikihelppage.py Paladinskills &
-python getwikihelppage.py Paladinspells &
-python getwikihelppage.py Paladinweapons
-python getwikihelppage.py Palmorb &
-python getwikihelppage.py Palrp &
-python getwikihelppage.py Partisan &
-python getwikihelppage.py Password &
-python getwikihelppage.py Pastgods
-python getwikihelppage.py Pathass &
-python getwikihelppage.py Pathcon &
-python getwikihelppage.py Pathdar &
-python getwikihelppage.py Pathdru &
-python getwikihelppage.py Pathfig
-python getwikihelppage.py Pathheal &
-python getwikihelppage.py Path &
-python getwikihelppage.py Pathlist2 &
-python getwikihelppage.py Pathlist3 &
-python getwikihelppage.py Pathlist
-python getwikihelppage.py Pathnec &
-python getwikihelppage.py Pathpal &
-python getwikihelppage.py Pathran &
-python getwikihelppage.py Paths &
-python getwikihelppage.py Pathsor
-python getwikihelppage.py Paththi
-python getwikihelppage.py Payment &
-python getwikihelppage.py Peace &
-python getwikihelppage.py Peeking &
-python getwikihelppage.py Pe &
-python getwikihelppage.py Personalemail
-python getwikihelppage.py Personality &
-python getwikihelppage.py Petrify &
-python getwikihelppage.py Pibag &
-python getwikihelppage.py Picklock &
-python getwikihelppage.py Pickpockets
-python getwikihelppage.py Pike &
-python getwikihelppage.py Pillar &
-python getwikihelppage.py Pilum &
-python getwikihelppage.py Piset &
-python getwikihelppage.py Plague
-python getwikihelppage.py Plant
-python getwikihelppage.py Platinumpieces &
-python getwikihelppage.py Points &
-python getwikihelppage.py Poisonivy &
-python getwikihelppage.py Poisonresistance &
-python getwikihelppage.py Poisonsphere
-python getwikihelppage.py Polarity &
-python getwikihelppage.py Polearms &
-python getwikihelppage.py Poleaxe &
-python getwikihelppage.py Polecleaver &
-python getwikihelppage.py Policeguild
-python getwikihelppage.py Portal &
-python getwikihelppage.py Position &
-python getwikihelppage.py Potions &
-python getwikihelppage.py Pour &
-python getwikihelppage.py Poweritems
-python getwikihelppage.py Practice &
-python getwikihelppage.py Pray &
-python getwikihelppage.py Priests &
-python getwikihelppage.py Professions &
-python getwikihelppage.py Promptcolors
-python getwikihelppage.py Protected &
-python getwikihelppage.py Protectionfromevil &
-python getwikihelppage.py Protectionfromgood &
-python getwikihelppage.py Protectionsphere &
-python getwikihelppage.py Purse
-python getwikihelppage.py Put &
-python getwikihelppage.py Quaff &
-python getwikihelppage.py Quality &
-python getwikihelppage.py Quarterstaff &
-python getwikihelppage.py Quests
-python getwikihelppage.py Quicken &
-python getwikihelppage.py Quicksand &
-python getwikihelppage.py Quit &
-python getwikihelppage.py Races &
-python getwikihelppage.py Raisedead
-python getwikihelppage.py Raisedivine &
-python getwikihelppage.py Raisehitpoints &
-python getwikihelppage.py Raisehorde &
-python getwikihelppage.py Raisemagic &
-python getwikihelppage.py Raiseskeletalchampion
-python getwikihelppage.py Raiseskeleton &
-python getwikihelppage.py Randomteleport &
-python getwikihelppage.py Ranger &
-python getwikihelppage.py Rangerskills &
-python getwikihelppage.py Rangerspells
-python getwikihelppage.py Rangerweapons &
-python getwikihelppage.py Rank &
-python getwikihelppage.py Ranseur &
-python getwikihelppage.py Rapier &
-python getwikihelppage.py Read
-python getwikihelppage.py Rebirthcommand &
-python getwikihelppage.py Recite &
-python getwikihelppage.py Reconstruct &
-python getwikihelppage.py Refit &
-python getwikihelppage.py Refresh
-python getwikihelppage.py Refundpolicy &
-python getwikihelppage.py Regenerate &
-python getwikihelppage.py Relax &
-python getwikihelppage.py Removecurse &
-python getwikihelppage.py Removedisease
-python getwikihelppage.py Remove &
-python getwikihelppage.py Removepoison &
-python getwikihelppage.py Rent &
-python getwikihelppage.py Repair &
-python getwikihelppage.py Repelgreaterundead
-python getwikihelppage.py Repellesserundead &
-python getwikihelppage.py Request &
-python getwikihelppage.py Reroll &
-python getwikihelppage.py Rescue &
-python getwikihelppage.py Resize
-python getwikihelppage.py Respond &
-python getwikihelppage.py Ressurect &
-python getwikihelppage.py Rest &
-python getwikihelppage.py Reward &
-python getwikihelppage.py Ride
-python getwikihelppage.py Rows &
-python getwikihelppage.py Rules &
-python getwikihelppage.py Sacrificehead &
-python getwikihelppage.py Sail &
-python getwikihelppage.py Sanctuary
-python getwikihelppage.py Sappara &
-python getwikihelppage.py Save &
-python getwikihelppage.py Say &
-python getwikihelppage.py Scan &
-python getwikihelppage.py Scimitar
-python getwikihelppage.py Score &
-python getwikihelppage.py Scripts &
-python getwikihelppage.py Scrolluse &
-python getwikihelppage.py Search &
-python getwikihelppage.py Sell
-python getwikihelppage.py Sending &
-python getwikihelppage.py Senselife &
-python getwikihelppage.py Seriouswounds &
-python getwikihelppage.py Seual &
-python getwikihelppage.py Sex
-python getwikihelppage.py Shamshir &
-python getwikihelppage.py Shelter &
-python getwikihelppage.py Shields &
-python getwikihelppage.py Shielduse &
-python getwikihelppage.py Shoot
-python getwikihelppage.py Shops &
-python getwikihelppage.py Shortsword &
-python getwikihelppage.py Shout &
-python getwikihelppage.py Shouting &
-python getwikihelppage.py Sickle
-python getwikihelppage.py Silverpieces &
-python getwikihelppage.py Sip &
-python getwikihelppage.py Sit &
-python getwikihelppage.py Skills &
-python getwikihelppage.py Skin
-python getwikihelppage.py Sleep &
-python getwikihelppage.py Slip &
-python getwikihelppage.py Slow &
-python getwikihelppage.py Slowrot &
-python getwikihelppage.py Smash
-python getwikihelppage.py Sneaking &
-python getwikihelppage.py Snoop &
-python getwikihelppage.py Snowball &
-python getwikihelppage.py Socials &
-python getwikihelppage.py Solarflare
-python getwikihelppage.py Sorcerer &
-python getwikihelppage.py Sorcererskills &
-python getwikihelppage.py Sorcererspells &
-python getwikihelppage.py Sorcererweapons &
-python getwikihelppage.py Soulfire
-python getwikihelppage.py Soulgate &
-python getwikihelppage.py Soulshift &
-python getwikihelppage.py South &
-python getwikihelppage.py Spearfam &
-python getwikihelppage.py Spear
-python getwikihelppage.py Spectum &
-python getwikihelppage.py Spellaid &
-python getwikihelppage.py Spellbrain &
-python getwikihelppage.py Spellcasters &
-python getwikihelppage.py Spellcharisma
-python getwikihelppage.py Spellconstitution &
-python getwikihelppage.py Spelldexterity &
-python getwikihelppage.py Spelllight &
-python getwikihelppage.py Spelllock &
-python getwikihelppage.py Spellsleep
-python getwikihelppage.py Spellstrength &
-python getwikihelppage.py Spellunlock &
-python getwikihelppage.py Spetum &
-python getwikihelppage.py Spheres &
-python getwikihelppage.py Spies
-python getwikihelppage.py Splitm &
-python getwikihelppage.py Sprayofacid &
-python getwikihelppage.py Staff &
-python getwikihelppage.py Staffuse &
-python getwikihelppage.py Stalk
-python getwikihelppage.py Stand &
-python getwikihelppage.py Stats &
-python getwikihelppage.py Statue &
-python getwikihelppage.py Status &
-python getwikihelppage.py Stealing
-python getwikihelppage.py Steed &
-python getwikihelppage.py Stiletto &
-python getwikihelppage.py Stinkingbreath &
-python getwikihelppage.py Stinkingcloud &
-python getwikihelppage.py Stoneskin
-python getwikihelppage.py Stormcall &
-python getwikihelppage.py Stormgate &
-python getwikihelppage.py Str &
-python getwikihelppage.py Stun &
-python getwikihelppage.py Summerrain
-python getwikihelppage.py Summonair &
-python getwikihelppage.py Summonanimal &
-python getwikihelppage.py Summondemon &
-python getwikihelppage.py Summondevil &
-python getwikihelppage.py Summonearth
-python getwikihelppage.py Summonfire &
-python getwikihelppage.py Summoningresistance &
-python getwikihelppage.py Summoningsphere &
-python getwikihelppage.py Summonlightning &
-python getwikihelppage.py Summonwater
-python getwikihelppage.py Sunbeam &
-python getwikihelppage.py Sunglobe &
-python getwikihelppage.py Sunray &
-python getwikihelppage.py Sustain &
-python getwikihelppage.py Take
-python getwikihelppage.py Talwar &
-python getwikihelppage.py Taste &
-python getwikihelppage.py Teams &
-python getwikihelppage.py Tell &
-python getwikihelppage.py Telnet
-python getwikihelppage.py Terminal &
-python getwikihelppage.py Thief &
-python getwikihelppage.py Thiefrp &
-python getwikihelppage.py Thiefskills &
-python getwikihelppage.py Thiefspells
-python getwikihelppage.py Thiefweapons &
-python getwikihelppage.py Thirsty &
-python getwikihelppage.py Thornstrike &
-python getwikihelppage.py Throw &
-python getwikihelppage.py Tigerclaw
-python getwikihelppage.py Time
-python getwikihelppage.py Title &
-python getwikihelppage.py Torch &
-python getwikihelppage.py Totalrecall &
-python getwikihelppage.py Toxicate &
-python getwikihelppage.py Track
-python getwikihelppage.py Train &
-python getwikihelppage.py Transport &
-python getwikihelppage.py Travel &
-python getwikihelppage.py Trident &
-python getwikihelppage.py Trigger
-python getwikihelppage.py Tripping
-python getwikihelppage.py Tsunami &
-python getwikihelppage.py Tuborg &
-python getwikihelppage.py Turnundead &
-python getwikihelppage.py Typo &
-python getwikihelppage.py Udgaardconjurer
-python getwikihelppage.py Udgaard &
-python getwikihelppage.py Udgaardthieves &
-python getwikihelppage.py Unalias &
-python getwikihelppage.py Undeaddoor &
-python getwikihelppage.py Unholygrasp
-python getwikihelppage.py Unholyshout
-python getwikihelppage.py Unholytouch &
-python getwikihelppage.py Unholyword &
-python getwikihelppage.py Unlock &
-python getwikihelppage.py Unseen &
-python getwikihelppage.py Up
-python getwikihelppage.py Use &
-python getwikihelppage.py Valhalla &
-python getwikihelppage.py Value &
-python getwikihelppage.py Variable &
-python getwikihelppage.py Ventriloquate
-python getwikihelppage.py Voulge
-python getwikihelppage.py Wake &
-python getwikihelppage.py Wanduse &
-python getwikihelppage.py Wanted &
-python getwikihelppage.py Waraxe &
-python getwikihelppage.py Warhammer
-python getwikihelppage.py Warrior &
-python getwikihelppage.py Weap &
-python getwikihelppage.py Weapons &
-python getwikihelppage.py Wear &
-python getwikihelppage.py Weather
-python getwikihelppage.py Weatherwatching
-python getwikihelppage.py West &
-python getwikihelppage.py Whip &
-python getwikihelppage.py Whisper &
-python getwikihelppage.py Who &
-python getwikihelppage.py Wield
-python getwikihelppage.py Wimpy &
-python getwikihelppage.py Windslash &
-python getwikihelppage.py Withdraw &
-python getwikihelppage.py Wizardeye &
-python getwikihelppage.py Wizardmark
-python getwikihelppage.py Wizards
-python getwikihelppage.py Wizlist &
-python getwikihelppage.py Wordofrecall &
-python getwikihelppage.py Write &
-python getwikihelppage.py Xp
-python getwikihelppage.py Xrayvision
-python getwikihelppage.py Yell
+python3 getwikihelppage.py Accuse
+python3 getwikihelppage.py Acidball &
+python3 getwikihelppage.py Aciddrop &
+python3 getwikihelppage.py Acidresistance &
+python3 getwikihelppage.py Acidsphere
+python3 getwikihelppage.py Acidswirl &
+python3 getwikihelppage.py Advanced &
+python3 getwikihelppage.py Adze &
+python3 getwikihelppage.py Affect
+python3 getwikihelppage.py Age &
+python3 getwikihelppage.py Aidundead &
+python3 getwikihelppage.py Alias &
+python3 getwikihelppage.py Alignment
+python3 getwikihelppage.py Ambush &
+python3 getwikihelppage.py Animatedead &
+python3 getwikihelppage.py Aoh &
+python3 getwikihelppage.py Appraisal
+python3 getwikihelppage.py Areas &
+python3 getwikihelppage.py Armour &
+python3 getwikihelppage.py Ask &
+python3 getwikihelppage.py Assassinate
+python3 getwikihelppage.py Assassin &
+python3 getwikihelppage.py Assassinskills &
+python3 getwikihelppage.py Assassinspells &
+python3 getwikihelppage.py Assassinweapons &
+python3 getwikihelppage.py Assist
+python3 getwikihelppage.py Assrp &
+python3 getwikihelppage.py Attackswitch &
+python3 getwikihelppage.py Attributes &
+python3 getwikihelppage.py Awaken
+python3 getwikihelppage.py Backstab &
+python3 getwikihelppage.py Baculus &
+python3 getwikihelppage.py Badbreath &
+python3 getwikihelppage.py Ballchain
+python3 getwikihelppage.py Banish &
+python3 getwikihelppage.py Bank &
+python3 getwikihelppage.py Barbarian &
+python3 getwikihelppage.py Bardiche &
+python3 getwikihelppage.py Barkskin &
+python3 getwikihelppage.py Bash
+python3 getwikihelppage.py Berserk &
+python3 getwikihelppage.py Bastard &
+python3 getwikihelppage.py Battleaxe &
+python3 getwikihelppage.py Becdecorbin &
+python3 getwikihelppage.py Beginners &
+python3 getwikihelppage.py Beheaded
+python3 getwikihelppage.py Billguisarme &
+python3 getwikihelppage.py Billhook &
+python3 getwikihelppage.py Bless &
+python3 getwikihelppage.py Blind &
+python3 getwikihelppage.py Blindingflash
+python3 getwikihelppage.py Blizzard &
+python3 getwikihelppage.py Boards &
+python3 getwikihelppage.py Bob &
+python3 getwikihelppage.py Boneskin
+python3 getwikihelppage.py Bot &
+python3 getwikihelppage.py Bounty &
+python3 getwikihelppage.py Brain &
+python3 getwikihelppage.py Brambles &
+python3 getwikihelppage.py Bravemode
+python3 getwikihelppage.py Break &
+python3 getwikihelppage.py Breath &
+python3 getwikihelppage.py Brief &
+python3 getwikihelppage.py Brimstone &
+python3 getwikihelppage.py Broadsword
+python3 getwikihelppage.py Brownies &
+python3 getwikihelppage.py Bug &
+python3 getwikihelppage.py Buildera &
+python3 getwikihelppage.py Builder
+python3 getwikihelppage.py Burn &
+python3 getwikihelppage.py Bury &
+python3 getwikihelppage.py Bushido &
+python3 getwikihelppage.py Butcher
+python3 getwikihelppage.py Caccept &
+python3 getwikihelppage.py Calllightning &
+python3 getwikihelppage.py Calm &
+python3 getwikihelppage.py Cappoint
+python3 getwikihelppage.py Cart &
+python3 getwikihelppage.py Casthold &
+python3 getwikihelppage.py Casting &
+python3 getwikihelppage.py Causelightwounds &
+python3 getwikihelppage.py Causepanic
+python3 getwikihelppage.py Causeseriouswounds &
+python3 getwikihelppage.py Cbalance &
+python3 getwikihelppage.py Cdefect &
+python3 getwikihelppage.py Cdepose &
+python3 getwikihelppage.py Cdeposit
+python3 getwikihelppage.py Cequipment &
+python3 getwikihelppage.py Change &
+python3 getwikihelppage.py charge &
+python3 getwikihelppage.py Chargestaff
+python3 getwikihelppage.py Chargewand &
+python3 getwikihelppage.py Charmanimal &
+python3 getwikihelppage.py Chr
+python3 getwikihelppage.py Cinfo &
+python3 getwikihelppage.py Claim &
+python3 getwikihelppage.py Clancommands &
+python3 getwikihelppage.py Clandonate &
+python3 getwikihelppage.py Clanenter
+python3 getwikihelppage.py Clanexit &
+python3 getwikihelppage.py Clan &
+python3 getwikihelppage.py Clanmaster &
+python3 getwikihelppage.py Clanquartermaster &
+python3 getwikihelppage.py Clanres
+python3 getwikihelppage.py Clans &
+python3 getwikihelppage.py Clanstartup &
+python3 getwikihelppage.py Clantreasurer &
+python3 getwikihelppage.py Claymore &
+python3 getwikihelppage.py Clear
+python3 getwikihelppage.py Clearskies &
+python3 getwikihelppage.py Cleave &
+python3 getwikihelppage.py Clenchedfist &
+python3 getwikihelppage.py Climb &
+python3 getwikihelppage.py Clist
+python3 getwikihelppage.py Close &
+python3 getwikihelppage.py Club &
+python3 getwikihelppage.py Coldresistance &
+python3 getwikihelppage.py Color &
+python3 getwikihelppage.py Colourbeam
+python3 getwikihelppage.py Colourspray &
+python3 getwikihelppage.py Columns &
+python3 getwikihelppage.py Combat &
+python3 getwikihelppage.py Command &
+python3 getwikihelppage.py Commands
+python3 getwikihelppage.py Comm &
+python3 getwikihelppage.py Communicate &
+python3 getwikihelppage.py Compact &
+python3 getwikihelppage.py Condemn &
+python3 getwikihelppage.py Coneofshards &
+python3 getwikihelppage.py Confusion &
+python3 getwikihelppage.py Conjurer &
+python3 getwikihelppage.py Conjurerskills
+python3 getwikihelppage.py Conjurerspells &
+python3 getwikihelppage.py Conjurerweapons &
+python3 getwikihelppage.py Consider &
+python3 getwikihelppage.py Constitution &
+python3 getwikihelppage.py Continualdarkness
+python3 getwikihelppage.py Continuallight &
+python3 getwikihelppage.py Contract &
+python3 getwikihelppage.py Contrib &
+python3 getwikihelppage.py Controlledteleport &
+python3 getwikihelppage.py Controlundead
+python3 getwikihelppage.py Cook &
+python3 getwikihelppage.py Cpromote &
+python3 getwikihelppage.py Craftsmanship &
+python3 getwikihelppage.py Crank &
+python3 getwikihelppage.py Createfood
+python3 getwikihelppage.py Createwater &
+python3 getwikihelppage.py Creationsphere &
+python3 getwikihelppage.py Creators &
+python3 getwikihelppage.py Credits
+python3 getwikihelppage.py Cremove &
+python3 getwikihelppage.py Crossbow &
+python3 getwikihelppage.py Crowbill &
+python3 getwikihelppage.py Csrank &
+python3 getwikihelppage.py Cstart &
+python3 getwikihelppage.py Cstore
+python3 getwikihelppage.py Ctitle &
+python3 getwikihelppage.py Cudgel &
+python3 getwikihelppage.py Cuff &
+python3 getwikihelppage.py Cunstore &
+python3 getwikihelppage.py Curare &
+python3 getwikihelppage.py Cureblind
+python3 getwikihelppage.py Curelight &
+python3 getwikihelppage.py Cureserious &
+python3 getwikihelppage.py Curse &
+python3 getwikihelppage.py Curvesword
+python3 getwikihelppage.py Cutlass &
+python3 getwikihelppage.py Cwithdraw &
+python3 getwikihelppage.py Dagger &
+python3 getwikihelppage.py Darkelf &
+python3 getwikihelppage.py Darkknight
+python3 getwikihelppage.py Darkknightskills &
+python3 getwikihelppage.py Darkknightspel &
+python3 getwikihelppage.py Darkknightweapons &
+python3 getwikihelppage.py Darkness &
+python3 getwikihelppage.py Date
+python3 getwikihelppage.py Deathlygrasp &
+python3 getwikihelppage.py Decapitate &
+python3 getwikihelppage.py defend &
+python3 getwikihelppage.py Deleteme &
+python3 getwikihelppage.py Describe
+python3 getwikihelppage.py Detectalignment &
+python3 getwikihelppage.py Detectcurse &
+python3 getwikihelppage.py Detectinvisible &
+python3 getwikihelppage.py Detectionsphere &
+python3 getwikihelppage.py Detectmagic
+python3 getwikihelppage.py Detectpoison &
+python3 getwikihelppage.py Detectundead &
+python3 getwikihelppage.py Dexterity &
+python3 getwikihelppage.py Diagnostics &
+python3 getwikihelppage.py Dictionary
+python3 getwikihelppage.py Die &
+python3 getwikihelppage.py Dig &
+python3 getwikihelppage.py Dirk &
+python3 getwikihelppage.py Disarming
+python3 getwikihelppage.py Dispelevil &
+python3 getwikihelppage.py Dispelgood &
+python3 getwikihelppage.py Dispelmagic &
+python3 getwikihelppage.py Displacemagic &
+python3 getwikihelppage.py Ditch &
+python3 getwikihelppage.py Divinationsphere
+python3 getwikihelppage.py Divineresistance &
+python3 getwikihelppage.py Donate
+python3 getwikihelppage.py Dowse &
+python3 getwikihelppage.py Drag &
+python3 getwikihelppage.py Drop &
+python3 getwikihelppage.py Drowse &
+python3 getwikihelppage.py Druids
+python3 getwikihelppage.py Druidskills &
+python3 getwikihelppage.py Druidspells &
+python3 getwikihelppage.py Druidweapons &
+python3 getwikihelppage.py Drink &
+python3 getwikihelppage.py Dump
+python3 getwikihelppage.py Dustdevil &
+python3 getwikihelppage.py Dwarves &
+python3 getwikihelppage.py Eaglecry &
+python3 getwikihelppage.py Earthquake
+python3 getwikihelppage.py Eat &
+python3 getwikihelppage.py Echo &
+python3 getwikihelppage.py Elbow &
+python3 getwikihelppage.py Electricalshock &
+python3 getwikihelppage.py Electricityresistance
+python3 getwikihelppage.py Electricitysphere &
+python3 getwikihelppage.py Elves &
+python3 getwikihelppage.py Email &
+python3 getwikihelppage.py Emotes &
+python3 getwikihelppage.py Endurancepoints
+python3 getwikihelppage.py Energydrain &
+python3 getwikihelppage.py Enerybolt &
+python3 getwikihelppage.py Entangle &
+python3 getwikihelppage.py Enter &
+python3 getwikihelppage.py Equipment
+python3 getwikihelppage.py Estoc &
+python3 getwikihelppage.py Evaluate &
+python3 getwikihelppage.py Examine &
+python3 getwikihelppage.py Exits &
+python3 getwikihelppage.py Experience &
+python3 getwikihelppage.py Expert &
+python3 getwikihelppage.py Extinguish
+python3 getwikihelppage.py Falchion &
+python3 getwikihelppage.py Familiar &
+python3 getwikihelppage.py Fart &
+python3 getwikihelppage.py Fashionweapon &
+python3 getwikihelppage.py Fauchardfork
+python3 getwikihelppage.py Fauchard &
+python3 getwikihelppage.py Fear &
+python3 getwikihelppage.py Fell &
+python3 getwikihelppage.py Fighter &
+python3 getwikihelppage.py Fighterrp
+python3 getwikihelppage.py Fighterskills &
+python3 getwikihelppage.py Fighterweapons &
+python3 getwikihelppage.py Fightingstaff &
+python3 getwikihelppage.py Filching
+python3 getwikihelppage.py Finalrest &
+python3 getwikihelppage.py Findpath &
+python3 getwikihelppage.py Fireball &
+python3 getwikihelppage.py Fireblast &
+python3 getwikihelppage.py Firesphere
+python3 getwikihelppage.py Firestorm &
+python3 getwikihelppage.py Firstaid &
+python3 getwikihelppage.py Fishspine &
+python3 getwikihelppage.py Flail &
+python3 getwikihelppage.py Flamberge
+python3 getwikihelppage.py Flash &
+python3 getwikihelppage.py Flashinggrip &
+python3 getwikihelppage.py Fleeing &
+python3 getwikihelppage.py Focus &
+python3 getwikihelppage.py Follow
+python3 getwikihelppage.py Footlance &
+python3 getwikihelppage.py Forage &
+python3 getwikihelppage.py Frenzy
+python3 getwikihelppage.py Frostball &
+python3 getwikihelppage.py Frostsphere &
+python3 getwikihelppage.py Gaff
+python3 getwikihelppage.py Gate &
+python3 getwikihelppage.py Genders &
+python3 getwikihelppage.py Get &
+python3 getwikihelppage.py Give
+python3 getwikihelppage.py Glaive &
+python3 getwikihelppage.py Glance &
+python3 getwikihelppage.py Glowingfungus &
+python3 getwikihelppage.py Gnomes
+python3 getwikihelppage.py Greatsword &
+python3 getwikihelppage.py Grolls &
+python3 getwikihelppage.py Groups
+python3 getwikihelppage.py Groupteleport &
+python3 getwikihelppage.py Guests &
+python3 getwikihelppage.py Guilds &
+python3 getwikihelppage.py Guisarme
+python3 getwikihelppage.py Halberd &
+python3 getwikihelppage.py Halfelves &
+python3 getwikihelppage.py Halflings &
+python3 getwikihelppage.py Halfogres &
+python3 getwikihelppage.py Halforcs
+python3 getwikihelppage.py Hammerofkai &
+python3 getwikihelppage.py Handaxe &
+python3 getwikihelppage.py Harm &
+python3 getwikihelppage.py Haste
+python3 getwikihelppage.py Healanimal &
+python3 getwikihelppage.py Healers &
+python3 getwikihelppage.py Healerskills &
+python3 getwikihelppage.py Healerspells &
+python3 getwikihelppage.py Healerweapons
+python3 getwikihelppage.py Heal &
+python3 getwikihelppage.py Heatresistance &
+python3 getwikihelppage.py Hedgewall &
+python3 getwikihelppage.py Hellfire &
+python3 getwikihelppage.py Help
+python3 getwikihelppage.py Herbs &
+python3 getwikihelppage.py Hide &
+python3 getwikihelppage.py History1 &
+python3 getwikihelppage.py Hit
+python3 getwikihelppage.py Hits &
+python3 getwikihelppage.py Holdanimal &
+python3 getwikihelppage.py Holdflight &
+python3 getwikihelppage.py Hold &
+python3 getwikihelppage.py Holdmonster
+python3 getwikihelppage.py Holdundead &
+python3 getwikihelppage.py Holygrasp &
+python3 getwikihelppage.py Holyshout &
+python3 getwikihelppage.py Holytouch &
+python3 getwikihelppage.py Holyword
+python3 getwikihelppage.py Houses &
+python3 getwikihelppage.py Humans
+python3 getwikihelppage.py Hunt &
+python3 getwikihelppage.py Iceball &
+python3 getwikihelppage.py Icestorm &
+python3 getwikihelppage.py Icethorn
+python3 getwikihelppage.py Idea &
+python3 getwikihelppage.py Identify &
+python3 getwikihelppage.py Ignore &
+python3 getwikihelppage.py Immortal &
+python3 getwikihelppage.py Improvedidentify
+python3 getwikihelppage.py Info &
+python3 getwikihelppage.py Inform &
+python3 getwikihelppage.py Insult &
+python3 getwikihelppage.py Inventory
+python3 getwikihelppage.py Invisibility &
+python3 getwikihelppage.py Javelin &
+python3 getwikihelppage.py Jeddart
+python3 getwikihelppage.py Join &
+python3 getwikihelppage.py Jolt
+python3 getwikihelppage.py Khorsabadassassin &
+python3 getwikihelppage.py Kick &
+python3 getwikihelppage.py Kill &
+python3 getwikihelppage.py Kindred
+python3 getwikihelppage.py Knight &
+python3 getwikihelppage.py Knee &
+python3 getwikihelppage.py Knock &
+python3 getwikihelppage.py Kopesh &
+python3 getwikihelppage.py Lance &
+python3 getwikihelppage.py Lantern
+python3 getwikihelppage.py Lavaflow &
+python3 getwikihelppage.py Laws &
+python3 getwikihelppage.py Laytrap &
+python3 getwikihelppage.py Leadership &
+python3 getwikihelppage.py Leafshield
+python3 getwikihelppage.py leap &
+python3 getwikihelppage.py Leatherskin &
+python3 getwikihelppage.py Leave &
+python3 getwikihelppage.py Leaving &
+python3 getwikihelppage.py Letter &
+python3 getwikihelppage.py Level
+python3 getwikihelppage.py Levels &
+python3 getwikihelppage.py Lifeprotection &
+python3 getwikihelppage.py Lightningbolt
+python3 getwikihelppage.py Lightningstorm &
+python3 getwikihelppage.py List &
+python3 getwikihelppage.py Listen &
+python3 getwikihelppage.py Locateanimal
+python3 getwikihelppage.py Locate &
+python3 getwikihelppage.py Locateobject &
+python3 getwikihelppage.py Locateperson &
+python3 getwikihelppage.py Lochaber &
+python3 getwikihelppage.py Lock
+python3 getwikihelppage.py Loginguilds &
+python3 getwikihelppage.py Login &
+python3 getwikihelppage.py Loginraces &
+python3 getwikihelppage.py Longbow &
+python3 getwikihelppage.py Longsword
+python3 getwikihelppage.py Look &
+python3 getwikihelppage.py Lucern &
+python3 getwikihelppage.py Mace &
+python3 getwikihelppage.py Madness &
+python3 getwikihelppage.py Magiccandle
+python3 getwikihelppage.py Magicians &
+python3 getwikihelppage.py Maidenname &
+python3 getwikihelppage.py Maingauche
+python3 getwikihelppage.py Manaboost &
+python3 getwikihelppage.py Manapoints &
+python3 getwikihelppage.py Map
+python3 getwikihelppage.py Mattock &
+python3 getwikihelppage.py Maul &
+python3 getwikihelppage.py Mending
+python3 getwikihelppage.py Meteorshower &
+python3 getwikihelppage.py Midgaard &
+python3 getwikihelppage.py Midgaardpaladins &
+python3 getwikihelppage.py Midgaardsorcerer &
+python3 getwikihelppage.py Militaryfork
+python3 getwikihelppage.py Mindshield &
+python3 getwikihelppage.py Mindsphere &
+python3 getwikihelppage.py Mine &
+python3 getwikihelppage.py Minorgate &
+python3 getwikihelppage.py Mire
+python3 getwikihelppage.py Money &
+python3 getwikihelppage.py Monster &
+python3 getwikihelppage.py Morningstar
+python3 getwikihelppage.py Motd &
+python3 getwikihelppage.py Mount
+python3 getwikihelppage.py Movement &
+python3 getwikihelppage.py Mudpuddle
+python3 getwikihelppage.py Naffect &
+python3 getwikihelppage.py Naginata &
+python3 getwikihelppage.py Names &
+python3 getwikihelppage.py Necro &
+python3 getwikihelppage.py Necromancerskills
+python3 getwikihelppage.py Necromancerspells &
+python3 getwikihelppage.py Necromancerweapons &
+python3 getwikihelppage.py Newbie &
+python3 getwikihelppage.py Newplayercouncil &
+python3 getwikihelppage.py News &
+python3 getwikihelppage.py Nightglobe &
+python3 getwikihelppage.py Noshout
+python3 getwikihelppage.py Oddweapon &
+python3 getwikihelppage.py Odinstatue &
+python3 getwikihelppage.py Off &
+python3 getwikihelppage.py Open
+python3 getwikihelppage.py Paladins &
+python3 getwikihelppage.py Paladinskills &
+python3 getwikihelppage.py Paladinspells &
+python3 getwikihelppage.py Paladinweapons
+python3 getwikihelppage.py Palrp &
+python3 getwikihelppage.py Partisan &
+python3 getwikihelppage.py Password &
+python3 getwikihelppage.py Pastgods
+python3 getwikihelppage.py Peace &
+python3 getwikihelppage.py Peeking &
+python3 getwikihelppage.py Pe &
+python3 getwikihelppage.py Personalemail
+python3 getwikihelppage.py Personality &
+python3 getwikihelppage.py Petrify &
+python3 getwikihelppage.py Pibag &
+python3 getwikihelppage.py Picklock &
+python3 getwikihelppage.py Pickpockets
+python3 getwikihelppage.py Pike &
+python3 getwikihelppage.py Pilum &
+python3 getwikihelppage.py Piset &
+python3 getwikihelppage.py Plague
+python3 getwikihelppage.py Plant
+python3 getwikihelppage.py Poisonivy &
+python3 getwikihelppage.py Poisonresistance &
+python3 getwikihelppage.py Poisonsphere
+python3 getwikihelppage.py Polarity &
+python3 getwikihelppage.py Polearms &
+python3 getwikihelppage.py Poleaxe &
+python3 getwikihelppage.py Polecleaver &
+python3 getwikihelppage.py Policeguild
+python3 getwikihelppage.py Portal &
+python3 getwikihelppage.py Position &
+python3 getwikihelppage.py Potions &
+python3 getwikihelppage.py Pour &
+python3 getwikihelppage.py Poweritems
+python3 getwikihelppage.py Practice &
+python3 getwikihelppage.py Pray &
+python3 getwikihelppage.py Privacy &
+python3 getwikihelppage.py Professions &
+python3 getwikihelppage.py Promptcolors
+python3 getwikihelppage.py Protected &
+python3 getwikihelppage.py Protectionfromevil &
+python3 getwikihelppage.py Protectionfromgood &
+python3 getwikihelppage.py Protectionsphere &
+python3 getwikihelppage.py Purse
+python3 getwikihelppage.py Put &
+python3 getwikihelppage.py Quarterstaff &
+python3 getwikihelppage.py Quests
+python3 getwikihelppage.py Quicken &
+python3 getwikihelppage.py Quicksand &
+python3 getwikihelppage.py Quit &
+python3 getwikihelppage.py Races &
+python3 getwikihelppage.py Rage &
+python3 getwikihelppage.py Raisedead
+python3 getwikihelppage.py Raisedivine &
+python3 getwikihelppage.py Raisehitpoints &
+python3 getwikihelppage.py Raisehorde &
+python3 getwikihelppage.py Raisemagic &
+python3 getwikihelppage.py Raiseskeletalchampion
+python3 getwikihelppage.py Raiseskeleton &
+python3 getwikihelppage.py Randomteleport &
+python3 getwikihelppage.py Ranger &
+python3 getwikihelppage.py Rangerskills &
+python3 getwikihelppage.py Rangerspells
+python3 getwikihelppage.py Rangerweapons &
+python3 getwikihelppage.py Ranseur &
+python3 getwikihelppage.py Rapier &
+python3 getwikihelppage.py Read
+python3 getwikihelppage.py Reconstruct &
+python3 getwikihelppage.py Refit &
+python3 getwikihelppage.py Refresh
+python3 getwikihelppage.py Regenerate &
+python3 getwikihelppage.py Removecurse &
+python3 getwikihelppage.py Removedisease
+python3 getwikihelppage.py Remove &
+python3 getwikihelppage.py Removepoison &
+python3 getwikihelppage.py Rend &
+python3 getwikihelppage.py Repair &
+python3 getwikihelppage.py Repelgreaterundead
+python3 getwikihelppage.py Repellesserundead &
+python3 getwikihelppage.py Reply &
+python3 getwikihelppage.py Rescue &
+python3 getwikihelppage.py Resize
+python3 getwikihelppage.py Respond &
+python3 getwikihelppage.py Ressurect &
+python3 getwikihelppage.py Rules &
+python3 getwikihelppage.py Sail &
+python3 getwikihelppage.py Sanctuary
+python3 getwikihelppage.py Sappara &
+python3 getwikihelppage.py Save &
+python3 getwikihelppage.py Say &
+python3 getwikihelppage.py Scan &
+python3 getwikihelppage.py Scimitar
+python3 getwikihelppage.py Score &
+python3 getwikihelppage.py Scrolluse &
+python3 getwikihelppage.py Search &
+python3 getwikihelppage.py Sending &
+python3 getwikihelppage.py Senselife &
+python3 getwikihelppage.py Seual
+python3 getwikihelppage.py Shamshir &
+python3 getwikihelppage.py Shelter &
+python3 getwikihelppage.py Shields &
+python3 getwikihelppage.py Shoot
+python3 getwikihelppage.py Shops &
+python3 getwikihelppage.py Shortsword &
+python3 getwikihelppage.py Shout &
+python3 getwikihelppage.py Sickle
+python3 getwikihelppage.py Sip &
+python3 getwikihelppage.py Skills &
+python3 getwikihelppage.py Skin
+python3 getwikihelppage.py Slam &
+python3 getwikihelppage.py Slip &
+python3 getwikihelppage.py Slow &
+python3 getwikihelppage.py Slowrot &
+python3 getwikihelppage.py Sneaking &
+python3 getwikihelppage.py Snoop &
+python3 getwikihelppage.py Snowball &
+python3 getwikihelppage.py Socials &
+python3 getwikihelppage.py Solarflare
+python3 getwikihelppage.py Soothe &
+python3 getwikihelppage.py Sorcerer &
+python3 getwikihelppage.py Sorcererskills &
+python3 getwikihelppage.py Sorcererspells &
+python3 getwikihelppage.py Sorcererweapons &
+python3 getwikihelppage.py Soulfire
+python3 getwikihelppage.py Soulshift &
+python3 getwikihelppage.py Spearfam &
+python3 getwikihelppage.py Spear
+python3 getwikihelppage.py Spellaid
+python3 getwikihelppage.py Spelllight &
+python3 getwikihelppage.py Spelllock &
+python3 getwikihelppage.py Spellsleep
+python3 getwikihelppage.py Spellstrength &
+python3 getwikihelppage.py Spellunlock &
+python3 getwikihelppage.py Spetum &
+python3 getwikihelppage.py Spheres &
+python3 getwikihelppage.py Spies
+python3 getwikihelppage.py Splitm &
+python3 getwikihelppage.py Sprayofacid &
+python3 getwikihelppage.py Staff &
+python3 getwikihelppage.py Stalk
+python3 getwikihelppage.py Status &
+python3 getwikihelppage.py Stealing
+python3 getwikihelppage.py Stiletto &
+python3 getwikihelppage.py Stinkingbreath &
+python3 getwikihelppage.py Stinkingcloud &
+python3 getwikihelppage.py Stoneskin
+python3 getwikihelppage.py Storage &
+python3 getwikihelppage.py Stormcall &
+python3 getwikihelppage.py Stormgate &
+python3 getwikihelppage.py Str &
+python3 getwikihelppage.py Stun &
+python3 getwikihelppage.py Summerrain
+python3 getwikihelppage.py Summonair &
+python3 getwikihelppage.py Summonanimal &
+python3 getwikihelppage.py Summondemon &
+python3 getwikihelppage.py Summondevil &
+python3 getwikihelppage.py Summonearth
+python3 getwikihelppage.py Summonfire &
+python3 getwikihelppage.py Summoningresistance &
+python3 getwikihelppage.py Summoningsphere &
+python3 getwikihelppage.py Summonlightning &
+python3 getwikihelppage.py Summonwater
+python3 getwikihelppage.py Sunbeam &
+python3 getwikihelppage.py Sunglobe &
+python3 getwikihelppage.py Sunray &
+python3 getwikihelppage.py Sustain &
+python3 getwikihelppage.py Swimming
+python3 getwikihelppage.py Talwar &
+python3 getwikihelppage.py Taste &
+python3 getwikihelppage.py taunt &
+python3 getwikihelppage.py Tell
+python3 getwikihelppage.py Terminal &
+python3 getwikihelppage.py Thief &
+python3 getwikihelppage.py Thiefrp &
+python3 getwikihelppage.py Thiefskills &
+python3 getwikihelppage.py Thiefspells
+python3 getwikihelppage.py Thiefweapons &
+python3 getwikihelppage.py Thornstrike &
+python3 getwikihelppage.py Throw &
+python3 getwikihelppage.py Tigerclaw
+python3 getwikihelppage.py Time
+python3 getwikihelppage.py Title &
+python3 getwikihelppage.py Totalrecall &
+python3 getwikihelppage.py Toxicate &
+python3 getwikihelppage.py Track
+python3 getwikihelppage.py Transport &
+python3 getwikihelppage.py Travel &
+python3 getwikihelppage.py Trident &
+python3 getwikihelppage.py Trigger
+python3 getwikihelppage.py Tripping
+python3 getwikihelppage.py Tsunami &
+python3 getwikihelppage.py Tuborg &
+python3 getwikihelppage.py Turnundead &
+python3 getwikihelppage.py TwoWeaponStyle &
+python3 getwikihelppage.py Typo
+python3 getwikihelppage.py Udgaard &
+python3 getwikihelppage.py Undeaddoor &
+python3 getwikihelppage.py Unholygrasp
+python3 getwikihelppage.py Unholyshout
+python3 getwikihelppage.py Unholytouch &
+python3 getwikihelppage.py Unholyword &
+python3 getwikihelppage.py Unseen
+python3 getwikihelppage.py Use &
+python3 getwikihelppage.py Valhalla &
+python3 getwikihelppage.py Variable &
+python3 getwikihelppage.py Ventriloquate
+python3 getwikihelppage.py Voulge
+python3 getwikihelppage.py Waraxe &
+python3 getwikihelppage.py Warhammer
+python3 getwikihelppage.py Weap &
+python3 getwikihelppage.py Weapons &
+python3 getwikihelppage.py Wear &
+python3 getwikihelppage.py Weather
+python3 getwikihelppage.py Whip &
+python3 getwikihelppage.py Whisper &
+python3 getwikihelppage.py Whirl &
+python3 getwikihelppage.py When &
+python3 getwikihelppage.py Who &
+python3 getwikihelppage.py Wield
+python3 getwikihelppage.py Wimpy &
+python3 getwikihelppage.py Windslash &
+python3 getwikihelppage.py Wizardeye &
+python3 getwikihelppage.py Wizardmark
+python3 getwikihelppage.py Wizlist &
+python3 getwikihelppage.py Wordofrecall &
+python3 getwikihelppage.py Write
+python3 getwikihelppage.py Yule &
+python3 getwikihelppage.py Xrayvision
+wait

@@ -4,48 +4,34 @@
  $Date: 2004/09/18 19:52:56 $
  $Revision: 2.11 $
  */
-
-#ifdef _WINDOWS
-
-#else
-#include <unistd.h>
-#endif
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include "structs.h"
-#include "utils.h"
-#include "utility.h"
-#include "handler.h"
-#include "system.h"
-#include "comm.h"
-#include "db.h"
-#include "interpreter.h"
-#include "main.h"
-#include "textutil.h"
-#include "files.h"
 #include "event.h"
-#include "dilrun.h"
+
+#include "affect.h"
+#include "comm.h"
+#include "eliza.h"
+#include "interpreter.h"
+#include "main_functions.h"
+#include "mobact.h"
+#include "slog.h"
+#include "spec_assign.h"
+#include "unit_affected_type.h"
+#include "unit_fptr.h"
+#include "utils.h"
+#include "weather.h"
+#include "zone_reset.h"
+#include "zone_type.h"
+
 #include <sys/time.h>
-void check_reboot_event(void *, void *);
-void delayed_action(void *p1, void *p2);
-void check_idle_event(void *p1, void *p2);
-void perform_violence_event(void *, void *);
-void weather_and_time_event(void *, void *);
-void zone_event(void *, void *);
 
-extern void special_event(void *p1, void *p2);
-extern void affect_beat(void *p1, void *pd);
-extern struct unit_function_array_type unit_function_array[];
-extern int tics;
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
-eventqueue::eventqueue(void)
+eventqueue::eventqueue()
 {
     count = 0;
     heapsize = 0;
-    heap = NULL;
+    heap = nullptr;
     loop_process = 0;
     loop_time = 0;
     max_process = 0;
@@ -57,44 +43,72 @@ eventqueue::eventqueue(void)
     total_time = 0;
 }
 
-eventqueue::~eventqueue(void)
+eventqueue::~eventqueue()
 {
-    int i;
+    int i = 0;
     for (i = 1; i <= count; i++)
     {
         delete heap[i];
     }
 }
 
-struct eventq_elem *eventqueue::add(int when, void (*func)(void *, void *),
-                                     void *arg1, void *arg2)
+//
+// 1=count only the current tick, 2=current and current+1 tick, etc.
+// Count matters because
+// if there are many items at the same When (tick)
+// then the priorityQueue is probably not the most
+// efficient data structure for this problem.
+//
+int eventqueue::CountNextTicks(int noOfTicks)
 {
-    struct eventq_elem *end;
-    int parent_index, current_index;
+    int i;
+    int n = 0;
 
+    for (i=1; i < count; i++)
+    {
+        if (heap[i]->when < heap[1]->when+noOfTicks)
+            n++;
+    }
+
+    return n;
+}
+
+
+eventq_elem *eventqueue::add(int when, void (*func)(void *, void *), void *arg1, void *arg2)
+{
+    eventq_elem *end = nullptr;
+    int parent_index = 0;
+    int current_index = 0;
+
+    /* The NOOP operation has 0 time, so ditch this warning.
+    
     if (when <= 0)
     {
         slog(LOG_ALL, 0, "Error: %d EVENT", when);
-    }
+    }*/
 
-    // One could add a sanity check to make sure that events for known 
+    // One could add a sanity check to make sure that events for known
     if (func == special_event)
     {
-        struct unit_data *u = (struct unit_data *) arg1;
-        struct unit_fptr *f = (struct unit_fptr *) arg2;
+        unit_data *u = (unit_data *)arg1;
+        unit_fptr *f = (unit_fptr *)arg2;
         membug_verify(u);
         membug_verify(f);
         membug_verify(f->data);
 
         if (u)
+        {
             assert(!u->is_destructed());
+        }
 
         if (f)
-            assert(!f->is_destructed());
-
-        if (f->index == 82)
         {
-            struct dilprg *prg = (struct dilprg *) f->data;
+            assert(!f->is_destructed());
+        }
+
+        if (f->getFunctionPointerIndex() == SFUN_DIL_INTERNAL)
+        {
+            dilprg *prg = (dilprg *)f->getData();
             membug_verify(prg);
 
             assert(prg);
@@ -107,18 +121,18 @@ struct eventq_elem *eventqueue::add(int when, void (*func)(void *, void *),
         if (!heapsize)
         {
             heapsize = 5000;
-            CREATE(heap, struct eventq_elem *, heapsize);
+            CREATE(heap, eventq_elem *, heapsize);
         }
         else
         {
             heapsize = heapsize * 2;
-            RECREATE(heap, struct eventq_elem *, heapsize);
+            RECREATE(heap, eventq_elem *, heapsize);
             slog(LOG_DIL, 0, "HEAP expand to %d", heapsize);
         }
     }
     count++;
     end = new eventq_elem;
-    end->when = tics + when;
+    end->when = g_tics + when;
     end->func = func;
     end->arg1 = arg1;
     end->arg2 = arg2;
@@ -135,7 +149,9 @@ struct eventq_elem *eventqueue::add(int when, void (*func)(void *, void *),
             parent_index = current_index / 2;
         }
         else
+        {
             break;
+        }
     }
     heap[current_index] = end;
 
@@ -144,66 +160,70 @@ struct eventq_elem *eventqueue::add(int when, void (*func)(void *, void *),
 
 void eventqueue::remove(void (*func)(void *, void *), void *arg1, void *arg2)
 {
-    int i;
-    if ((func == special_event) && arg2 && (((class unit_fptr *)arg2)->event))
+    int i = 0;
+    if ((func == special_event) && arg2 && (((unit_fptr *)arg2)->getEventQueue()))
     {
-        ((class unit_fptr *)arg2)->event->func = NULL;
-        ((class unit_fptr *)arg2)->event = NULL;
-
+        ((unit_fptr *)arg2)->getEventQueue()->func = nullptr;
+        ((unit_fptr *)arg2)->setEventQueue(nullptr);
     }
-    else if ((func == affect_beat) &&
-             arg1 && (((class unit_affected_type *)arg1)->event))
+    else if ((func == affect_beat) && arg1 && (((unit_affected_type *)arg1)->cgetEventQueueElement()))
     {
-        ((class unit_affected_type *)arg1)->event->func = NULL;
-        ((class unit_affected_type *)arg1)->event = NULL;
+        ((unit_affected_type *)arg1)->getEventQueueElement()->func = nullptr;
+        ((unit_affected_type *)arg1)->setEventQueueElement(nullptr);
     }
-    else if ((func == affect_beat) &&
-             arg1 && (!((class unit_affected_type *)arg1)->event))
+    else if ((func == affect_beat) && arg1 && (!((unit_affected_type *)arg1)->cgetEventQueueElement()))
     {
         return;
     }
-    else if ((func == special_event) &&
-             arg2 && (!((class unit_fptr *)arg2)->event))
+    else if ((func == special_event) && arg2 && (!((unit_fptr *)arg2)->getEventQueue()))
     {
         return;
     }
     else
     {
         for (i = 1; i <= count; i++)
-            if (heap[i]->func == func && heap[i]->arg1 == arg1 &&
-                heap[i]->arg2 == arg2)
-                heap[i]->func = NULL;
+        {
+            if (heap[i]->func == func && heap[i]->arg1 == arg1 && heap[i]->arg2 == arg2)
+            {
+                heap[i]->func = nullptr;
+            }
+        }
     }
 }
 
-void eventqueue::remove_relaxed(void (*func)(void *, void *), void *arg1,
-                                void *arg2)
+void eventqueue::remove_relaxed(void (*func)(void *, void *), void *arg1, void *arg2)
 {
-    int i;
+    int i = 0;
 
     for (i = 1; i <= count; i++)
+    {
         if ((heap[i]->func == func) && (!arg1 || (heap[i]->arg1 == arg1)) && (!arg2 || (heap[i]->arg2 == arg2)))
-            heap[i]->func = 0;
+        {
+            heap[i]->func = nullptr;
+        }
+    }
 }
 
-void eventqueue::process(void)
+void eventqueue::process()
 {
-    struct eventq_elem *tmp_event, *newtop;
-    int j, k;
-    char pname[64];
+    eventq_elem *tmp_event = nullptr;
+    eventq_elem *newtop = nullptr;
+    int j = 0;
+    int k = 0;
     char dilname[256];
-    char dilzname[256];
     char diloname[256];
     char dilozname[256];
-    struct timeval now, old, pnow;
-    ubit32 us;
-    void (*tfunc)(void *, void *);
+    timeval now;
+    timeval old;
+    timeval pnow;
+    ubit32 us = 0;
+    void (*tfunc)(void *, void *) = nullptr;
     loop_process = 0;
-    gettimeofday(&old, (struct timezone *)0);
+    gettimeofday(&old, nullptr);
 
-    while ((count >= 1) && (heap[1]->when <= tics))
+    while ((count >= 1) && (heap[1]->when <= g_tics))
     {
-        gettimeofday(&now, (struct timezone *)0);
+        gettimeofday(&now, nullptr);
         us = (now.tv_sec - old.tv_sec) * 1000000L + (now.tv_usec - old.tv_usec);
         loop_time = us / 1000000.0;
 
@@ -221,7 +241,7 @@ void eventqueue::process(void)
         /* dequeue & process event */
         tmp_event = heap[1];
         heap[1] = heap[count];
-        heap[count] = NULL;
+        heap[count] = nullptr;
         count--;
         newtop = heap[1];
         j = 1;
@@ -229,8 +249,12 @@ void eventqueue::process(void)
         while (k <= count)
         {
             if (k < count)
+            {
                 if (heap[k]->when > heap[k + 1]->when)
+                {
                     k++;
+                }
+            }
             if (newtop->when > heap[k]->when)
             {
                 heap[j] = heap[k];
@@ -238,7 +262,9 @@ void eventqueue::process(void)
                 k = 2 * j;
             }
             else
+            {
                 break;
+            }
         }
         heap[j] = newtop;
         if (tmp_event->func)
@@ -246,25 +272,23 @@ void eventqueue::process(void)
             tfunc = tmp_event->func;
             int bDestructed = 0;
 
-            if (tfunc == special_event && ((unit_fptr *)tmp_event->arg2)->data &&
-                (((class unit_fptr *)tmp_event->arg2)->index == SFUN_DIL_INTERNAL))
+            std::string dilzname{"NO ZONE"};
+            auto *fptr = reinterpret_cast<unit_fptr *>(tmp_event->arg2);
+            if (tfunc == special_event && fptr->getData() && fptr->getFunctionPointerIndex() == SFUN_DIL_INTERNAL)
             {
                 strcpy(dilname, "NO NAME");
-                strcpy(dilzname, "NO ZONE");
                 strcpy(diloname, "NO NAME");
                 strcpy(dilozname, "NO ZONE");
 
-                class unit_data *u = (unit_data *)tmp_event->arg1;
-                class unit_fptr *fptr = (unit_fptr *)tmp_event->arg2;
-
+                auto *u = reinterpret_cast<unit_data *>(tmp_event->arg1);
                 membug_verify(u);
                 membug_verify(fptr);
 
-                bDestructed = (u->is_destructed() || fptr->is_destructed() || (tmp_event->func == NULL));
+                bDestructed = (u->is_destructed() || fptr->is_destructed() || (tmp_event->func == nullptr));
 
                 if (!bDestructed)
                 {
-                    class dilprg *prg = (class dilprg *) fptr->data;
+                    dilprg *prg = (dilprg *)fptr->getData();
 
                     assert(prg);
                     membug_verify(prg);
@@ -277,11 +301,15 @@ void eventqueue::process(void)
                     // But rundil checks too.
 
                     if (prg->fp->tmpl->prgname)
+                    {
                         strcpy(dilname, prg->fp->tmpl->prgname);
+                    }
                     if (prg->fp->tmpl->zone)
-                        strcpy(dilzname, prg->fp->tmpl->zone->name);
-                    strcpy(diloname, tmp_event->arg1 ? UNIT_FI_NAME((class unit_data *)(tmp_event->arg1)) : "NO NAME");
-                    strcpy(dilozname, tmp_event->arg1 ? UNIT_FI_ZONENAME((class unit_data *)(tmp_event->arg1)) : "NO ZONE");
+                    {
+                        dilzname = prg->fp->tmpl->zone->getName();
+                    }
+                    strcpy(diloname, u ? u->getFileIndexName() : unit_data::NO_NAME);
+                    strcpy(dilozname, u ? u->getFileIndexZoneName() : unit_data::NO_ZONE);
                 }
             }
 
@@ -297,7 +325,7 @@ void eventqueue::process(void)
                     max_process = loop_process;
                 }
 
-                gettimeofday(&pnow, (struct timezone *)0);
+                gettimeofday(&pnow, nullptr);
                 us = (pnow.tv_sec - now.tv_sec) * 1000000L + (pnow.tv_usec - now.tv_usec);
                 loop_time = us / 1000000.0;
 
@@ -305,41 +333,74 @@ void eventqueue::process(void)
                 {
                     if (tfunc == special_event)
                     {
-                        if (((class unit_fptr *)tmp_event->arg2)->index == SFUN_DIL_INTERNAL)
-                            slog(LOG_DIL, 0, "Process took %1.4f seconds to complete: %s@%s on %s@%s - %s (%d)'", loop_time, dilname, dilzname, diloname, dilozname, unit_function_array[((class unit_fptr *)tmp_event->arg2)->index].name, ((class unit_fptr *)tmp_event->arg2)->index);
-
+                        if (((unit_fptr *)tmp_event->arg2)->getFunctionPointerIndex() == SFUN_DIL_INTERNAL)
+                        {
+                            slog(LOG_DIL,
+                                 0,
+                                 "Process took %1.4f seconds to complete: %s@%s on %s@%s - %s (%d)'",
+                                 loop_time,
+                                 dilname,
+                                 dilzname,
+                                 diloname,
+                                 dilozname,
+                                 g_unit_function_array[((unit_fptr *)tmp_event->arg2)->getFunctionPointerIndex()].name,
+                                 ((unit_fptr *)tmp_event->arg2)->getFunctionPointerIndex());
+                        }
                         else
-                            slog(LOG_DIL, 0, "Internal process took %1.4f seconds to complete: %s (%d)'",
-                                loop_time, unit_function_array[((class unit_fptr *)tmp_event->arg2)->index].name, ((class unit_fptr *)tmp_event->arg2)->index);
+                        {
+                            slog(LOG_DIL,
+                                 0,
+                                 "Internal process took %1.4f seconds to complete: %s (%d)'",
+                                 loop_time,
+                                 g_unit_function_array[((unit_fptr *)tmp_event->arg2)->getFunctionPointerIndex()].name,
+                                 ((unit_fptr *)tmp_event->arg2)->getFunctionPointerIndex());
+                        }
                     }
                     else
                     {
+                        std::string pname;
                         if (tfunc == check_reboot_event)
-                            sprintf(pname, "Reboot Event");
+                        {
+                            pname = "Reboot Event";
+                        }
                         else if (tfunc == affect_beat)
-                            sprintf(pname, "Affect Beat");
+                        {
+                            pname = "Affect Beat";
+                        }
                         else if (tfunc == delayed_action)
-                            sprintf(pname, "Affect Beat");
+                        {
+                            pname = "Affect Beat";
+                        }
                         else if (tfunc == check_idle_event)
-                            sprintf(pname, "Check Idle Event");
+                        {
+                            pname = "Check Idle Event";
+                        }
                         else if (tfunc == perform_violence_event)
-                            sprintf(pname, "Violence Event");
+                        {
+                            pname = "Violence Event";
+                        }
                         else if (tfunc == weather_and_time_event)
-                            sprintf(pname, "Weather And Time Event");
+                        {
+                            pname = "Weather And Time Event";
+                        }
                         else if (tfunc == zone_event)
-                            sprintf(pname, "Zone Reset Event");
+                        {
+                            pname = "Zone Reset Event";
+                        }
                         else
-                            sprintf(pname, "UNKNOWN Event");
+                        {
+                            pname = "UNKNOWN Event";
+                        }
                         slog(LOG_DIL, 0, "Internal Process (%s) Took %1.4f seconds to Complete", pname, loop_time);
                     }
                 }
-            }  // !bDestructed
+            } // !bDestructed
         }
         delete tmp_event;
-        tmp_event = NULL;
+        tmp_event = nullptr;
     }
 
-    gettimeofday(&now, (struct timezone *)0);
+    gettimeofday(&now, nullptr);
     us = (now.tv_sec - old.tv_sec) * 1000000L + (now.tv_usec - old.tv_usec);
     loop_time = us / 1000000.0;
 

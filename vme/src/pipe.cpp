@@ -1,24 +1,25 @@
-#include <stdio.h> 
-#include <string> 
-#include <fcntl.h> 
-#include <sys/stat.h> 
-#include <sys/types.h> 
-#include <unistd.h> 
-#include <errno.h> 
-#include "essential.h"
-#include <cstring>
-#include "dilrun.h"
+#include "pipe.h"
+
 #include "dbfind.h"
-#include "vme.h"
-#include "unitfind.h"
 #include "dil.h"
-#include "textutil.h"
+#include "dilrun.h"
+#include "essential.h"
 #include "hook.h"
+#include "slog.h"
+#include "textutil.h"
+#include "unitfind.h"
+
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#include <cerrno>
+#include <cstring>
+#include <string>
 
 class pipeMUD_RO : public cHookNative
 {
 public:
-    void Open(void)
+    void Open()
     {
         if (this->IsHooked())
         {
@@ -26,16 +27,16 @@ public:
             return;
         }
 
-        int fd;
+        int fd = 0;
 
-        // FIFO file path 
+        // FIFO file path
         const char *myfifo = "./pipeMUD";
-    
-        // Creating the named file(FIFO) 
-        // mkfifo(<pathname>, <permission>) 
-        mkfifo(myfifo, 0666); 
-    
-        // Open FIFO for write only 
+
+        // Creating the named file(FIFO)
+        // mkfifo(<pathname>, <permission>)
+        mkfifo(myfifo, 0666);
+
+        // Open FIFO for write only
         fd = ::open(myfifo, O_RDWR | O_NONBLOCK);
 
         if (fd <= 0)
@@ -55,28 +56,32 @@ public:
     //
     int Read(std::string &str)
     {
-        int n;
+        int n = 0;
         char buf[MAX_STRING_LENGTH];
-        //fd_set read_fds; 
-        //timeval null_time = {0, 0};    
+        // fd_set read_fds;
+        // timeval null_time = {0, 0};
 
         if (!this->IsHooked())
         {
             this->Open();
 
             if (!this->IsHooked())
+            {
                 return -1;
+            }
         }
 
         str = "";
 
         do
         {
-            buf[sizeof(buf)-1] = 0;
-            n = this->read(buf, sizeof(buf)-1);
-            
+            buf[sizeof(buf) - 1] = 0;
+            n = this->read(buf, sizeof(buf) - 1);
+
             if (n == 0)
+            {
                 break;
+            }
             if (n == -1)
             {
                 slog(LOG_OFF, 0, "Error reading from pipeMUD RO.");
@@ -86,8 +91,10 @@ public:
             {
                 buf[n] = 0;
                 str.append(buf);
-                if (n < (int) strlen(buf)-1)
+                if (n < (int)strlen(buf) - 1)
+                {
                     break;
+                }
 
                 if (str.length() > 500000)
                 {
@@ -95,30 +102,34 @@ public:
                     str = ""; // Just consume the spam and toss it out
                 }
             }
-        }
-        while (n > 0);
+        } while (n > 0);
 
         if (str.length() > 0)
         {
-            const char *p, *o;
+            const char *p = nullptr;
+            const char *o = nullptr;
 
             o = str.c_str();
-            do {
+            do
+            {
                 p = strchr(o, '\n');
-                if (p == NULL)
+                if (p == nullptr)
                 {
                     if (strlen(o) < 1)
+                    {
                         break;
+                    }
 
                     p = o + strlen(o);
                 }
-                std::string line(o, p-o);
+                std::string line(o, p - o);
                 o = p;
                 if (*o == '\n')
+                {
                     o++;
-                slog(LOG_OFF, 0, "Received line [%s]. Send to DIL", line.c_str());
+                }
+                slog(LOG_OFF, 0, "Received line [%s]. Send to DIL", line);
 
-                void pipeMUD_dispatch(std::string str);
                 pipeMUD_dispatch(line);
             } while (p);
         }
@@ -128,71 +139,70 @@ public:
 
 } g_pipeMUD_RO;
 
-
-
 class pipeMUD_WO : public cHookNative
 {
 public:
-   void Open(void)
-   {
-      if (this->IsHooked())
-      {
-         slog(LOG_OFF, 0, "Trying to open already opened pipe_wo.");
-         return;
-      }
-
-      // FIFO file path 
-      const char *myfifo = "./pipeDispatcher";
-      
-      // Creating the named file(FIFO) 
-      // mkfifo(<pathname>, <permission>) 
-      mkfifo(myfifo, 0666); 
-   
-      // Open FIFO for write only 
-      int fd = open(myfifo, O_WRONLY | O_NONBLOCK);
-
-      if (fd <= 0)
-      {
-         slog(LOG_OFF, 0, "Unable to open pipe WO %s, error code %d.", myfifo, errno);
-         return;
-      }
-
-      this->Hook(fd);
-   };
-
-
-   void Write(const char *c)
-   {
-      if (!this->IsHooked())
-      {
-         this->Open();
-
-         if (!this->IsHooked())
+    void Open()
+    {
+        if (this->IsHooked())
+        {
+            slog(LOG_OFF, 0, "Trying to open already opened pipe_wo.");
             return;
-      }
+        }
 
-      int n;
-      string str;
+        // FIFO file path
+        const char *myfifo = "./pipeDispatcher";
 
-      str = c;
-      str.append("\n");
+        // Creating the named file(FIFO)
+        // mkfifo(<pathname>, <permission>)
+        mkfifo(myfifo, 0666);
 
-      n = this->write(str.c_str(), str.length());
+        // Open FIFO for write only
+        int fd = open(myfifo, O_WRONLY | O_NONBLOCK);
 
-      if (n == -1)
-      {
-         slog(LOG_OFF, 0, "Unable to write to pipeMUD WO, error code %d.", errno);
-      }
-      else if (n < (int) str.length())
-      {
-         slog(LOG_OFF, 0, "Unable to write full string to pipeMUD WO. code not developed for this yet", errno);
-      }
-      else
-         slog(LOG_OFF, 0, "Wrote message [%s] to dispatcher.", str.c_str());
+        if (fd <= 0)
+        {
+            slog(LOG_OFF, 0, "Unable to open pipe WO %s, error code %d.", myfifo, errno);
+            return;
+        }
 
-   };
+        this->Hook(fd);
+    };
+
+    void Write(const char *c)
+    {
+        if (!this->IsHooked())
+        {
+            this->Open();
+
+            if (!this->IsHooked())
+            {
+                return;
+            }
+        }
+
+        int n = 0;
+        std::string str;
+
+        str = c;
+        str.append("\n");
+
+        n = this->write(str.c_str(), str.length());
+
+        if (n == -1)
+        {
+            slog(LOG_OFF, 0, "Unable to write to pipeMUD WO, error code %d.", errno);
+        }
+        else if (n < (int)str.length())
+        {
+            slog(LOG_OFF, 0, "Unable to write full string to pipeMUD WO. code not developed for this yet", errno);
+        }
+        else
+        {
+            slog(LOG_OFF, 0, "Wrote message [%s] to dispatcher.", str);
+        }
+    };
 } g_pipeMUD_WO;
-
 
 int pipeMUD_read(std::string &str)
 {
@@ -209,23 +219,19 @@ void pipeMUD_write(const char *c)
 //
 void pipeMUD_dispatch(std::string str)
 {
-    struct diltemplate *tmpl;
-    class dilprg *prg;
-    static unit_data *u = NULL;
+    static unit_data *u = nullptr;
 
     if (!u)
     {
         u = find_symbolic("basis", "discord");
-        if (u == NULL)
+        if (u == nullptr)
         {
             slog(LOG_OFF, 0, "Can't find discord@basis.");
             return;
         }
     }
 
-    tmpl = find_dil_template("dispatcher@comm");
-    prg = dil_copy_template(tmpl, u, NULL);
-
+    dilprg *prg = dil_copy_template(g_dil_dispatcher, u, nullptr);
     if (prg)
     {
         str_correct_utf8(str);
@@ -235,10 +241,7 @@ void pipeMUD_dispatch(std::string str)
     }
 }
 
-
-
-void namedpipe_setup(void)
+void namedpipe_setup()
 {
-   g_pipeMUD_RO.Open();
+    g_pipeMUD_RO.Open();
 }
-

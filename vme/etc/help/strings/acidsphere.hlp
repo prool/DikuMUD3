@@ -1,18 +1,28 @@
-<br/>
-<br/>
-<br/>
-<br/>
-The spells in this sphere enables you to conjure and control acid. Knowing<br/>
-a spell in this sphere also raises your resistance to it.<br/><br/>
-<br/>
-    acid drop<br/><br/>
-    spray of acid<br/><br/>
-    acid ball<br/><br/>
-	acid swirl<br/><br/>
-<br/>
-<br/><br/>
-<br/>
-<br/>
-See also<br/>
-Acid Resistance<br/><br/>
-<br/>
+<div class="mw-parser-output"><h1>Acid Sphere</h1>
+<p>The spells of the acid sphere conjure and control acid. The sphere is a 
+category: it can't be practised, but rises by itself to half your best 
+acid spell. How strongly your acid spells burn depends on your magic and 
+your skill in each spell, not on the sphere. The sphere counts when an 
+acid spell is aimed at you: you resist with your brain and the better of 
+half your skill in that spell or your acid sphere (see <a cmd='#'>Help Spheres</a>).
+</p><p>The acid spells, all taught by the sorcerers:
+</p>
+<pre><a cmd='#'>Help Acid Drop</a>       guild level 100
+<a cmd='#'>Help Spray of Acid</a>   guild level 120
+<a cmd='#'>Help Acid Ball</a>       guild level 145
+<a cmd='#'>Help Acid Swirl</a>      guild level 180
+</pre>
+<p>Dragons may also breathe acid (see <a cmd='#'>Help Breath</a>). To resist acid better, 
+see <a cmd='#'>Help Acid Resistance</a>.
+</p><p><br />
+See Also:
+</p>
+<pre>&gt; <a cmd='#'>Help Spheres</a>
+&gt; <a cmd='#'>Help Acid Resistance</a>
+&gt; <a cmd='#'>Help Sorcerer Spells</a>
+</pre>
+
+
+
+
+</div>

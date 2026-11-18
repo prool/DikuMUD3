@@ -5,32 +5,28 @@
  $Revision: 2.2 $
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-
-#include "structs.h"
-#include "utils.h"
-#include "textutil.h"
-#include "interpreter.h"
-#include "db.h"
-#include "utility.h"
-#include "files.h"
 #include "comm.h"
+#include "db.h"
+#include "files.h"
+#include "formatter.h"
+#include "interpreter.h"
+#include "slog.h"
+#include "textutil.h"
+#include "utils.h"
 
-extern class file_index_type *slime_fi;
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 static int slime_count = 0;
-class file_index_type **slime_list = NULL;
+file_index_type **slime_list = nullptr;
 
-static void slime_save(void)
+static void slime_save()
 {
-    int i;
-    FILE *f;
+    int i = 0;
+    FILE *f = nullptr;
 
-    if (!(f = fopen(str_cc(g_cServerConfig.m_libdir, SLIME_FILE), "wb")))
+    if (!(f = fopen(g_cServerConfig.getFileInLibDir(SLIME_FILE).c_str(), "wb")))
     {
         slog(LOG_ALL, 0, "Slime file could not be opened.");
         assert(FALSE);
@@ -38,35 +34,38 @@ static void slime_save(void)
 
     for (i = 0; i < slime_count; i++)
     {
-        fputs(slime_list[i]->zone->name, f);
+        fputs(slime_list[i]->getZone()->getName().c_str(), f);
         fputc(0, f);
-        fputs(slime_list[i]->name, f);
+        fputs(slime_list[i]->getName(), f);
         fputc(0, f);
     }
     fclose(f);
 }
 
-static void slime_add(class file_index_type *sp)
+static void slime_add(file_index_type *sp)
 {
-    if (sp == NULL)
+    if (sp == nullptr)
+    {
         return;
+    }
 
     if (slime_count++ == 0)
     {
-        CREATE(slime_list, class file_index_type *, slime_count);
+        CREATE(slime_list, file_index_type *, slime_count);
     }
     else
     {
-        RECREATE(slime_list, class file_index_type *, slime_count);
+        RECREATE(slime_list, file_index_type *, slime_count);
     }
     slime_list[slime_count - 1] = sp;
 }
 
-static void slime_remove(class file_index_type *sp)
+static void slime_remove(file_index_type *sp)
 {
-    int i;
+    int i = 0;
 
     for (i = 0; i < slime_count; i++)
+    {
         if (slime_list[i] == sp)
         {
             slime_list[i] = slime_list[slime_count - 1];
@@ -74,35 +73,42 @@ static void slime_remove(class file_index_type *sp)
             if (slime_count == 0)
             {
                 FREE(slime_list);
-                slime_list = NULL;
+                slime_list = nullptr;
             }
             break;
         }
+    }
 }
 
-int is_slimed(class file_index_type *sp)
+int is_slimed(file_index_type *sp)
 {
-    int i;
+    int i = 0;
 
     for (i = 0; i < slime_count; i++)
+    {
         if (slime_list[i] == sp)
+        {
             return TRUE;
+        }
+    }
 
     return FALSE;
 }
 
-int slime_obj(struct spec_arg *sarg)
+int slime_obj(spec_arg *sarg)
 {
-    char buf[MAX_INPUT_LENGTH], fi_name[MAX_INPUT_LENGTH];
-    class file_index_type *fi;
+    char buf[MAX_INPUT_LENGTH];
+    char fi_name[MAX_INPUT_LENGTH];
+    file_index_type *fi = nullptr;
 
     if (!is_command(sarg->cmd, "slime"))
+    {
         return SFR_SHARE;
+    }
 
     if (!IS_OVERSEER(sarg->activator))
     {
-        send_to_char("Only overseers can use this function.<br/>",
-                     sarg->activator);
+        send_to_char("Only overseers can use this function.<br/>", sarg->activator);
         return SFR_BLOCK;
     }
 
@@ -110,13 +116,12 @@ int slime_obj(struct spec_arg *sarg)
 
     if (is_abbrev(buf, "list"))
     {
-        int i;
+        int i = 0;
         send_to_char("List of slimed units:<br/>", sarg->activator);
         for (i = 0; i < slime_count; i++)
         {
-            sprintf(buf, "%s@%s<br/>",
-                    slime_list[i]->name, slime_list[i]->zone->name);
-            send_to_char(buf, sarg->activator);
+            auto msg = diku::format_to_str("%s@%s<br/>", slime_list[i]->getName(), slime_list[i]->getZone()->getName());
+            send_to_char(msg, sarg->activator);
         }
 
         return SFR_BLOCK;
@@ -126,17 +131,15 @@ int slime_obj(struct spec_arg *sarg)
 
     fi = str_to_file_index(fi_name);
 
-    if (fi == NULL)
+    if (fi == nullptr)
     {
-        act("No such file index '$2t'.",
-            A_ALWAYS, sarg->activator, fi_name, cActParameter(), TO_CHAR);
+        act("No such file index '$2t'.", eA_ALWAYS, sarg->activator, fi_name, cActParameter(), eTO_CHAR);
         return SFR_BLOCK;
     }
 
-    if (fi->zone == find_zone(BASIS_ZONE))
+    if (fi->getZone() == find_zone(BASIS_ZONE))
     {
-        act("Basis zone is not allowed slimed.",
-            A_ALWAYS, sarg->activator, cActParameter(), cActParameter(), TO_CHAR);
+        act("Basis zone is not allowed slimed.", eA_ALWAYS, sarg->activator, cActParameter(), cActParameter(), eTO_CHAR);
         return SFR_BLOCK;
     }
 
@@ -168,22 +171,22 @@ int slime_obj(struct spec_arg *sarg)
     }
     else
     {
-        act("Please specify 'add' or 'remove'.",
-            A_ALWAYS, sarg->activator, cActParameter(), cActParameter(), TO_CHAR);
+        act("Please specify 'add' or 'remove'.", eA_ALWAYS, sarg->activator, cActParameter(), cActParameter(), eTO_CHAR);
     }
 
     return SFR_BLOCK;
 }
 
-void slime_boot(void)
+void slime_boot()
 {
-    class file_index_type *fi;
+    file_index_type *fi = nullptr;
     CByteBuffer cBuf(100);
-    char buf1[256], buf2[256];
-    FILE *f;
+    char buf1[256];
+    char buf2[256];
+    FILE *f = nullptr;
 
-    touch_file(str_cc(g_cServerConfig.m_libdir, SLIME_FILE));
-    if (!(f = fopen(str_cc(g_cServerConfig.m_libdir, SLIME_FILE), "rb")))
+    touch_file(g_cServerConfig.getFileInLibDir(SLIME_FILE));
+    if (!(f = fopen(g_cServerConfig.getFileInLibDir(SLIME_FILE).c_str(), "rb")))
     {
         slog(LOG_ALL, 0, "Slime file could not be opened.");
         assert(FALSE);

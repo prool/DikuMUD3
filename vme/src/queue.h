@@ -4,12 +4,11 @@
  $Date: 2001/04/29 03:46:07 $
  $Revision: 2.1 $
  */
-
-#ifndef _MUD_QUEUE_HCC
-#define _MUD_QUEUE_HCC
+#pragma once
 
 #include "essential.h"
 
+#include <rapidjson/prettywriter.h>
 
 // To use, inherit this type into your data structure.
 class cQueueElem
@@ -17,73 +16,61 @@ class cQueueElem
     friend class cQueue;
 
 public:
-    cQueueElem (char *c, int bCopy = TRUE);
-    cQueueElem (ubit8 * d, ubit32 n, int bCopy = TRUE);
-    ~cQueueElem (void)
+    cQueueElem(char *c, int bCopy = TRUE);
+    cQueueElem(ubit8 *d, ubit32 n, int bCopy = TRUE);
+    ~cQueueElem()
     {
         if (pData)
-            FREE (pData);
+            FREE(pData);
     }
 
-    ubit32 Bytes (void)
+    ubit32 Bytes() { return nSize; }
+    ubit8 *Data() { return pData; }
+    void SetNull()
     {
-        return nSize;
-    }
-    ubit8 *Data (void)
-    {
-        return pData;
-    }
-    void SetNull (void)
-    {
-        pData = NULL;
+        pData = nullptr;
         nSize = 0;
     }
 
-    cQueueElem *PeekNext (void)
-    {
-        return pNext;
-    }
+    cQueueElem *PeekNext() { return pNext; }
 
 private:
-    ubit8 * pData;
-    ubit32 nSize;			// Optional number of bytes
+    ubit8 *pData;
+    ubit32 nSize; ///< Optional number of bytes
     cQueueElem *pNext;
 };
-
-
 
 class cQueue
 {
 public:
-    cQueue ();
-    ~cQueue ();
+    cQueue();
+    ~cQueue();
 
-    int IsEmpty (void);
-    ubit32 Size (void);
-    ubit32 Bytes (void);
+    int IsEmpty();
+    ubit32 Size();
+    ubit32 Bytes();
 
-    void Copy (ubit8 * data, ubit32 nLen);
-    void CutCopy (ubit8 * data, ubit32 nLen);
-    void Cut (ubit32 nLen);
+    void Copy(ubit8 *data, ubit32 nLen);
+    void CutCopy(ubit8 *data, ubit32 nLen);
+    void Cut(ubit32 nLen);
 
-    void Append (class cQueueElem * pe);
-    void Prepend (class cQueueElem * pe);
+    void Append(cQueueElem *pe);
+    void Prepend(cQueueElem *pe);
 
-    cQueueElem *GetHead (void);
+    cQueueElem *GetHead();
 
-    const cQueueElem *PeekHead (void);
-    const cQueueElem *PeekTail (void);
+    const cQueueElem *PeekHead();
+    const cQueueElem *PeekTail();
 
-    void Flush (void);
+    void Flush();
+
+    void toJSON(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer) const;
 
 private:
-    cQueueElem * pHead;
+    cQueueElem *pHead;
     cQueueElem *pTail;
     cQueueElem *pPreTail;
 
     ubit32 nEntries;
     ubit32 nBytes;
 };
-
-
-#endif
