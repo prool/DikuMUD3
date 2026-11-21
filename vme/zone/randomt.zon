@@ -10,6 +10,7 @@ END HEADER */
 #include <macros.h>
 
 %zone		        randomt
+bonusband BONUS_NOT_APPLICABLE
 
 lifespan 25
 reset RESET_ANYHOW
@@ -95,6 +96,24 @@ help  "Player should never be in here."
 #define MAT_DRAGON_SCALE 66
 
 #define ilMatIndex(matIndex,offset) (matIndex*4+offset)
+
+// Random treasure loaded into an NPC's corpse (rndCorpseLoad): for a typical NPC of its band one
+// death in 1000 / RND_CORPSE_PERMILLE, a tougher one more often (its level counted up to
+// RND_CORPSE_MAX_TOUGHNESS times the typical, its experience setting up to RND_CORPSE_MAX_EXP, the
+// chance never above RND_CORPSE_MAX_PERMILLE); its class at most RND_CORPSE_MAX_BAND, the most a
+// player gets solo (bands.md), before RndTreasure's step (one class up 5%, into superior 1 in 400)
+#define RND_CORPSE_PERMILLE      50
+#define RND_CORPSE_MAX_PERMILLE  200
+#define RND_CORPSE_MAX_TOUGHNESS 2
+#define RND_CORPSE_MAX_EXP       500
+#define RND_CORPSE_MAX_BAND      BONUS_EXCELLENT_PLUS
+
+// The kinds of random magic item (createMagic, rndSpells); RNDT_CURSED: a cursed potion's spells
+#define RNDT_POTION 0
+#define RNDT_SCROLL 1
+#define RNDT_WAND   2
+#define RNDT_STAFF  3
+#define RNDT_CURSED 4
 
 %dil
 
@@ -1056,20 +1075,14 @@ dilend
 dilbegin vrestrict(bonuslvl : integer);
 external
     vlevel_restrict@function(lvl:integer, damage:integer, percent:integer, action:string);
-
-var
-    ilLevels : intlist;
-    l : integer;
+    integer bandMinLevel(band : integer);
 code
 {
-    ilLevels := {0,  0,  0,  0,  0,  0,   0,
-                 0,
-                 0, 10, 20, 40, 60, 80, 100};
-
-    l := ilLevels.[bonuslvl + 7];
-
-    if (l > 0)
-        dilcopy("vlevel_restrict@function("+itoa(l)+", 0, 0, )", self);    
+    // from good up an item asks for its band's lowest level (ladder A); below that, nothing
+    if (bonuslvl > BONUS_ARTIFACT)
+        bonuslvl := BONUS_ARTIFACT;
+    if (bonuslvl >= BONUS_GOOD)
+        dilcopy("vlevel_restrict@function(" + itoa(bandMinLevel(bonuslvl)) + ", 0, 0, )", self);
 
     return;
 }
@@ -1089,6 +1102,24 @@ var
 code
 {
     return (bonus + r8il.[rnd(1,8)+rnd(1,8)] + (openroll(100, 5)/100));
+}
+dilend
+
+
+// bonusAdjRoll, kept within lo..hi
+dilbegin integer clampedRoll(bonus : integer, lo : integer, hi : integer);
+external
+    integer bonusAdjRoll(bonus : integer);
+var
+    r : integer;
+code
+{
+    r := bonusAdjRoll(bonus);
+    if (r < lo)
+        r := lo;
+    if (r > hi)
+        r := hi;
+    return (r);
 }
 dilend
 
@@ -1815,6 +1846,7 @@ dilend
 
 dilbegin integer enc_resist(u : unitptr, bonuslvl : integer, data : string);
 external
+    integer transferBonus(u : unitptr, bonuslvl : integer);
     identify(u :unitptr, norm : string, improved: string);
 var 
     splid : integer;
@@ -1836,7 +1868,7 @@ code
         quit;
     }
 
-    i := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    i := transferBonus(u, bonuslvl);
 
     if (i == 0)
         return(1);
@@ -1908,6 +1940,7 @@ dilend
 
 dilbegin integer enc_defence(u : unitptr, bonuslvl : integer, data : string);
 external
+    integer transferBonus(u : unitptr, bonuslvl : integer);
     identify(u :unitptr, norm : string, improved: string);
 var 
     defid : integer;
@@ -1929,7 +1962,7 @@ code
         quit;
     }
 
-    i := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    i := transferBonus(u, bonuslvl);
 
     if (i == 0)
         return(1);
@@ -2098,12 +2131,13 @@ dilend
 //
 dilbegin integer enc_wpnskill(u : unitptr, bonuslvl : integer, data : string);
 external
+    integer transferBonus(u : unitptr, bonuslvl : integer);
     identify(u :unitptr, norm : string, improved: string);
 var
     i : integer;
 code
 {
-    i := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    i := transferBonus(u, bonuslvl);
 
     if (i == 0)
         return(1);
@@ -2125,6 +2159,7 @@ dilend
 //
 dilbegin integer enc_somewpn(u : unitptr, bonuslvl : integer, data : string);
 external
+    integer transferBonus(u : unitptr, bonuslvl : integer);
     identify(u :unitptr, norm : string, improved: string);
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
 var
@@ -2136,7 +2171,7 @@ var
     s : string;
 code
 {
-    i := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    i := transferBonus(u, bonuslvl);
 
     if (i == 0)
         return(1);
@@ -2175,6 +2210,7 @@ dilend
 //
 dilbegin integer enc_someskill(u : unitptr, bonuslvl : integer, data : string);
 external
+    integer transferBonus(u : unitptr, bonuslvl : integer);
     identify(u :unitptr, norm : string, improved: string);
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
 var
@@ -2184,7 +2220,7 @@ var
     s : string;
 code
 {
-    i := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    i := transferBonus(u, bonuslvl);
 
     if (i == 0)
         return(1);
@@ -2209,6 +2245,7 @@ dilend
 //
 dilbegin integer enc_somespell(u : unitptr, bonuslvl : integer, data : string);
 external
+    integer transferBonus(u : unitptr, bonuslvl : integer);
     identify(u :unitptr, norm : string, improved: string);
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
 var
@@ -2218,7 +2255,7 @@ var
     s : string;
 code
 {
-    i := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    i := transferBonus(u, bonuslvl);
 
     if (i == 0)
         return(1);
@@ -2243,11 +2280,42 @@ dilend
 //
 // ======================== ENCHANT SUPER FUNCTIONS =========================
 //
+
+// The amount of a skill, spell or weapon transfer of class bonuslvl on u: random treasure on the
+// scale zone files' transfers use (bonus_map_b, bonus_setup in db.cpp), shop stock as it was
+dilbegin integer transferBonus(u : unitptr, bonuslvl : integer);
+var
+    exd : extraptr;
+code
+{
+    exd := "" in u.extra;
+    if ((exd != null) and (exd.vals.[8] == TRUE))
+        return (getinteger(DIL_GINT_BONUS_B, null, bonuslvl));
+    return (getinteger(DIL_GINT_BONUS_A, null, bonuslvl));
+}
+dilend
+
+// Random treasure's rarest enchantments: when the dice pick sanctuary, it takes only one pick in
+// four, and speed one in eight; the other picks are turned down (TRUE) and the slot goes to
+// another enchantment. Shop stock (not random treasure) doesn't ask.
+dilbegin integer encTurnedDown(enc : string);
+code
+{
+    if (enc == "enc_sanc@randomt")
+        return (rnd(1, 4) > 1);
+    if (enc == "enc_haste@randomt")
+        return (rnd(1, 8) > 1);
+    return (FALSE);
+}
+dilend
+
 dilbegin encWpn(u : unitptr);
 external
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
+    integer encTurnedDown(enc : string);
 
 var
+    random : integer;
     enchantments : integer;
     lvl : integer;
     i,j : integer;
@@ -2263,6 +2331,7 @@ code
 {
     exd := "" in u.extra;
     rollenc := exd.vals.[4]; // Enchantment roll
+    random := exd.vals.[8];  // random treasure (treasureroll)
     enc1 := exd.vals.[5];    // enchantment material 1
     enc2 := exd.vals.[6];    // enchantment material 2
     enc3 := exd.vals.[7];    // enchantment material 3
@@ -2297,11 +2366,14 @@ code
     i := length(encs);
     j := 0;
     enchantments := rollenc;
-    while (enchantments > 0)
+    while ((enchantments > 0) and (i > 0)) // i: a turned-down pick takes no slot
     {
         r := j + twodiceidxbonus(i, rollenc);  // Get two dice random number from [0..length-1]
         // log("enchantment "+encs.[r]);
-        n := dilcall(encs.[r])(u, lvl, "");
+        if (random and encTurnedDown(encs.[r]))
+            n := 0;
+        else
+            n := dilcall(encs.[r])(u, lvl, "");
         encs.[r] := encs.[j];
         enchantments := enchantments - n;
         i := i - 1;
@@ -2315,8 +2387,10 @@ dilend
 dilbegin encJewelry(u : unitptr);
 external
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
+    integer encTurnedDown(enc : string);
 
 var
+    random : integer;
     enchantments : integer;
     lvl : integer;
     i,j : integer;
@@ -2336,6 +2410,7 @@ code
 {
     exd := "" in u.extra;
     rollenc := exd.vals.[4]; // Enchantment roll
+    random := exd.vals.[8];  // random treasure (treasureroll)
     enc1 := exd.vals.[5];    // enchantment material 1
     enc2 := exd.vals.[6];    // enchantment material 2
     enc3 := exd.vals.[7];    // enchantment material 3
@@ -2373,11 +2448,14 @@ code
     j := 0;
     enchantments := ((lvl+1)/2); // 1-2 = 1; 3-4 = 2; 5-6 = 3; 7 = 4
  
-    while (enchantments > 0)
+    while ((enchantments > 0) and (i > 0)) // i: a turned-down pick takes no slot
     {
         r := j+twodiceidxbonus(i, rollenc);  // Get two dice random number from [0..length-1]
         // log("enchantment "+encs.[r]);
-        n := dilcall(encs.[r])(u, lvl, "");
+        if (random and encTurnedDown(encs.[r]))
+            n := 0;
+        else
+            n := dilcall(encs.[r])(u, lvl, "");
         encs.[r] := encs.[j];
         enchantments := enchantments - n;
         i := i - 1;
@@ -2393,8 +2471,10 @@ dilend
 dilbegin encArmor(u : unitptr);
 external
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
+    integer encTurnedDown(enc : string);
 
 var
+    random : integer;
     enchantments : integer;
     lvl : integer;
     i,j : integer;
@@ -2408,6 +2488,7 @@ code
 {
     exd := "" in u.extra;
     rollenc := exd.vals.[4]; // Enchantment roll
+    random := exd.vals.[8];  // random treasure (treasureroll)
     lvl := (rollenc + exd.vals.[5] + exd.vals.[6] + exd.vals.[7]) / 4; // Take the average
 
     if (lvl <= 0)
@@ -2432,10 +2513,13 @@ code
     j := 0;
     enchantments := ((lvl+1)/2); // 1-2 = 1; 3-4 = 2; 5-6 = 3; 7 = 4
 
-    while (enchantments > 0)
+    while ((enchantments > 0) and (i > 0)) // i: a turned-down pick takes no slot
     {
         r := j+twodiceidxbonus(i, rollenc);  // Get two dice random number from [0..length-1]
-        n := dilcall(encs.[r])(u, lvl, "");
+        if (random and encTurnedDown(encs.[r]))
+            n := 0;
+        else
+            n := dilcall(encs.[r])(u, lvl, "");
         encs.[r] := encs.[j];
         enchantments := enchantments - n;
         i := i - 1;
@@ -3280,6 +3364,7 @@ dilend
 dilbegin extraptr treasureroll(u : unitptr, bonuslvl : integer);
 external
     integer bonusAdjRoll(bonus : integer);
+    integer clampedRoll(bonus : integer, lo : integer, hi : integer);
     integer minmax7(i : integer);
 
 var
@@ -3295,6 +3380,7 @@ var
     il : intlist;
     exd : extraptr;
     hgt : integer;
+    random : integer;
 
 code
 {
@@ -3306,28 +3392,60 @@ code
         hgt := atoi(exd.descr);
         subextra(u.extra, "$treasure_height");
     }
+    // Random treasure (RndTreasure and Treasure mark it $random_treasure) is of its class: its
+    // craftsmanship is the class, which alone gives its quality (randomizeItem); its materials
+    // vary from two below up to the class; it is enchanted one below the class, jewellery (no
+    // quality of its own) at it. So its best bonus is the class. The mark goes in the rolls
+    // (vals.[8]) for randomizeItem and the enchantments. Shop stock rolls as it always has.
+    random := FALSE;
+    exd := "$random_treasure" in u.extra;
+    if (exd != null)
+    {
+        subextra(u.extra, "$random_treasure");
+        random := TRUE;
+    }
 
     if (u.extra == null)
         addextra(u.extra, {""}, "");
 
-    rollmat := bonusAdjRoll(bonuslvl);  // Overall treasure roll & craftsmanship
-    mat1 := bonusAdjRoll(rollmat);      // material
-    mat1 := minmax7(mat1);
-    mat2 := bonusAdjRoll(rollmat);      // Craftsmanship
-    mat2 := minmax7(mat2);              // Craftsmanship
-    mat3 := bonusAdjRoll(rollmat);      // extras (e.g. hilt)
-    mat3 := minmax7(mat3);              // extras (e.g. hilt)
-    // log(itoa(rollmat-bonuslvl) + " " + itoa(mat1-bonuslvl) + " " + itoa(mat2-bonuslvl) + " " + itoa(mat3-bonuslvl));
-    rollmat := minmax7(rollmat);
+    if (random)
+    {
+        rollmat := minmax7(bonuslvl);
+        mat1 := clampedRoll(rollmat, rollmat - 2, rollmat);
+        mat1 := minmax7(mat1);
+        mat2 := clampedRoll(rollmat, rollmat - 2, rollmat);
+        mat2 := minmax7(mat2);
+        mat3 := clampedRoll(rollmat, rollmat - 2, rollmat);
+        mat3 := minmax7(mat3);
+        rollenc := rollmat - 1;
+        if (u.objecttype == ITEM_TREASURE)
+            rollenc := rollmat;
+        rollenc := minmax7(rollenc);
+        enc1 := rollenc;
+        enc2 := rollenc;
+        enc3 := rollenc;
+    }
+    else
+    {
+        rollmat := bonusAdjRoll(bonuslvl);  // Overall treasure roll & craftsmanship
+        mat1 := bonusAdjRoll(rollmat);      // material
+        mat1 := minmax7(mat1);
+        mat2 := bonusAdjRoll(rollmat);      // Craftsmanship
+        mat2 := minmax7(mat2);              // Craftsmanship
+        mat3 := bonusAdjRoll(rollmat);      // extras (e.g. hilt)
+        mat3 := minmax7(mat3);              // extras (e.g. hilt)
+        // log(itoa(rollmat-bonuslvl) + " " + itoa(mat1-bonuslvl) + " " + itoa(mat2-bonuslvl) + " " + itoa(mat3-bonuslvl));
+        rollmat := minmax7(rollmat);
 
-    rollenc := bonusAdjRoll(rollmat);     // Enchant overall
-    enc1 := bonusAdjRoll(rollenc);        // enchantment capacity
-    enc1 := minmax7(enc1);
-    enc2 := bonusAdjRoll(rollenc);        // enchantment skill
-    enc2 := minmax7(enc2);                // enchantment skill
-    enc3 := bonusAdjRoll(rollenc);        // extras
-    enc3 := minmax7(enc3);                // extras
-    rollenc := minmax7(rollenc);
+        rollenc := bonusAdjRoll(rollmat);     // Enchant overall
+        enc1 := bonusAdjRoll(rollenc);        // enchantment capacity
+        enc1 := minmax7(enc1);
+        enc2 := bonusAdjRoll(rollenc);        // enchantment skill
+        enc2 := minmax7(enc2);                // enchantment skill
+        enc3 := bonusAdjRoll(rollenc);        // extras
+        enc3 := minmax7(enc3);                // extras
+        rollenc := minmax7(rollenc);
+    }
 
 
     // Set the height to the one it's made for (gmtreasure ... for <player>), the initially
@@ -3391,6 +3509,7 @@ code
     insert(il, 5, enc1);
     insert(il, 6, enc2);
     insert(il, 7, enc3);
+    insert(il, 8, random);
 
     u.extra.vals := il;
 
@@ -3466,6 +3585,7 @@ var
     s : string;
     func : string;
     rollsmith, mat1, mat2, mat3, matIndex : integer;
+    q : integer;
     slWeapons    : stringlist global slWeapons@randomt;
     slMatNames  : stringlist global slMatNames@randomt;
     exd : extraptr;
@@ -3482,9 +3602,13 @@ code
     if ((rollsmith - bonuslvl) > 1)
         log("Nicey noice, above bonus with: " + itoa(rollsmith-bonuslvl));
 
+    q := (rollsmith + mat1) / 2; // the quality
+    if (exd.vals.[8]) // random treasure: its craftsmanship, its class (treasureroll)
+        q := rollsmith;
+
     if (self.objecttype == ITEM_WEAPON)
     {
-        self.value[1] := getinteger(DIL_GINT_BONUS_A, null, (rollsmith + mat1) / 2);
+        self.value[1] := getinteger(DIL_GINT_BONUS_A, null, q);
         if (self.value[1] >= 0)
             identify(self, "Weapon has a quality bonus.", "Weapon has a quality bonus of +" + itoa(self.value[1]) + ".");
         else if (self.value[1] < 0)
@@ -3493,7 +3617,7 @@ code
     }
     else if ((self.objecttype == ITEM_ARMOR) or (self.objecttype == ITEM_SHIELD))
     {
-        self.value[1] := getinteger(DIL_GINT_BONUS_A, null, (rollsmith + mat1) / 2);
+        self.value[1] := getinteger(DIL_GINT_BONUS_A, null, q);
         if (self.value[1] >= 0)
             identify(self, "Armour has a quality bonus.", "Armour has a quality bonus of +" + itoa(self.value[1]) + ".");
         else if (self.value[1] < 0)
@@ -3823,16 +3947,510 @@ dilend
 // ========================= CREATE ITEM TYPE ==========================
 //
 
+// ======================== MAGIC ITEMS, GEMS AND BAGS =========================
+
+// BEGIN generated by vme/scripts/spelltable.py from vme/scripts/spell-table.tsv: edit that, not this
+// The spells random magic items of kind (0 potion, 1 scroll, 2 wand, 3 staff) and band carry;
+// kind 4: a cursed potion's.
+dilbegin intlist rndSpells(kind : integer, band : integer);
+code
+{
+    if ((kind == 0) and (band == 0))
+        return ({SPL_LEATHER_SKIN, SPL_DET_ALIGN, SPL_DET_CURSE, SPL_DET_MAGIC, SPL_DET_POISON, SPL_DET_UNDEAD, SPL_SENSE_LIFE, SPL_AID, SPL_CURE_BLIND, SPL_CURE_WOUNDS_1, SPL_ACID_RESI, SPL_COLD_RESI, SPL_DIVINE_RESIST, SPL_ELECTRICITY_RESI, SPL_HEAT_RESI, SPL_MIND_SHIELD, SPL_POISON_RESI, SPL_RAISE_SUMMONING, SPL_SUSTAIN, SPL_REFRESH, SPL_DET_INVISIBLE, SPL_FOCUS, SPL_AWAKEN});
+    if ((kind == 0) and (band == 1))
+        return ({SPL_LEATHER_SKIN, SPL_DET_ALIGN, SPL_DET_CURSE, SPL_DET_MAGIC, SPL_DET_POISON, SPL_DET_UNDEAD, SPL_SENSE_LIFE, SPL_AID, SPL_CURE_BLIND, SPL_CURE_WOUNDS_1, SPL_ACID_RESI, SPL_COLD_RESI, SPL_DIVINE_RESIST, SPL_ELECTRICITY_RESI, SPL_HEAT_RESI, SPL_MIND_SHIELD, SPL_POISON_RESI, SPL_RAISE_SUMMONING, SPL_SUSTAIN, SPL_REFRESH, SPL_DET_INVISIBLE, SPL_FOCUS, SPL_AWAKEN, SPL_BARK_SKIN, SPL_BONE_SKIN, SPL_CURE_WOUNDS_2, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR});
+    if ((kind == 0) and (band == 2))
+        return ({SPL_REFRESH, SPL_DET_INVISIBLE, SPL_FOCUS, SPL_AWAKEN, SPL_BARK_SKIN, SPL_BONE_SKIN, SPL_CURE_WOUNDS_2, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR, SPL_HASTE, SPL_QUICKEN, SPL_SEN_INVISIBLE});
+    if ((kind == 0) and (band == 3))
+        return ({SPL_BARK_SKIN, SPL_BONE_SKIN, SPL_CURE_WOUNDS_2, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR, SPL_HASTE, SPL_QUICKEN, SPL_SEN_INVISIBLE, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CURE_WOUNDS_3});
+    if ((kind == 0) and (band == 4))
+        return ({SPL_HASTE, SPL_QUICKEN, SPL_SEN_INVISIBLE, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CURE_WOUNDS_3});
+    if ((kind == 0) and (band == 5))
+        return ({SPL_HASTE, SPL_QUICKEN, SPL_SEN_INVISIBLE, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CURE_WOUNDS_3});
+    if ((kind == 0) and (band == 6))
+        return ({SPL_HASTE, SPL_QUICKEN, SPL_SEN_INVISIBLE, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CURE_WOUNDS_3});
+    if ((kind == 0) and (band == 7))
+        return ({SPL_HASTE, SPL_QUICKEN, SPL_SEN_INVISIBLE, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CURE_WOUNDS_3});
+    if ((kind == 1) and (band == 0))
+        return ({SPL_LIGHTNING_1, SPL_FROSTBALL_1, SPL_ANIMATE_DEAD, SPL_CREATE_FOOD, SPL_CREATE_WATER, SPL_DARKNESS_1, SPL_HEAL_ANIMAL, SPL_LEATHER_SKIN, SPL_LIGHT_1, SPL_MAGIC_CANDLE, SPL_MUD_PUDDLE, SPL_DET_ALIGN, SPL_DET_CURSE, SPL_DET_MAGIC, SPL_DET_POISON, SPL_DET_UNDEAD, SPL_SENSE_LIFE, SPL_AID, SPL_CAUSE_WOUNDS_1, SPL_CURE_BLIND, SPL_CURE_WOUNDS_1, SPL_FIND_WANTED, SPL_LOCATE_WANTED, SPL_SUMMER_RAIN, SPL_FIREBALL_1, SPL_STINKING_CLOUD_1, SPL_DISEASE_1, SPL_REM_DISEASE, SPL_REMOVE_POISON, SPL_COLOURSPRAY_1, SPL_HOLD, SPL_HOLD_FLIGHT, SPL_LOCATE_ANIMAL, SPL_SLOW, SPL_ACID_RESI, SPL_COLD_RESI, SPL_DIVINE_RESIST, SPL_ELECTRICITY_RESI, SPL_HEAT_RESI, SPL_MIND_SHIELD, SPL_POISON_RESI, SPL_RAISE_SUMMONING, SPL_SUSTAIN, SPL_BANISH, SPL_DUST_DEVIL, SPL_LEAVING, SPL_WORD_OF_RECALL, SPL_BRAMBLES, SPL_CHARGE_WAND, SPL_MENDING, SPL_REFIT, SPL_REFRESH, SPL_DET_INVISIBLE, SPL_IDENTIFY_1, SPL_BLESS, SPL_BLIND, SPL_CAUSE_WOUNDS_2, SPL_FIND_PATH, SPL_LOCATE_CHAR, SPL_REPEL_UNDEAD_1, SPL_UBLESS, SPL_FIREBALL_2, SPL_LAVA_1, SPL_CONFUSION, SPL_FOCUS, SPL_HOLD_UNDEAD, SPL_SLEEP, SPL_STUN, SPL_AWAKEN, SPL_SENDING, SPL_SUMMON_EARTH});
+    if ((kind == 1) and (band == 1))
+        return ({SPL_LIGHTNING_1, SPL_FROSTBALL_1, SPL_ANIMATE_DEAD, SPL_CREATE_FOOD, SPL_CREATE_WATER, SPL_DARKNESS_1, SPL_HEAL_ANIMAL, SPL_LEATHER_SKIN, SPL_LIGHT_1, SPL_MAGIC_CANDLE, SPL_MUD_PUDDLE, SPL_DET_ALIGN, SPL_DET_CURSE, SPL_DET_MAGIC, SPL_DET_POISON, SPL_DET_UNDEAD, SPL_SENSE_LIFE, SPL_AID, SPL_CAUSE_WOUNDS_1, SPL_CURE_BLIND, SPL_CURE_WOUNDS_1, SPL_FIND_WANTED, SPL_LOCATE_WANTED, SPL_SUMMER_RAIN, SPL_FIREBALL_1, SPL_STINKING_CLOUD_1, SPL_DISEASE_1, SPL_REM_DISEASE, SPL_REMOVE_POISON, SPL_COLOURSPRAY_1, SPL_HOLD, SPL_HOLD_FLIGHT, SPL_LOCATE_ANIMAL, SPL_SLOW, SPL_ACID_RESI, SPL_COLD_RESI, SPL_DIVINE_RESIST, SPL_ELECTRICITY_RESI, SPL_HEAT_RESI, SPL_MIND_SHIELD, SPL_POISON_RESI, SPL_RAISE_SUMMONING, SPL_SUSTAIN, SPL_BANISH, SPL_DUST_DEVIL, SPL_LEAVING, SPL_WORD_OF_RECALL, SPL_BRAMBLES, SPL_CHARGE_WAND, SPL_MENDING, SPL_REFIT, SPL_REFRESH, SPL_DET_INVISIBLE, SPL_IDENTIFY_1, SPL_BLESS, SPL_BLIND, SPL_CAUSE_WOUNDS_2, SPL_FIND_PATH, SPL_LOCATE_CHAR, SPL_REPEL_UNDEAD_1, SPL_UBLESS, SPL_FIREBALL_2, SPL_LAVA_1, SPL_CONFUSION, SPL_FOCUS, SPL_HOLD_UNDEAD, SPL_SLEEP, SPL_STUN, SPL_AWAKEN, SPL_SENDING, SPL_SUMMON_EARTH, SPL_LIGHTNING_2, SPL_FROSTBALL_2, SPL_BARK_SKIN, SPL_BONE_SKIN, SPL_CHARGE_STAFF, SPL_LIGHT_2, SPL_ICE_THORN, SPL_NIGHT_GLOBE, SPL_REPAIR, SPL_SUN_GLOBE, SPL_CURE_WOUNDS_2, SPL_CURSE, SPL_CAUSE_WOUNDS_3, SPL_LOCATE_OBJECT, SPL_REMOVE_CURSE, SPL_STINKING_CLOUD_2, SPL_DISEASE_2, SPL_POISON, SPL_CHARM_ANIMAL, SPL_COLOURSPRAY_2, SPL_DROWSE, SPL_FEAR, SPL_HOLD_ANIMAL, SPL_INVISIBILITY, SPL_MIRE, SPL_WIZARD_EYE, SPL_XRAY_VISION, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_DISPEL_MAGIC, SPL_LOCK, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR, SPL_UNLOCK, SPL_RANDOM_TELEPORT, SPL_SUMMON_AIR, SPL_SUMMON_WATER, SPL_UNDEAD_DOOR});
+    if ((kind == 1) and (band == 2))
+        return ({SPL_BRAMBLES, SPL_CHARGE_WAND, SPL_MENDING, SPL_REFIT, SPL_REFRESH, SPL_DET_INVISIBLE, SPL_IDENTIFY_1, SPL_BLESS, SPL_BLIND, SPL_CAUSE_WOUNDS_2, SPL_FIND_PATH, SPL_LOCATE_CHAR, SPL_REPEL_UNDEAD_1, SPL_UBLESS, SPL_FIREBALL_2, SPL_LAVA_1, SPL_CONFUSION, SPL_FOCUS, SPL_HOLD_UNDEAD, SPL_SLEEP, SPL_STUN, SPL_AWAKEN, SPL_SENDING, SPL_SUMMON_EARTH, SPL_LIGHTNING_2, SPL_FROSTBALL_2, SPL_BARK_SKIN, SPL_BONE_SKIN, SPL_CHARGE_STAFF, SPL_LIGHT_2, SPL_ICE_THORN, SPL_NIGHT_GLOBE, SPL_REPAIR, SPL_SUN_GLOBE, SPL_CURE_WOUNDS_2, SPL_CURSE, SPL_CAUSE_WOUNDS_3, SPL_LOCATE_OBJECT, SPL_REMOVE_CURSE, SPL_STINKING_CLOUD_2, SPL_DISEASE_2, SPL_POISON, SPL_CHARM_ANIMAL, SPL_COLOURSPRAY_2, SPL_DROWSE, SPL_FEAR, SPL_HOLD_ANIMAL, SPL_INVISIBILITY, SPL_MIRE, SPL_WIZARD_EYE, SPL_XRAY_VISION, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_DISPEL_MAGIC, SPL_LOCK, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR, SPL_UNLOCK, SPL_RANDOM_TELEPORT, SPL_SUMMON_AIR, SPL_SUMMON_WATER, SPL_UNDEAD_DOOR, SPL_LIGHTNING_3, SPL_FROSTBALL_4, SPL_DARKNESS_2, SPL_CONTROL_UNDEAD, SPL_ENTANGLE, SPL_HASTE, SPL_QUICKEN, SPL_RECONSTRUCT, SPL_IDENTIFY_2, SPL_SEN_INVISIBLE, SPL_CONDEMN, SPL_REPEL_UNDEAD_2, SPL_UNHOLY_WORD, SPL_FIREBALL_3, SPL_LAVA_2, SPL_SUN_RAY, SPL_STINKING_CLOUD_3, SPL_CALM, SPL_COLOURSPRAY_3, SPL_COMMAND, SPL_HOLD_MONSTER, SPL_PETRIFY, SPL_STORM_GATE, SPL_LIFE_PROTECTION, SPL_PRO_EVIL, SPL_PRO_GOOD, SPL_SACRED, SPL_SANCTUARY, SPL_CONE_SHARD, SPL_CONTROL_TELEPORT, SPL_EAGLE_CRY, SPL_GATE, SPL_MINOR_GATE, SPL_SOUL_SHIFT, SPL_SUMMON_ANIMAL, SPL_SUMMON_DEMON, SPL_SUMMON_FIRE, SPL_TOTAL_RECALL, SPL_TRANSPORT});
+    if ((kind == 1) and (band == 3))
+        return ({SPL_LIGHTNING_2, SPL_FROSTBALL_2, SPL_BARK_SKIN, SPL_BONE_SKIN, SPL_CHARGE_STAFF, SPL_LIGHT_2, SPL_ICE_THORN, SPL_NIGHT_GLOBE, SPL_REPAIR, SPL_SUN_GLOBE, SPL_CURE_WOUNDS_2, SPL_CURSE, SPL_CAUSE_WOUNDS_3, SPL_LOCATE_OBJECT, SPL_REMOVE_CURSE, SPL_STINKING_CLOUD_2, SPL_DISEASE_2, SPL_POISON, SPL_CHARM_ANIMAL, SPL_COLOURSPRAY_2, SPL_DROWSE, SPL_FEAR, SPL_HOLD_ANIMAL, SPL_INVISIBILITY, SPL_MIRE, SPL_WIZARD_EYE, SPL_XRAY_VISION, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_DISPEL_MAGIC, SPL_LOCK, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR, SPL_UNLOCK, SPL_RANDOM_TELEPORT, SPL_SUMMON_AIR, SPL_SUMMON_WATER, SPL_UNDEAD_DOOR, SPL_LIGHTNING_3, SPL_FROSTBALL_4, SPL_DARKNESS_2, SPL_CONTROL_UNDEAD, SPL_ENTANGLE, SPL_HASTE, SPL_QUICKEN, SPL_RECONSTRUCT, SPL_IDENTIFY_2, SPL_SEN_INVISIBLE, SPL_CONDEMN, SPL_REPEL_UNDEAD_2, SPL_UNHOLY_WORD, SPL_FIREBALL_3, SPL_LAVA_2, SPL_SUN_RAY, SPL_STINKING_CLOUD_3, SPL_CALM, SPL_COLOURSPRAY_3, SPL_COMMAND, SPL_HOLD_MONSTER, SPL_PETRIFY, SPL_STORM_GATE, SPL_LIFE_PROTECTION, SPL_PRO_EVIL, SPL_PRO_GOOD, SPL_SACRED, SPL_SANCTUARY, SPL_CONE_SHARD, SPL_CONTROL_TELEPORT, SPL_EAGLE_CRY, SPL_GATE, SPL_MINOR_GATE, SPL_SOUL_SHIFT, SPL_SUMMON_ANIMAL, SPL_SUMMON_DEMON, SPL_SUMMON_FIRE, SPL_TOTAL_RECALL, SPL_TRANSPORT, SPL_CALL_LIGHTNING, SPL_BLINDING_FLASH, SPL_GLOW_FUNGUS, SPL_RAISE_SKELETON, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CAUSE_WOUNDS_4, SPL_DISPEL_EVIL, SPL_DISPEL_GOOD, SPL_CURE_WOUNDS_3, SPL_RAISE_DEAD, SPL_ENERGY_DRAIN, SPL_SUMMON_DEVIL, SPL_SUMMON_LIGHT});
+    if ((kind == 1) and (band == 4))
+        return ({SPL_LIGHTNING_3, SPL_FROSTBALL_4, SPL_DARKNESS_2, SPL_CONTROL_UNDEAD, SPL_ENTANGLE, SPL_HASTE, SPL_QUICKEN, SPL_RECONSTRUCT, SPL_IDENTIFY_2, SPL_SEN_INVISIBLE, SPL_CONDEMN, SPL_REPEL_UNDEAD_2, SPL_UNHOLY_WORD, SPL_FIREBALL_3, SPL_LAVA_2, SPL_SUN_RAY, SPL_STINKING_CLOUD_3, SPL_CALM, SPL_COLOURSPRAY_3, SPL_COMMAND, SPL_HOLD_MONSTER, SPL_PETRIFY, SPL_STORM_GATE, SPL_LIFE_PROTECTION, SPL_PRO_EVIL, SPL_PRO_GOOD, SPL_SACRED, SPL_SANCTUARY, SPL_CONE_SHARD, SPL_CONTROL_TELEPORT, SPL_EAGLE_CRY, SPL_GATE, SPL_MINOR_GATE, SPL_SOUL_SHIFT, SPL_SUMMON_ANIMAL, SPL_SUMMON_DEMON, SPL_SUMMON_FIRE, SPL_TOTAL_RECALL, SPL_TRANSPORT, SPL_CALL_LIGHTNING, SPL_BLINDING_FLASH, SPL_GLOW_FUNGUS, SPL_RAISE_SKELETON, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CAUSE_WOUNDS_4, SPL_DISPEL_EVIL, SPL_DISPEL_GOOD, SPL_CURE_WOUNDS_3, SPL_RAISE_DEAD, SPL_ENERGY_DRAIN, SPL_SUMMON_DEVIL, SPL_SUMMON_LIGHT, SPL_RAISE_CHAMPION, SPL_FINAL_REST, SPL_RESURRECTION, SPL_UNHOLY_WORD_2, SPL_LAVA_3, SPL_DISPLACE_MAGIC});
+    if ((kind == 1) and (band == 5))
+        return ({SPL_CALL_LIGHTNING, SPL_BLINDING_FLASH, SPL_GLOW_FUNGUS, SPL_RAISE_SKELETON, SPL_STONE_SKIN, SPL_AID_UNDEAD, SPL_CAUSE_WOUNDS_4, SPL_DISPEL_EVIL, SPL_DISPEL_GOOD, SPL_CURE_WOUNDS_3, SPL_RAISE_DEAD, SPL_ENERGY_DRAIN, SPL_SUMMON_DEVIL, SPL_SUMMON_LIGHT, SPL_RAISE_CHAMPION, SPL_FINAL_REST, SPL_RESURRECTION, SPL_UNHOLY_WORD_2, SPL_LAVA_3, SPL_DISPLACE_MAGIC, SPL_FROSTBALL_3, SPL_MANA_BOOST, SPL_HOLY_WORD_2, SPL_HOLY_WORD, SPL_ACIDBALL_1, SPL_LAVA_4, SPL_STINKING_CLOUD_4});
+    if ((kind == 1) and (band == 6))
+        return ({SPL_RAISE_CHAMPION, SPL_FINAL_REST, SPL_RESURRECTION, SPL_UNHOLY_WORD_2, SPL_LAVA_3, SPL_DISPLACE_MAGIC, SPL_FROSTBALL_3, SPL_MANA_BOOST, SPL_HOLY_WORD_2, SPL_HOLY_WORD, SPL_ACIDBALL_1, SPL_LAVA_4, SPL_STINKING_CLOUD_4, SPL_LIGHTNING_4, SPL_RAISE_HORDE, SPL_HOLY_WORD_3, SPL_HOLY_WORD_4, SPL_POLARITY, SPL_UNHOLY_WORD_3, SPL_UNHOLY_WORD_4, SPL_ACIDBALL_3, SPL_ACIDBALL_4, SPL_ACIDBALL_2, SPL_FIREBALL_4, SPL_COLOURSPRAY_4, SPL_GROUP_TELEPORT, SPL_PORTAL, SPL_TRAVEL});
+    if ((kind == 1) and (band == 7))
+        return ({SPL_FROSTBALL_3, SPL_MANA_BOOST, SPL_HOLY_WORD_2, SPL_HOLY_WORD, SPL_ACIDBALL_1, SPL_LAVA_4, SPL_STINKING_CLOUD_4, SPL_LIGHTNING_4, SPL_RAISE_HORDE, SPL_HOLY_WORD_3, SPL_HOLY_WORD_4, SPL_POLARITY, SPL_UNHOLY_WORD_3, SPL_UNHOLY_WORD_4, SPL_ACIDBALL_3, SPL_ACIDBALL_4, SPL_ACIDBALL_2, SPL_FIREBALL_4, SPL_COLOURSPRAY_4, SPL_GROUP_TELEPORT, SPL_PORTAL, SPL_TRAVEL});
+    if ((kind == 2) and (band == 0))
+        return ({SPL_LIGHTNING_1, SPL_FROSTBALL_1, SPL_CREATE_FOOD, SPL_CREATE_WATER, SPL_DARKNESS_1, SPL_LIGHT_1, SPL_MAGIC_CANDLE, SPL_MUD_PUDDLE, SPL_FIND_WANTED, SPL_SUMMER_RAIN, SPL_FIREBALL_1, SPL_SUN_BEAM, SPL_STINKING_CLOUD_1, SPL_DISEASE_1, SPL_REMOVE_POISON, SPL_COLOURSPRAY_1, SPL_HOLD, SPL_SLOW, SPL_ACID_RESI, SPL_COLD_RESI, SPL_DIVINE_RESIST, SPL_ELECTRICITY_RESI, SPL_HEAT_RESI, SPL_MIND_SHIELD, SPL_POISON_RESI, SPL_RAISE_SUMMONING, SPL_BANISH, SPL_DUST_DEVIL, SPL_ENERGY_BOLT, SPL_LEAVING});
+    if ((kind == 2) and (band == 1))
+        return ({SPL_LIGHTNING_1, SPL_FROSTBALL_1, SPL_CREATE_FOOD, SPL_CREATE_WATER, SPL_DARKNESS_1, SPL_LIGHT_1, SPL_MAGIC_CANDLE, SPL_MUD_PUDDLE, SPL_FIND_WANTED, SPL_SUMMER_RAIN, SPL_FIREBALL_1, SPL_SUN_BEAM, SPL_STINKING_CLOUD_1, SPL_DISEASE_1, SPL_REMOVE_POISON, SPL_COLOURSPRAY_1, SPL_HOLD, SPL_SLOW, SPL_ACID_RESI, SPL_COLD_RESI, SPL_DIVINE_RESIST, SPL_ELECTRICITY_RESI, SPL_HEAT_RESI, SPL_MIND_SHIELD, SPL_POISON_RESI, SPL_RAISE_SUMMONING, SPL_BANISH, SPL_DUST_DEVIL, SPL_ENERGY_BOLT, SPL_LEAVING, SPL_BRAMBLES, SPL_REFRESH, SPL_IDENTIFY_1, SPL_BLIND, SPL_FIND_PATH, SPL_REPEL_UNDEAD_1, SPL_FIREBALL_2, SPL_LAVA_1, SPL_CONFUSION, SPL_FOCUS, SPL_HOLD_UNDEAD, SPL_SLEEP, SPL_STUN, SPL_AWAKEN, SPL_CLENCHED_FIST});
+    if ((kind == 2) and (band == 2))
+        return ({SPL_BRAMBLES, SPL_REFRESH, SPL_IDENTIFY_1, SPL_BLIND, SPL_FIND_PATH, SPL_REPEL_UNDEAD_1, SPL_FIREBALL_2, SPL_LAVA_1, SPL_CONFUSION, SPL_FOCUS, SPL_HOLD_UNDEAD, SPL_SLEEP, SPL_STUN, SPL_AWAKEN, SPL_CLENCHED_FIST, SPL_LIGHTNING_2, SPL_FROSTBALL_2, SPL_LIGHT_2, SPL_NIGHT_GLOBE, SPL_SUN_GLOBE, SPL_SOLAR_FLARE, SPL_STINKING_CLOUD_2, SPL_DISEASE_2, SPL_POISON, SPL_COLOURSPRAY_2, SPL_DROWSE, SPL_FEAR, SPL_HOLD_ANIMAL, SPL_INVISIBILITY, SPL_MIRE, SPL_WIZARD_EYE, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_DISPEL_MAGIC, SPL_LOCK, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR, SPL_UNLOCK});
+    if ((kind == 2) and (band == 3))
+        return ({SPL_LIGHTNING_2, SPL_FROSTBALL_2, SPL_LIGHT_2, SPL_NIGHT_GLOBE, SPL_SUN_GLOBE, SPL_SOLAR_FLARE, SPL_STINKING_CLOUD_2, SPL_DISEASE_2, SPL_POISON, SPL_COLOURSPRAY_2, SPL_DROWSE, SPL_FEAR, SPL_HOLD_ANIMAL, SPL_INVISIBILITY, SPL_MIRE, SPL_WIZARD_EYE, SPL_RAISE_BRA, SPL_RAISE_CHA, SPL_RAISE_CON, SPL_RAISE_DEX, SPL_DISPEL_MAGIC, SPL_LOCK, SPL_RAISE_DIV, SPL_RAISE_HPP, SPL_RAISE_MAG, SPL_RAISE_STR, SPL_UNLOCK, SPL_LIGHTNING_3, SPL_FROSTBALL_4, SPL_DARKNESS_2, SPL_ENTANGLE, SPL_IDENTIFY_2, SPL_REPEL_UNDEAD_2, SPL_FIREBALL_3, SPL_LAVA_2, SPL_SUN_RAY, SPL_STINKING_CLOUD_3, SPL_COLOURSPRAY_3, SPL_HOLD_MONSTER, SPL_PETRIFY, SPL_METEOR_SHOWER});
+    if ((kind == 2) and (band == 4))
+        return ({SPL_LIGHTNING_3, SPL_FROSTBALL_4, SPL_DARKNESS_2, SPL_ENTANGLE, SPL_IDENTIFY_2, SPL_REPEL_UNDEAD_2, SPL_FIREBALL_3, SPL_LAVA_2, SPL_SUN_RAY, SPL_STINKING_CLOUD_3, SPL_COLOURSPRAY_3, SPL_HOLD_MONSTER, SPL_PETRIFY, SPL_METEOR_SHOWER, SPL_CALL_LIGHTNING, SPL_GLOW_FUNGUS, SPL_ENERGY_DRAIN});
+    if ((kind == 2) and (band == 5))
+        return ({SPL_CALL_LIGHTNING, SPL_GLOW_FUNGUS, SPL_ENERGY_DRAIN, SPL_BLIZZARD, SPL_LAVA_3, SPL_DISPLACE_MAGIC});
+    if ((kind == 2) and (band == 6))
+        return ({SPL_BLIZZARD, SPL_LAVA_3, SPL_DISPLACE_MAGIC, SPL_FROSTBALL_3, SPL_EARTH_QUAKE, SPL_ACIDBALL_1, SPL_LAVA_4, SPL_STINKING_CLOUD_4});
+    if ((kind == 2) and (band == 7))
+        return ({SPL_FROSTBALL_3, SPL_EARTH_QUAKE, SPL_ACIDBALL_1, SPL_LAVA_4, SPL_STINKING_CLOUD_4, SPL_LIGHTNING_4, SPL_POLARITY, SPL_ACIDBALL_3, SPL_ACIDBALL_4, SPL_ACIDBALL_2, SPL_FIREBALL_4, SPL_COLOURSPRAY_4});
+    if ((kind == 3) and (band == 0))
+        return ({SPL_LIGHTNING_1, SPL_FROSTBALL_1, SPL_CURE_WOUNDS_1, SPL_FIREBALL_1, SPL_SUN_BEAM, SPL_STINKING_CLOUD_1, SPL_DISEASE_1, SPL_COLOURSPRAY_1, SPL_SUSTAIN});
+    if ((kind == 3) and (band == 1))
+        return ({SPL_LIGHTNING_1, SPL_FROSTBALL_1, SPL_CURE_WOUNDS_1, SPL_FIREBALL_1, SPL_SUN_BEAM, SPL_STINKING_CLOUD_1, SPL_DISEASE_1, SPL_COLOURSPRAY_1, SPL_SUSTAIN, SPL_BLESS, SPL_BLIND, SPL_REPEL_UNDEAD_1, SPL_UBLESS, SPL_FIREBALL_2, SPL_LAVA_1, SPL_CONFUSION, SPL_SLEEP, SPL_AWAKEN});
+    if ((kind == 3) and (band == 2))
+        return ({SPL_BLESS, SPL_BLIND, SPL_REPEL_UNDEAD_1, SPL_UBLESS, SPL_FIREBALL_2, SPL_LAVA_1, SPL_CONFUSION, SPL_SLEEP, SPL_AWAKEN, SPL_LIGHTNING_2, SPL_FROSTBALL_2, SPL_CURE_WOUNDS_2, SPL_SOLAR_FLARE, SPL_STINKING_CLOUD_2, SPL_DISEASE_2, SPL_COLOURSPRAY_2, SPL_FEAR});
+    if ((kind == 3) and (band == 3))
+        return ({SPL_LIGHTNING_2, SPL_FROSTBALL_2, SPL_CURE_WOUNDS_2, SPL_SOLAR_FLARE, SPL_STINKING_CLOUD_2, SPL_DISEASE_2, SPL_COLOURSPRAY_2, SPL_FEAR, SPL_LIGHTNING_3, SPL_FROSTBALL_4, SPL_REPEL_UNDEAD_2, SPL_FIREBALL_3, SPL_LAVA_2, SPL_SUN_RAY, SPL_STINKING_CLOUD_3, SPL_COLOURSPRAY_3, SPL_PETRIFY});
+    if ((kind == 3) and (band == 4))
+        return ({SPL_LIGHTNING_3, SPL_FROSTBALL_4, SPL_REPEL_UNDEAD_2, SPL_FIREBALL_3, SPL_LAVA_2, SPL_SUN_RAY, SPL_STINKING_CLOUD_3, SPL_COLOURSPRAY_3, SPL_PETRIFY, SPL_CALL_LIGHTNING, SPL_DISPEL_EVIL, SPL_DISPEL_GOOD, SPL_CURE_WOUNDS_3, SPL_ENERGY_DRAIN});
+    if ((kind == 3) and (band == 5))
+        return ({SPL_CALL_LIGHTNING, SPL_DISPEL_EVIL, SPL_DISPEL_GOOD, SPL_CURE_WOUNDS_3, SPL_ENERGY_DRAIN, SPL_LAVA_3});
+    if ((kind == 3) and (band == 6))
+        return ({SPL_LAVA_3, SPL_FROSTBALL_3, SPL_ACIDBALL_1, SPL_LAVA_4, SPL_STINKING_CLOUD_4});
+    if ((kind == 3) and (band == 7))
+        return ({SPL_FROSTBALL_3, SPL_ACIDBALL_1, SPL_LAVA_4, SPL_STINKING_CLOUD_4, SPL_LIGHTNING_4, SPL_POLARITY, SPL_ACIDBALL_3, SPL_ACIDBALL_4, SPL_ACIDBALL_2, SPL_FIREBALL_4, SPL_COLOURSPRAY_4});
+    return ({SPL_HOLD, SPL_BLIND, SPL_CONFUSION, SPL_SLEEP, SPL_FEAR});
+}
+dilend
+// END generated by spelltable.py
+
+
+// "a" or "an" before s; with cap, "A" or "An"
+dilbegin string aOrAn(s : string, cap : integer);
+var
+    art : string;
+code
+{
+    art := "a";
+    if (left(s, 1) in "aeiouAEIOU")
+        art := "an";
+    if (cap)
+        art := "A" + right(art, length(art) - 1);
+    return (art + " " + s);
+}
+dilend
+
+
+// A random magic item of kind RNDT_POTION, RNDT_SCROLL, RNDT_WAND or RNDT_STAFF and class bonuslvl:
+// its spell from rndSpells (generated from spell-table.tsv) of its class two times in three, else
+// of a class lower (sliding further a third of the time), a look from the tables below, power and
+// charges by its class. One potion in twenty up to good+ is cursed: its spell (blind, sleep,
+// fear, confusion, hold) hits the drinker and wears off. A wand or staff is restricted to the
+// class's level (vrestrict: it must be held to be used); a potion or scroll isn't, since the
+// restriction acts on holding and wearing, not on quaffing or reciting.
+dilbegin createMagic(bonuslvl : integer, kind : integer);
+external
+    createItem(itemnames : stringlist, item_type : integer, price : integer, lbs : integer);
+    intlist rndSpells(kind : integer, band : integer);
+    identify(u :unitptr, norm : string, improved: string);
+    vrestrict(bonuslvl : integer);
+    string aOrAn(s : string, cap : integer);
+var
+    il : intlist;
+    sl : stringlist;
+    look : string;
+    s : string;
+    t : integer;
+    pwr : integer;
+    charges : integer;
+    spl1 : integer;
+    spl2 : integer;
+code
+{
+    if (bonuslvl < BONUS_AVERAGE)
+        bonuslvl := BONUS_AVERAGE;
+    if (bonuslvl > BONUS_ARTIFACT)
+        bonuslvl := BONUS_ARTIFACT;
+    if ((kind < RNDT_POTION) or (kind > RNDT_STAFF))
+        kind := RNDT_POTION;
+
+    // The spell's band: the item's two times in three, else a band lower, and so on (variety,
+    // while the power stays the item's)
+    t := bonuslvl;
+    while ((t > BONUS_AVERAGE) and (rnd(1, 3) == 1))
+        t := t - 1;
+    if ((kind == RNDT_POTION) and (bonuslvl <= BONUS_GOOD_PLUS) and (rnd(1, 20) == 1))
+        il := rndSpells(RNDT_CURSED, bonuslvl);
+    else
+        il := rndSpells(kind, t);
+    spl1 := il.[rnd(0, length(il) - 1)];
+    spl2 := SPL_NONE;
+    // from good+ a second spell now and then on a potion or scroll; not two of the same
+    if ((kind <= RNDT_SCROLL) and (bonuslvl >= BONUS_GOOD_PLUS) and (rnd(1, 100) <= 8 * bonuslvl) and (length(il) > 1))
+    {
+        spl2 := il.[rnd(0, length(il) - 1)];
+        if (spl2 == spl1)
+            spl2 := SPL_NONE;
+    }
+
+    // The kind's look; a potion also has a colour
+    sl := {"cloudy//bubbling//clear//murky//fizzy//glowing//thick//smoky//shimmering//oily",
+           "vellum//parchment//papyrus//birch-bark//rice paper//lambskin//scorched//gilt-edged//rune-covered//sealed",
+           "birch//ash//rowan//yew//willow//hazel//ebony//bone//ivory//crystal",
+           "oak//ash//yew//blackthorn//ironwood//elm//rowan//driftwood//gnarled//silver-shod"};
+    sl := split(sl.[kind], "//");
+    look := sl.[rnd(0, length(sl) - 1)];
+    if (kind == RNDT_POTION)
+    {
+        sl := {"green", "red", "blue", "amber", "violet", "silver", "golden", "black", "white", "pink"};
+        look := look + " " + sl.[rnd(0, length(sl) - 1)];
+    }
+
+    // Price (a potion's, copper, by class) times the kind's: a scroll 1.5, a wand 3, a staff 4
+    il := {15, 30, 60, 120, 250, 500, 900, 1500};
+    pwr := il.[bonuslvl];
+    il := {2, 3, 6, 8};
+    pwr := (pwr * il.[kind]) / 2;
+    sl := {"potion", "scroll", "wand", "staff"};
+    s := sl.[kind];
+    il := {ITEM_POTION, ITEM_SCROLL, ITEM_WAND, ITEM_STAFF};
+    t := il.[kind];
+    sl := null;
+    addstring(sl, look + " " + s);
+    addstring(sl, s);
+    if (kind == RNDT_STAFF)
+        createItem(sl, t, pwr * COPPER_MULT, 4);
+    else
+        createItem(sl, t, pwr * COPPER_MULT, 1);
+    self.title := aOrAn(look + " " + s, FALSE);
+    self.outside_descr := aOrAn(look + " " + s, TRUE) + " lies here.";
+    self.flags := self.flags | UNIT_FL_MAGIC;
+    self.manipulate := self.manipulate | MANIPULATE_TAKE | MANIPULATE_HOLD;
+
+    pwr := 30 + 10 * bonuslvl;                              // 30 at average, 100 at artifact
+    charges := 2 + bonuslvl + rnd(0, 1 + bonuslvl / 2);     // 2-3 at average, 7-10 at excellent+
+    self.value[0] := pwr;
+    self.spells[SPL_ALL] := pwr;
+    self.value[3] := SPL_NONE;
+    s := spellinfo(spl1, t, t, t, t, t, t, t);
+    if (kind <= RNDT_SCROLL)
+    {
+        self.value[1] := spl1;
+        self.value[2] := spl2;
+        if (spl2 != SPL_NONE)
+            s := s + " and " + spellinfo(spl2, t, t, t, t, t, t, t);
+        identify(self, "It holds the magic of " + s + ".", "Its magic has a power of " + itoa(pwr) + ".");
+    }
+    else
+    {
+        self.value[1] := charges;
+        self.value[2] := spl1;
+        self.value[4] := charges;
+        identify(self, "It holds the magic of " + s + ".", "Its magic has a power of " + itoa(pwr) + ", and " +
+                 itoa(charges) + " charges.");
+        vrestrict(bonuslvl);
+    }
+    return;
+}
+dilend
+
+
+// A gem of class bonuslvl: worth money and nothing else. A small one is worth less, a large one more.
+dilbegin createGem(bonuslvl : integer);
+external
+    createItem(itemnames : stringlist, item_type : integer, price : integer, lbs : integer);
+    identify(u :unitptr, norm : string, improved: string);
+    string aOrAn(s : string, cap : integer);
+var
+    sl : stringlist;
+    il : intlist;
+    gem : string;
+    size : string;
+    price : integer;
+code
+{
+    if (bonuslvl < BONUS_AVERAGE)
+        bonuslvl := BONUS_AVERAGE;
+    if (bonuslvl > BONUS_ARTIFACT)
+        bonuslvl := BONUS_ARTIFACT;
+
+    sl := {"quartz//agate//jasper//piece of amber", "amethyst//garnet//onyx//moonstone",
+           "topaz//jade//pearl//carnelian", "aquamarine//opal//peridot//turquoise",
+           "emerald//sapphire//black pearl//fire opal", "ruby//star sapphire//diamond//jacinth",
+           "blue diamond//star ruby//black opal", "flawless diamond//dragon's eye//heart of the mountain"};
+    sl := split(sl.[bonuslvl], "//");
+    gem := sl.[rnd(0, length(sl) - 1)];
+
+    il := {8, 25, 60, 150, 400, 1000, 2500, 6000};          // copper, by class
+    price := il.[bonuslvl] * COPPER_MULT;
+    size := "";
+    if (rnd(1, 4) == 1)
+    {
+        size := "small ";
+        price := (price * 6) / 10;
+    }
+    else if (rnd(1, 4) == 1)
+    {
+        size := "large ";
+        price := (price * 3) / 2;
+    }
+
+    sl := null;
+    addstring(sl, size + gem);
+    addstring(sl, gem);
+    addstring(sl, "gem");
+    createItem(sl, ITEM_TREASURE, price, 0);
+    self.title := aOrAn(size + gem, FALSE);
+    self.outside_descr := aOrAn(size + gem, TRUE) + " lies here, glittering.";
+    self.manipulate := MANIPULATE_TAKE;
+    identify(self, "A gem: a jeweller or a shop would pay for it.", "");
+    return;
+}
+dilend
+
+
+// A bag of class bonuslvl: it holds more by class; from excellent+ one in four is a bag of holding,
+// which lightens what it holds. No level restriction: a bag isn't held or worn, where it acts.
+dilbegin createBag(bonuslvl : integer);
+external
+    createItem(itemnames : stringlist, item_type : integer, price : integer, lbs : integer);
+    identify(u :unitptr, norm : string, improved: string);
+    string aOrAn(s : string, cap : integer);
+var
+    sl : stringlist;
+    look : string;
+code
+{
+    if (bonuslvl < BONUS_AVERAGE)
+        bonuslvl := BONUS_AVERAGE;
+    if (bonuslvl > BONUS_ARTIFACT)
+        bonuslvl := BONUS_ARTIFACT;
+
+    sl := {"leather", "canvas", "embroidered", "silk", "sturdy", "patched", "oiled", "fur-lined"};
+    look := sl.[rnd(0, length(sl) - 1)];
+    sl := {"bag", "sack", "backpack", "satchel"};
+    look := look + " " + sl.[rnd(0, length(sl) - 1)];
+
+    sl := null;
+    addstring(sl, look);
+    addstring(sl, "bag");
+    createItem(sl, ITEM_CONTAINER, (50 + 100 * bonuslvl) * COPPER_MULT, 2);
+    self.title := aOrAn(look, FALSE);
+    self.outside_descr := aOrAn(look, TRUE) + " lies here.";
+    self.manipulate := MANIPULATE_TAKE | MANIPULATE_HOLD;
+    self.capacity := 30 + 15 * bonuslvl;                     // pounds: 30 at average, 105 at excellent+
+
+    if ((bonuslvl >= BONUS_EXCELLENT_PLUS) and (rnd(1, 4) == 1))
+    {
+        self.flags := self.flags | UNIT_FL_MAGIC;
+        dilcopy("bagofholding@randomt(" + itoa(25 + 10 * bonuslvl) + ",2," + itoa(100 + 50 * bonuslvl) + ")", self);
+        identify(self, "A bag of holding: what it holds weighs less.", "");
+    }
+    return;
+}
+dilend
+
+
+// ======================== THE TREASURE BANDS' LEVELS =========================
+// bands.md (zone-cards): each band is for players of a range of levels. Two ladders come of it:
+// A, the lowest level a band is for, the level a player may use its items from (vrestrict), and
+// what a reward for a player gives (gm_trquality@commands, yule_rung@holiday22); B, the level an
+// enemy of a band starts at, what an NPC's corpse may hold (rndCorpseLoad), a step behind A so
+// that whoever kills it can use what it gives. Indexed by band: BONUS_AVERAGE to BONUS_ARTIFACT.
+
+// Ladder A: the lowest level band is for (levels 1-4 average, 5-9 average+, 10 good ...)
+dilbegin integer bandMinLevel(band : integer);
+var
+    il : intlist;
+code
+{
+    il := {1, 5, 10, 20, 40, 60, 80, 100};
+    return (il.[band - BONUS_AVERAGE]);
+}
+dilend
+
+
+// Ladder A: the best band a player of level lvl may use
+dilbegin integer bandForPlayer(lvl : integer);
+external
+    integer bandMinLevel(band : integer);
+var
+    band : integer;
+code
+{
+    band := BONUS_ARTIFACT;
+    while ((band > BONUS_AVERAGE) and (lvl < bandMinLevel(band)))
+        band := band - 1;
+    return (band);
+}
+dilend
+
+
+// Ladder B: the band of an enemy of level lvl (levels 1-10 average, 11-15 average+, 16-25 good,
+// 26-40 good+, 41-60 excellent, 61-80 excellent+, 81-100 superior, 101 and up artifact)
+dilbegin integer bandForEnemy(lvl : integer);
+var
+    il : intlist;
+    band : integer;
+code
+{
+    il := {1, 11, 16, 26, 41, 61, 81, 101};
+    band := BONUS_ARTIFACT;
+    while ((band > BONUS_AVERAGE) and (lvl < il.[band - BONUS_AVERAGE]))
+        band := band - 1;
+    return (band);
+}
+dilend
+
+
+// Ladder B: the level of a typical enemy of band, the middle of its levels
+dilbegin integer bandTypical(band : integer);
+var
+    il : intlist;
+code
+{
+    il := {6, 13, 21, 33, 51, 71, 91, 110};
+    return (il.[band - BONUS_AVERAGE]);
+}
+dilend
+
+
+// The chance, in thousandths, that random treasure is loaded into the corpse of npc, of band:
+// RND_CORPSE_PERMILLE for a typical enemy of the band, times (level / typical level)^2 (the level
+// counted up to RND_CORPSE_MAX_TOUGHNESS times the typical) and its experience setting (up to
+// RND_CORPSE_MAX_EXP) in percent; never above RND_CORPSE_MAX_PERMILLE
+dilbegin integer rndCorpseChance(npc : unitptr, band : integer);
+external
+    integer bandTypical(band : integer);
+var
+    typ : integer;
+    lvl : integer;
+    ex : integer;
+    chance : integer;
+code
+{
+    typ := bandTypical(band);
+    lvl := npc.level;
+    if (lvl > RND_CORPSE_MAX_TOUGHNESS * typ)
+        lvl := RND_CORPSE_MAX_TOUGHNESS * typ;
+    ex := npc.exp;
+    if (ex > RND_CORPSE_MAX_EXP)
+        ex := RND_CORPSE_MAX_EXP;
+    chance := (RND_CORPSE_PERMILLE * lvl * lvl * ex) / (typ * typ * 100);
+    if (chance > RND_CORPSE_MAX_PERMILLE)
+        chance := RND_CORPSE_MAX_PERMILLE;
+    return (chance);
+}
+dilend
+
+
+// When the NPC npc has died (make_corpse@death), now and then random treasure loaded into its
+// corpse crp; worn: how many items it wore or wielded (what it carries doesn't count: players
+// can hand an NPC things, not make it wear them). Returns the band loaded, or BONUS_NOT_APPLICABLE
+// for none. Only an NPC that gives experience, wore something, is no player's charmed pet or
+// follower, and comes from a zone with a bonusband: where it came from, not where it died. Its
+// band is the lower of that zone's band and the band for its level (ladder B), its chance
+// rndCorpseChance, the treasure's class that band, at most RND_CORPSE_MAX_BAND. An NPC with
+// $rnd_corpse_force (a test's) is past the chance.
+dilbegin integer rndCorpseLoad(npc : unitptr, crp : unitptr, worn : integer);
+external
+    integer bandForEnemy(lvl : integer);
+    integer rndCorpseChance(npc : unitptr, band : integer);
+var
+    z : zoneptr;
+    u : unitptr;
+    band : integer;
+    lband : integer;
+code
+{
+    if ((npc == null) or (crp == null) or (worn < 1))
+        return (BONUS_NOT_APPLICABLE);
+    if ((npc.type != UNIT_ST_NPC) or (npc.exp <= 0) or isaff(npc, ID_CHARM))
+        return (BONUS_NOT_APPLICABLE);
+    if ((npc.master != null) and (npc.master.type == UNIT_ST_PC)) // a player's follower
+        return (BONUS_NOT_APPLICABLE);
+    z := findzone(npc.zoneidx);
+    if (z == null)
+        return (BONUS_NOT_APPLICABLE);
+    band := z.bonusband;
+    if (band < BONUS_AVERAGE)
+        return (BONUS_NOT_APPLICABLE);
+
+    lband := bandForEnemy(npc.level);
+    if (lband < band)
+        band := lband;
+
+    if ((not ("$rnd_corpse_force" in npc.extra)) and (rnd(1, 1000) > rndCorpseChance(npc, band)))
+        return (BONUS_NOT_APPLICABLE);
+
+    if (band > RND_CORPSE_MAX_BAND)
+        band := RND_CORPSE_MAX_BAND;
+    u := load("treasure@randomt");
+    link(u, crp);
+    dilcopy("RndTreasure@randomt(" + itoa(band) + ")", u);
+    return (band);
+}
+dilend
+
+
+// The class a piece of random treasure turns out to be: its own, now and then one off. An
+// open-ended d100 below 1 (about 4%) is one class lower, never below average; above 100 (5%)
+// one higher, but into superior or artifact, the bands for groups, only above 200 (1 in 400).
+dilbegin integer rndClassStep(lvl : integer);
+var
+    r : integer;
+code
+{
+    r := openroll(100, 5);
+    if ((r < 1) and (lvl > BONUS_AVERAGE))
+        return (lvl - 1);
+    if ((r > 100) and (lvl < BONUS_EXCELLENT_PLUS))
+        return (lvl + 1);
+    if ((r > 200) and (lvl < BONUS_ARTIFACT))
+        return (lvl + 1);
+    return (lvl);
+}
+dilend
+
+
 dilbegin RndTreasure(lvl : integer);
 external
     createJewelry(bonuslvl : integer);
     createWeapon(bonuslvl : integer);
     createArmor(bonuslvl : integer);
+    integer rndClassStep(lvl : integer);
+    createMagic(bonuslvl : integer, kind : integer);
+    createGem(bonuslvl : integer);
+    createBag(bonuslvl : integer);
 var
     i : integer;
 code
 {
     heartbeat := PULSE_SEC;
+    lvl := rndClassStep(lvl);
+
+    // What it becomes: gear half the time, else a potion, scroll, wand, staff, gem or (from good+)
+    // a bag
+    i := rnd(1, 100);
+    if (i <= 15)
+        createMagic(lvl, RNDT_POTION);
+    else if (i <= 25)
+        createMagic(lvl, RNDT_SCROLL);
+    else if (i <= 30)
+        createMagic(lvl, RNDT_WAND);
+    else if (i <= 33)
+        createMagic(lvl, RNDT_STAFF);
+    else if (i <= 48)
+        createGem(lvl);
+    else if ((i <= 50) and (lvl >= BONUS_GOOD_PLUS))
+        createBag(lvl);
+    else
+        goto gear;
+    quit;
+
+    :gear:
+    if (self.zoneidx == "randomt") // createItem makes nothing of other shells
+        addextra(self.extra, {"$random_treasure"}, "1"); // treasureroll: made at its class
 
     i := rnd(0,2);
 
@@ -3853,8 +4471,8 @@ dilend
 // says what, in words: "" or "any" (weapon, jewelry or armour at random), "weapon", a weapon
 // ("dagger", "long sword", "sword": one of those), "jewelry", a piece ("ring", "crown"),
 // "armour", an armour type ("leather", "hard leather", "chain" or "mail", "plate", "cloth"), a
-// piece ("boots", "helmet", "shield", "body"), or both ("plate boots"). The player holding it
-// is told what it became.
+// piece ("boots", "helmet", "shield", "body"), or both ("plate boots"); or "potion", "scroll",
+// "wand", "magic staff", "gem" or "bag". The player holding it is told what it became.
 dilbegin Treasure(lvl : integer, want : string);
 external
     createWpn(bonuslvl : integer, idxWpn : integer);
@@ -3862,6 +4480,9 @@ external
     createJewel(bonuslvl : integer, kind : integer);
     createJewelry(bonuslvl : integer);
     createArm(bonuslvl : integer, atype : integer, piece : integer);
+    createMagic(bonuslvl : integer, kind : integer);
+    createGem(bonuslvl : integer);
+    createBag(bonuslvl : integer);
 var
     slWeapons : stringlist global slWeapons@randomt;
     slJewelry : stringlist global slJewelry@randomt;
@@ -3885,6 +4506,28 @@ code
     heartbeat := PULSE_SEC;
     s := " " + want + " ";
     atype := -1;
+
+    // Magic items, gems and bags ("staff" alone is the fighting staff, a weapon)
+    if ((" potion " in s) or (" potions " in s))
+        createMagic(lvl, RNDT_POTION);
+    else if ((" scroll " in s) or (" scrolls " in s))
+        createMagic(lvl, RNDT_SCROLL);
+    else if ((" wand " in s) or (" wands " in s))
+        createMagic(lvl, RNDT_WAND);
+    else if ((" magic staff " in s) or (" magic staffs " in s))
+        createMagic(lvl, RNDT_STAFF);
+    else if ((" gem " in s) or (" gems " in s))
+        createGem(lvl);
+    else if ((" bag " in s) or (" bags " in s))
+        createBag(lvl);
+    else
+        goto notmagic;
+    subextra(self.extra, "$treasure_height"); // gear's (treasureroll's) only
+    goto made;
+
+    :notmagic:
+    if (self.zoneidx == "randomt") // createItem makes nothing of other shells
+        addextra(self.extra, {"$random_treasure"}, "1"); // treasureroll: made at its class
     piece := -1;
     jewel := -1;
 
@@ -4043,7 +4686,8 @@ dilcopy RndTreasure@randomt(BONUS_AVERAGE);
 end
 
 
-// A shell for Treasure@randomt, which a game master's gmtreasure copies onto it
+// A shell for treasure made in the game: Treasure@randomt (a game master's gmtreasure, the Yule
+// gifts) or RndTreasure@randomt (random treasure loaded into an NPC's corpse, rndCorpseLoad)
 treasure
 names {""}
 title ""

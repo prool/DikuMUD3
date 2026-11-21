@@ -42,8 +42,6 @@ char g_cur_filename[256], top_filename[256];
 
 void zone_reset(char *default_name);
 void dump_zone(char *prefix);
-void dump_json_zone(char *prefix);
-void write_diltemplate_json(rapidjson::PrettyWriter<rapidjson::StringBuffer> &writer, diltemplate *tmpl);
 long stat_mtime(char *name);
 void dil_free_template(diltemplate *tmpl, int copy, int dil = FALSE);
 void dil_free_var(dilvar *var);
@@ -58,7 +56,6 @@ int g_nooutput = 0;       /* suppress output */
 int g_verbose = 0;        /* be talkative */
 int g_fatal_warnings = 0; /* allow warnings */
 bool g_quiet_compile = false;
-bool g_dump_json = false;
 
 char **ident_names = nullptr; /* Used to check unique ident */
 
@@ -86,7 +83,6 @@ void ShowUsage(char *name)
     fprintf(stderr, "   -I Search specified dir for include files.\n");
     fprintf(stderr, "   -p preprocess file only, output to stdout.\n");
     fprintf(stderr, "   -q Quiet compile.\n");
-    fprintf(stderr, "   -j Dump JSON.\n");
     fprintf(stderr, "Copyright 1994 - 2001 (C) by Valhalla.\n");
 }
 
@@ -192,10 +188,6 @@ void fix(char *file)
     }
     else
     {
-        if (g_dump_json)
-        {
-            dump_json_zone(filename_prefix);
-        }
         dump_zone(filename_prefix);
     }
 }
@@ -215,6 +207,7 @@ void zone_reset(char *default_name)
     g_zone.z_zone.notes = nullptr;
     g_zone.z_zone.help = nullptr;
     g_zone.z_zone.weather = 1000;
+    g_zone.z_zone.bonusband = BONUS_NOT_APPLICABLE;
     g_zone.z_tmpl = nullptr;
 }
 
@@ -409,6 +402,14 @@ void dump_zone(char *prefix)
                   g_zone.z_zone.weather);
     }
 
+    if (!is_in(g_zone.z_zone.bonusband, BONUS_NOT_APPLICABLE, BONUS_ARTIFACT))
+    {
+        dmc_error(TRUE,
+                  "Error: Zone bonusband of %d: it is BONUS_NOT_APPLICABLE (-1) or a band, "
+                  "BONUS_AVERAGE (0) to BONUS_ARTIFACT (7).",
+                  g_zone.z_zone.bonusband);
+    }
+
     for (u = g_zone.z_rooms; u; u = u->getNext())
     {
         if (u->isRoom())
@@ -465,7 +466,10 @@ void dump_zone(char *prefix)
     // exit(10);
     // #endif
     fwrite(g_zone.z_zone.name, sizeof(char), strlen(g_zone.z_zone.name) + 1, fl);
+    int version = -ZONE_DATA_VERSION; // negative: no older file has a negative weather there
+    fwrite(&version, sizeof(int), 1, fl);
     fwrite(&g_zone.z_zone.weather, sizeof(int), 1, fl);
+    fwrite(&g_zone.z_zone.bonusband, sizeof(int), 1, fl);
     /* More data inserted here */
     if (g_zone.z_zone.notes)
     {

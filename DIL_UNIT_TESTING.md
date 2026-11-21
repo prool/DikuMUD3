@@ -59,6 +59,14 @@ At the end it reboots the server with exit code 0, or with the number of the fir
 | T036-T038 | character fields |
 | T039-T041 | object, room, exit, light, zone and command fields |
 | T042-T044 | control flow, messages and commands, procedures that change units |
+| T045 | UTF-8 in DIL strings |
+| T046 | teamwork@function: an NPC joins its own zone's fights |
+| T047 | random treasure: average weapons and armour never below quality 0 (RndTreasure), exactly 0 when made to order (Treasure) |
+| T048 | corpse_wait@death: an anchored corpse comes home after 2 to 30 minutes, by level |
+| T049 | use on a staff: a helpful spell goes to the user and the group, an attack to the others |
+| T050 | random magic items (randomt): potion, scroll, wand, magic staff, gem and bag made to order |
+| T051 | a zone's bonusband (treasure band) as DIL reads it |
+| T052 | random treasure loaded into corpses (rndCorpseLoad@randomt): bands by home zone and level, the chance, none without worn gear, XP or band |
 
 ## The player tests
 

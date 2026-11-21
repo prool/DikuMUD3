@@ -10,6 +10,7 @@ END HEADER*/
 #include <macros.h>
 
 %zone	holiday22
+bonusband BONUS_NOT_APPLICABLE
 
 lifespan 25       // Lifespan is controlled in Santa's room
 reset RESET_NEVER // Only reset in Santa's control room
@@ -1109,12 +1110,10 @@ dilend
 // level restrictions), and at Yule an artifact (7) from level 100.
 dilbegin integer yule_rung(lvl : integer);
 external
-   integer gm_trquality@commands(lvl : integer);
+   integer bandForPlayer@randomt(lvl : integer);
 code
 {
-   if (lvl >= 100)
-      return (BONUS_ARTIFACT);
-   return (gm_trquality@commands(lvl));
+   return (bandForPlayer@randomt(lvl)); // the treasure bands' ladder A, artifact from level 100
 }
 dilend
 

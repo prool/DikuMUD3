@@ -10,6 +10,7 @@ END HEADER*/
 #include <macros.h>
 
 %zone                                  commands
+bonusband BONUS_NOT_APPLICABLE
 reset RESET_NOT
 
 weather 1040
@@ -12178,27 +12179,23 @@ dilend
 // for each level restriction randomt puts on its items (vrestrict@randomt: 10, 20, 40, 60, 80),
 // so the player can use what they get. BONUS_ARTIFACT is never earned by level alone.
 dilbegin integer gm_trquality(lvl : integer);
+external
+   integer bandForPlayer@randomt(lvl : integer);
+var
+   q : integer;
 code
 {
-   if (lvl < 5)
-      return (BONUS_AVERAGE);
-   if (lvl < 10)
-      return (BONUS_AVERAGE_PLUS);
-   if (lvl < 20)
-      return (BONUS_GOOD);
-   if (lvl < 40)
-      return (BONUS_GOOD_PLUS);
-   if (lvl < 60)
-      return (BONUS_EXCELLENT);
-   if (lvl < 80)
-      return (BONUS_EXCELLENT_PLUS);
-   return (BONUS_SUPERIOR);
+   q := bandForPlayer@randomt(lvl); // the treasure bands' ladder A
+   if (q > BONUS_SUPERIOR)
+      q := BONUS_SUPERIOR;
+   return (q);
 }
 dilend
 
 // gmtreasure [what] easy|fair|hard [for <player>] [level <n>] [quality <0-7>]: random treasure
 // (Treasure@randomt) in the game master's inventory. What is in words ("plate boots", "dagger",
-// "ring", "armour"), or nothing for any. Its quality comes from a player's level
+// "ring", "armour", "potion", "scroll", "wand", "magic staff", "gem", "bag"), or nothing for a
+// weapon, jewelry or armour. Its quality comes from a player's level
 // (gm_trquality) and how hard the quest was: hard earns the top of the level's rung, fair one
 // rung below, easy two. for <player> uses their level and fits the item to their height, level
 // <n> a level of your choosing, the lower of the two if both. quality <n> picks it outright,
@@ -12310,7 +12307,8 @@ code
 
    :usage:
    sendtext("Usage: gmtreasure [what: weapon, dagger, jewelry, ring, armour, plate boots, " +
-            "shield, ...] easy|fair|hard for &lt;player&gt; | level &lt;n&gt;<br/>" +
+            "shield, potion, scroll, wand, magic staff, gem, bag, ...] easy|fair|hard " +
+            "for &lt;player&gt; | level &lt;n&gt;<br/>" +
             "How hard the quest was sets the treasure with the level: hard the top of the " +
             "level's rung, fair one below, easy two below.<br/>", self);
    quit;

@@ -52,6 +52,7 @@ struct zone_header
     char *notes;
     char *help;
     int weather;
+    int bonusband; // the zone's treasure band, BONUS_AVERAGE..BONUS_ARTIFACT, or BONUS_NOT_APPLICABLE
 };
 
 class reset_command;
@@ -105,4 +106,3 @@ extern int g_verbose;
 extern int g_nooutput;
 extern int g_make;
 extern bool g_quiet_compile;
-extern bool g_dump_json;

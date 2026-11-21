@@ -18,7 +18,8 @@
 // directory (uhouses.plot1): the owner, the type, the condition (the room's hit points), who has
 // a key and the door lock ("locked", "open", or none), a line each. Each piece of furniture is a file of its own (uhouses.plot1.bed,
 // uhouses.plot1.chest1 ...), brought in the first time someone enters after a boot; a chest
-// saves itself, with what is in it, after things are put in or taken out.
+// saves itself, with what is in it, after things are put in or taken out. The owner can drag a
+// piece into another room of the house (house_drag); it remembers that room (HOUSE_AT).
 
 // The house lanes: Udgaard's Hearth Lane (cottages and houses, with the timber and ore
 // discounts) and Midgaard's streets (houses and townhouses, dearer the finer the street).
@@ -32,6 +33,9 @@
 #define MHOUSE_PRICE   (15 * PLATINUM_MULT)   // a house in Midgaard, on its plainest street
 #define TOWNHOUSE_PRICE (25 * PLATINUM_MULT)
 #define LOCK_PRICE     (3 * PLATINUM_MULT)
+#define BLESS_PRICE    (2 * PLATINUM_MULT)   // the priestess's offering for blessing a bed
+#define BLESSED_BED    "A wooden bed with a thick woollen blanket stands against the wall, the " + \
+                       "rune ᚨ carved into its headboard."
 // Building materials (handed in, counted on the player): this many cover HOUSE_DISCOUNT percent
 #define LOGS_COTTAGE   10
 #define LOGS_HOUSE     20     // a house takes logs and ore
@@ -59,6 +63,7 @@
                         "northeast", "northwest", "southeast", "southwest"}
 
 %zone housing
+bonusband BONUS_NOT_APPLICABLE
 title "Housing"
 lifespan 30
 reset RESET_ANYHOW
@@ -774,10 +779,84 @@ code
 }
 dilend
 
+// A piece of furniture in the house whose front room is room, in any of its rooms: the piece
+// saved in the file hfile, or, with hfile "", the first of the kind sym (with nolock, the first
+// of that kind without a lock). Null when there is none.
+dilbegin unitptr house_piece(room : unitptr, hfile : string, sym : string, nolock : integer);
+var
+   r : unitptr;
+   u : unitptr;
+   fl : extraptr;
+   d : integer;
+code
+{
+   d := -1;   // -1: the front room; then the house's rooms its exits lead to
+   while (d <= MAX_EXIT)
+   {
+      r := room;
+      if (d >= 0)
+         r := room.exit_to[d];
+      if ((d < 0) or (HOUSE_BACK in r.extra) or (HOUSE_UPPER in r.extra))
+      {
+         u := r.inside;
+         while (u != null)
+         {
+            fl := HOUSE_FILE in u.extra;   // a file is never "", a kind never ""
+            if ((fl != null) and ((fl.descr == hfile) or
+                                  ((u.nameidx == sym) and ((not nolock) or (not (HOUSE_CHESTLOCK in u.extra))))))
+               return (u);
+            u := u.next;
+         }
+      }
+      d := d + 1;
+   }
+   u := null;
+   return (u);
+}
+dilend
+
+// Puts a piece of furniture just restored into the room of the house it was dragged to
+// (HOUSE_AT), or else the front room. A piece saved before it could be dragged gets house_drag
+// (a restored unit has only the programs it was saved with), and a small chest loses the old
+// "at the foot of the bed": the bed may be in another room now. Both are saved, once.
+dilbegin house_place(u : unitptr, room : unitptr);
+var
+   at : extraptr;
+   fl : extraptr;
+   r : unitptr;
+   fix : integer;
+code
+{
+   subextra(u.extra, DRAGGABLE);   // only house_drag gives it, for a drag it allowed
+   at := HOUSE_AT in u.extra;
+   if (at != null)
+      r := findroom(at.descr + "@" + room.zoneidx);
+   if (r == null)
+      r := room;
+   link(u, r);
+   fix := FALSE;
+   if (not dilfind("house_drag@housing", u))
+   {
+      dilcopy("house_drag@housing", u);
+      fix := TRUE;
+   }
+   if ("foot of the bed" in u.outside_descr)
+   {
+      u.outside_descr := "A small wooden chest stands against the wall.";
+      fix := TRUE;
+   }
+   fl := HOUSE_FILE in u.extra;
+   if (fix and (fl != null))
+      store(u, fl.descr, TRUE);
+   return;
+}
+dilend
+
 // Brings the house's saved furniture in, once after each boot.
 dilbegin house_furnish(room : unitptr);
 external
    string house_file(room : unitptr);
+   house_place(u : unitptr, room : unitptr);
 var
    base : string;
    u : unitptr;
@@ -790,16 +869,160 @@ code
    base := house_file(room);
    u := restore(base + ".bed", null);
    if (u != null)
-      link(u, room);
+      house_place(u, room);
    i := 1;
    while (i <= HOUSE_CHESTS)
    {
       u := restore(base + ".chest" + itoa(i), null);
       if (u != null)
-         link(u, room);
+         house_place(u, room);
       i := i + 1;
    }
    return;
+}
+dilend
+
+// TRUE when r is a room of the house whose front room is front and open in its type: the front
+// room, the back room (not in a cottage) and the upper floor (only in a townhouse).
+dilbegin integer house_open(front : unitptr, r : unitptr);
+var
+   typ : extraptr;
+   d : integer;
+code
+{
+   if ((front == null) or (r == null))
+      return (FALSE);
+   if (r == front)
+      return (TRUE);
+   d := 0;
+   while (d <= MAX_EXIT)   // a room next to the front room
+   {
+      if (front.exit_to[d] == r)
+         break;
+      d := d + 1;
+   }
+   if (d > MAX_EXIT)
+      return (FALSE);
+   typ := HOUSE_TYPE in front.extra;
+   if (typ == null)
+      return (FALSE);
+   if (HOUSE_BACK in r.extra)
+      return (typ.descr != "cottage");
+   if (HOUSE_UPPER in r.extra)
+      return (typ.descr == "townhouse");
+   return (FALSE);
+}
+dilend
+
+// On a piece of furniture (a bed, a chest): the owner of its house (and gods) drag it into
+// another open room of the house, with drag_dil@basemove doing the dragging (endurance and
+// all): drag bed north, drag chest up. Nobody else, and not with someone lying in it. The piece
+// is DRAGGABLE only from this program's yes to the drag it allowed: every drag event takes the
+// mark off first, so a piece without this program can't be dragged at all. Once dragged it
+// remembers the room (HOUSE_AT) and saves itself, so it stands there after a reboot.
+dilbegin fnpri(FN_PRI_BLOCK) house_drag();
+external
+   integer checkexit@basemove(arg : string, bMessage : integer);
+   integer house_open(front : unitptr, r : unitptr);
+var
+   ch : unitptr;
+   u : unitptr;
+   dest : unitptr;
+   front : unitptr;
+   own : extraptr;
+   fl : extraptr;
+   sl : stringlist;
+   arg : string;
+   w : string;
+   d : integer;
+code
+{
+:start:
+   wait(SFB_CMD | SFB_DONE, command("drag"));
+   subextra(self.extra, DRAGGABLE);
+   ch := activator;
+
+   // the house: its front room, from the file the piece is saved in (house_file: mhouses.plot5,
+   // and the piece's own part, mhouses.plot5.chest1)
+   fl := HOUSE_FILE in self.extra;
+   if (fl != null)
+   {
+      sl := split(fl.descr, ".");
+      if (length(sl) >= 2)
+         front := findroom(sl.[1] + "@" + sl.[0]);
+   }
+
+   if (target == self)
+   {
+      // done: drag_dil dragged it here (a command itself has no target)
+      subextra(self.extra, HOUSE_AT);
+      if ((self.outside != front) and house_open(front, self.outside))
+         addextra(self.extra, {HOUSE_AT}, self.outside.nameidx);
+      if (fl != null)
+         store(self, fl.descr, TRUE);
+      goto start;
+   }
+
+   if ((ch.outside != self.outside) or (self.outside.type != UNIT_ST_ROOM))
+      goto start;   // not dragging it: drag_dil can't either, without the mark
+   arg := argument;
+   u := findunit(ch, arg, FIND_UNIT_SURRO, null);   // takes the word it matched off arg
+   if (u != self)
+      goto start;
+   own := null;
+   if (front != null)
+      own := HOUSE_OWNER in front.extra;
+   if (own == null)
+   {
+      block;
+      act("You cannot move $2n.", A_ALWAYS, ch, self, null, TO_CHAR);
+      goto start;
+   }
+   if ((ch.type != UNIT_ST_PC) or ((ch.level < IMMORTAL_LEVEL) and (own.descr != ch.name)))
+   {
+      block;
+      act("Only " + own.descr + " moves the furniture in this house.", A_ALWAYS, ch, null, null, TO_CHAR);
+      goto start;
+   }
+   u := self.inside;
+   while (u != null)
+   {
+      if ((u.type == UNIT_ST_PC) or (u.type == UNIT_ST_NPC))
+      {
+         block;
+         act("Not with $3n in it.", A_ALWAYS, ch, null, u, TO_CHAR);
+         goto start;
+      }
+      u := u.next;
+   }
+   w := getword(arg);
+   if (w == "")
+   {
+      block;
+      act("Which way do you want to drag $2n?", A_ALWAYS, ch, self, null, TO_CHAR);
+      goto start;
+   }
+   dest := null;
+   d := checkexit@basemove(w, FALSE);
+   if (d >= 0)
+      dest := self.outside.exit_to[d];
+   if (dest == null)
+   {
+      block;
+      act("You can't drag $2n that way.", A_ALWAYS, ch, self, null, TO_CHAR);
+      goto start;
+   }
+   if (not house_open(front, dest))
+   {
+      block;
+      if ((HOUSE_BACK in dest.extra) or (HOUSE_UPPER in dest.extra))
+         act("That part of the house is closed.", A_ALWAYS, ch, null, null, TO_CHAR);
+      else
+         act("The furniture stays in the house.", A_ALWAYS, ch, null, null, TO_CHAR);
+      goto start;
+   }
+   addextra(self.extra, {DRAGGABLE}, "");   // yes: drag_dil drags it, then the done event
+   goto start;
 }
 dilend
 
@@ -809,6 +1032,7 @@ dilend
 dilbegin integer house_clear(room : unitptr, heir : unitptr);
 external
    house_save(room : unitptr);
+   house_door(front : unitptr);
    house_furnish(room : unitptr);
    string house_file(room : unitptr);
 var
@@ -914,16 +1138,21 @@ code
    addextra(room.extra, {HOUSE_FRIEND}, "");
    room.hp := room.max_hp;
    house_save(room);   // no owner: removes the file
+   house_door(room);   // for sale: shut and locked
    return (k);
 }
 dilend
 
-// On a lane room: a door from it into a house (a room with HOUSE_WHERE) lets in anyone while
-// the house's door isn't locked; then only the owner, those with a key and gods. Monsters are kept out by UNIT_FL_NO_MOB.
+// On a lane room: the door from it into a house (a room with HOUSE_WHERE) is a real door, opened
+// and shut as any. While the house is for sale, or its owner has locked it, it is locked
+// (house_door): then the owner, those with a key and gods walk in all the same, and it locks
+// behind them (house_passdoor); anyone else, NPCs too, finds it locked.
 dilbegin fnpri(FN_PRI_BLOCK) house_gate();
 external
    integer house_allowed(room : unitptr, pname : string);
    house_furnish(room : unitptr);
+   integer house_passdoor(front : unitptr, here : unitptr, pc : unitptr, dir : integer);
+   house_door(front : unitptr);
 var
    pc : unitptr;
    room : unitptr;
@@ -949,27 +1178,256 @@ code
    room := self.exit_to[d];
    if ((room == null) or (not (HOUSE_WHERE in room.extra)))
       goto start;
-   if (pc.level >= IMMORTAL_LEVEL)
-   {
-      house_furnish(room);
-      goto start;
-   }
+   house_door(room);   // as the house says, whatever a spell did to it
    own := HOUSE_OWNER in room.extra;
-   if (own == null)
+   ok := house_allowed(room, pc.name);
+   if (pc.level >= IMMORTAL_LEVEL)
+      ok := TRUE;
+   if ((own == null) and (not ok))
    {
       block;
       act("The door is shut, and a sign on it says: 'For sale. Ask the architect in the Hall " +
           "of the Citizens, in Midgaard's Town Hall.'", A_ALWAYS, pc, null, null, TO_CHAR);
       goto start;
    }
-   ok := house_allowed(room, pc.name);
-   if (ok)
+   if (not ok)
    {
-      house_furnish(room);
+      block;
+      act("The door is locked. This is " + own.descr + "'s house.", A_ALWAYS, pc, null, null, TO_CHAR);
       goto start;
    }
-   block;
-   act("The door is locked. This is " + own.descr + "'s house.", A_ALWAYS, pc, null, null, TO_CHAR);
+   house_furnish(room);
+   if (isset(self.exit_info[d], EX_LOCKED) and (pc.position == POSITION_STANDING))
+   {
+      block;
+      ok := house_passdoor(room, self, pc, d);
+   }
+   goto start;   // unlocked (or pc not standing): an ordinary door
+}
+dilend
+
+// The way from front, a house's front room, out to its lane (the room outside that runs
+// house_gate), or -1 when it has none.
+dilbegin integer house_lanedir(front : unitptr);
+var
+   r : unitptr;
+   d : integer;
+code
+{
+   d := 0;
+   while (d <= MAX_EXIT)
+   {
+      r := front.exit_to[d];
+      if ((r != null) and dilfind("house_gate@housing", r))
+         return (d);
+      d := d + 1;
+   }
+   return (-1);
+}
+dilend
+
+// The front door of the house whose front room is front, a real door (HOUSE_DOOR_FLAGS, both
+// sides), set from the house's state: shut and locked while the plot is for sale or the owner has
+// locked it (HOUSE_LOCK "locked"), else unlocked, open or shut as it was left. Also puts back what
+// a lock or unlock spell did to it.
+dilbegin house_door(front : unitptr);
+external
+   integer house_lanedir(front : unitptr);
+   integer rev_dir@function(i : integer);
+var
+   lane : unitptr;
+   lk : extraptr;
+   d : integer;
+   e : integer;
+   lockit : integer;
+code
+{
+   d := house_lanedir(front);
+   if (d < 0)
+      return;
+   lane := front.exit_to[d];
+   e := rev_dir@function(d);
+   lockit := FALSE;
+   lk := HOUSE_LOCK in front.extra;
+   if (not (HOUSE_OWNER in front.extra))
+      lockit := TRUE;
+   else if ((lk != null) and (lk.descr == "locked"))
+      lockit := TRUE;
+   if (lockit)
+   {
+      set(front.exit_info[d], EX_CLOSED);
+      set(front.exit_info[d], EX_LOCKED);
+      set(lane.exit_info[e], EX_CLOSED);
+      set(lane.exit_info[e], EX_LOCKED);
+   }
+   else
+   {
+      unset(front.exit_info[d], EX_LOCKED);
+      unset(lane.exit_info[e], EX_LOCKED);
+   }
+   return;
+}
+dilend
+
+// The door knows its owner, those with a key and gods: pc, standing in here (on a horse, in a
+// cart or on foot), walks dir through the locked front door of the house whose front room is
+// front, and it locks behind them. TRUE when pc got through (an ordinary move, which may still
+// fail).
+dilbegin integer house_passdoor(front : unitptr, here : unitptr, pc : unitptr, dir : integer);
+external
+   house_door(front : unitptr);
+   integer rev_dir@function(i : integer);
+var
+   there : unitptr;
+   r : unitptr;
+   dirs : stringlist;
+   e : integer;
+code
+{
+   dirs := HOUSE_DIRS;
+   there := here.exit_to[dir];
+   e := rev_dir@function(dir);
+   unset(here.exit_info[dir], EX_LOCKED);
+   unset(here.exit_info[dir], EX_CLOSED);
+   unset(there.exit_info[e], EX_LOCKED);
+   unset(there.exit_info[e], EX_CLOSED);
+   act("You unlock the door and open it.", A_ALWAYS, pc, null, null, TO_CHAR);
+   act("$1n unlocks the door and opens it.", A_HIDEINV, pc, null, null, TO_ROOM);
+   exec(dirs.[dir], pc);
+   house_door(front);   // shut and locked again, whether pc got through or not
+   r := pc.outside;   // the room pc is in, through a horse or a cart
+   if (r.type != UNIT_ST_ROOM)
+      r := r.outside;
+   if (r != there)
+      return (FALSE);
+   act("You close the door behind you and lock it.", A_ALWAYS, pc, null, null, TO_CHAR);
+   act("$1n closes the door and locks it.", A_HIDEINV, pc, null, null, TO_ROOM);
+   return (TRUE);
+}
+dilend
+
+// Shows pc out of the house whose front room is front, standing, onto its lane (the room outside
+// that runs house_gate): the door was locked and pc has no key (any more). FALSE when the house
+// has no lane; then pc stays, and it is logged.
+dilbegin integer house_showout(front : unitptr, pc : unitptr);
+external
+   integer house_lanedir(front : unitptr);
+var
+   lane : unitptr;
+   d : integer;
+code
+{
+   d := house_lanedir(front);
+   if (d >= 0)
+      lane := front.exit_to[d];
+   if (lane == null)
+   {
+      log("house_showout(): no lane outside " + front.nameidx + "@" + front.zoneidx);
+      return (FALSE);
+   }
+   act("The door has been locked, and you have no key: you are shown out.", A_ALWAYS, pc, null, null, TO_CHAR);
+   act("$1n is shown the door.", A_HIDEINV, pc, null, null, TO_ROOM);
+   if ((pc.position >= POSITION_SLEEPING) and (pc.position < POSITION_FIGHTING))
+      pc.position := POSITION_STANDING;   // out of the bed, awake
+   link(pc, lane);
+   exec("look", pc);
+   return (TRUE);
+}
+dilend
+
+// Shows every player without a key out of the house whose front room is front: from its rooms
+// and from what is in them (a bed, a chest someone climbed into). Right after the door is locked
+// or a key taken back, so nobody idle or asleep stays behind.
+dilbegin house_sweep(front : unitptr);
+external
+   integer house_allowed(room : unitptr, pname : string);
+   integer house_showout(front : unitptr, pc : unitptr);
+var
+   r : unitptr;
+   u : unitptr;
+   nxt : unitptr;
+   c : unitptr;
+   cnxt : unitptr;
+   d : integer;
+   ok : integer;
+code
+{
+   d := -1;   // -1: the front room; then the house's rooms its exits lead to
+   while (d <= MAX_EXIT)
+   {
+      r := front;
+      if (d >= 0)
+         r := front.exit_to[d];
+      if ((d < 0) or (HOUSE_BACK in r.extra) or (HOUSE_UPPER in r.extra))
+      {
+         u := r.inside;
+         while (u != null)
+         {
+            nxt := u.next;   // before u may be shown out
+            c := u;
+            cnxt := u.inside;
+            while (c != null)   // u, then what is in u
+            {
+               if ((c.type == UNIT_ST_PC) and (c.level < IMMORTAL_LEVEL))
+               {
+                  ok := house_allowed(front, c.name);
+                  if (not ok)
+                     ok := house_showout(front, c);
+               }
+               c := cnxt;
+               if (c != null)
+                  cnxt := c.next;
+            }
+            u := nxt;
+         }
+      }
+      d := d + 1;
+   }
+   return;
+}
+dilend
+
+// On a house's back room and upper floor. A command reaches only the room it is typed in (and
+// what is in it), so house_room on the front room never hears these rooms: here too, a player
+// without a key (one who quit in here before the door was locked) is shown out at their first
+// command, and a god who came by goto finds the furniture in.
+dilbegin fnpri(FN_PRI_BLOCK) house_inner();
+external
+   integer house_allowed(room : unitptr, pname : string);
+   house_furnish(room : unitptr);
+   integer house_showout(front : unitptr, pc : unitptr);
+var
+   pc : unitptr;
+   front : unitptr;
+   frname : string;   // the front room, by name: unit variables are cleared at every wait
+   d : integer;
+   ok : integer;
+code
+{
+   d := 0;
+   while (d <= MAX_EXIT)   // the front room: the way back into it
+   {
+      front := self.exit_to[d];
+      if ((front != null) and (HOUSE_WHERE in front.extra))
+         frname := front.nameidx + "@" + front.zoneidx;
+      d := d + 1;
+   }
+   if (frname == "")
+      quit;
+:start:
+   wait(SFB_CMD, activator.type == UNIT_ST_PC);
+   pc := activator;
+   front := findroom(frname);
+   if (not (HOUSE_FURNISH in front.extra))
+      house_furnish(front);
+   if (pc.level >= IMMORTAL_LEVEL)
+      goto start;
+   ok := house_allowed(front, pc.name);
+   if (ok)
+      goto start;
+   ok := house_showout(front, pc);
+   if (ok)
+      block;
    goto start;
 }
 dilend
@@ -983,6 +1441,11 @@ dilend
 // townhouse.
 dilbegin fnpri(FN_PRI_BLOCK) house_room();
 external
+   house_door(front : unitptr);
+   integer house_lanedir(front : unitptr);
+   integer house_passdoor(front : unitptr, here : unitptr, pc : unitptr, dir : integer);
+   integer house_showout(front : unitptr, pc : unitptr);
+   house_sweep(front : unitptr);
    integer house_allowed(room : unitptr, pname : string);
    house_save(room : unitptr);
    house_furnish(room : unitptr);
@@ -993,11 +1456,9 @@ var
    sl : stringlist;
    fl : stringlist;
    dirs : stringlist;
-   lane : string;
    back : integer;
    upper : integer;
-   bname : string;   // the back room and the upper floor, by name: unitptr variables are
-   uname : string;   // cleared when the program wakes
+   out : integer;   // the front door's way, out to the lane
    d : integer;
    err : integer;
    pc : unitptr;
@@ -1011,10 +1472,11 @@ var
    who : string;
 code
 {
-   // the lane and the back room, from the exits
+   // the back room, the upper floor and the way out, from the exits
    dirs := HOUSE_DIRS;
    back := -1;
    upper := -1;
+   out := house_lanedir(self);
    d := 0;
    while (d <= MAX_EXIT)
    {
@@ -1022,17 +1484,9 @@ code
       if (r != null)
       {
          if (HOUSE_BACK in r.extra)
-         {
             back := d;
-            bname := r.nameidx;
-         }
          else if (HOUSE_UPPER in r.extra)
-         {
             upper := d;
-            uname := r.nameidx;
-         }
-         else
-            lane := r.nameidx + "@" + r.zoneidx;
       }
       d := d + 1;
    }
@@ -1064,27 +1518,43 @@ code
       }
    }
    addextra(self.extra, fl, "");
+   house_door(self);   // shut and locked if it is for sale or was locked
 
 :start:
-   // in any of the house's rooms: who has no key after the door was locked is shown out
-   wait(SFB_CMD, (activator.type == UNIT_ST_PC) and ((activator.outside == self) or
-                 ((activator.outside.zoneidx == self.zoneidx) and
-                  ((activator.outside.nameidx == bname) or (activator.outside.nameidx == uname)))));
+   // here, or in a bed here (house_inner does the back room and the upper floor): who has no
+   // key after the door was locked is shown out
+   wait(SFB_CMD, (activator.type == UNIT_ST_PC) and
+                 ((activator.outside == self) or (activator.outside.outside == self)));
    pc := activator;
    if (not (HOUSE_FURNISH in self.extra))
       house_furnish(self);   // someone came in without the door (a god's goto)
-   if (pc.level >= IMMORTAL_LEVEL)
-      goto start;
    ok := house_allowed(self, pc.name);
+   if (pc.level >= IMMORTAL_LEVEL)
+      ok := TRUE;
    if (not ok)
    {
-      block;
-      act("The door has been locked, and you have no key: you are shown out.", A_ALWAYS, pc, null, null, TO_CHAR);
-      act("$1n is shown the door.", A_HIDEINV, pc, null, null, TO_ROOM);
-      link(pc, findroom(lane));
-      exec("look", pc);
+      ok := house_showout(self, pc);
+      if (ok)
+         block;
       goto start;
    }
+   // out through the front door while it is locked: it knows whoever may be in here (on foot,
+   // or on a horse)
+   if ((out >= 0) and (pc.position == POSITION_STANDING))
+   {
+      if (command(dirs.[out]))
+      {
+         house_door(self);   // as the house says, whatever a spell did to it
+         if (isset(self.exit_info[out], EX_LOCKED))
+         {
+            block;
+            ok := house_passdoor(self, self, pc, out);
+            goto start;
+         }
+      }
+   }
+   if (pc.level >= IMMORTAL_LEVEL)
+      goto start;
 
    typ := HOUSE_TYPE in self.extra;
    if ((pc.outside == self) and (back >= 0) and command(dirs.[back]) and (typ.descr == "cottage"))
@@ -1155,11 +1625,14 @@ code
       if (command("lock"))
       {
          addextra(self.extra, {HOUSE_LOCK}, "locked");
-         act("You lock the door: only those with a key may come in now.", A_ALWAYS, pc, null, null, TO_CHAR);
+         house_door(self);
+         act("You close the door and lock it: only those with a key may come in now.", A_ALWAYS, pc, null, null, TO_CHAR);
+         house_sweep(self);
       }
       else
       {
          addextra(self.extra, {HOUSE_LOCK}, "open");
+         house_door(self);
          act("You unlock the door: anyone may come in now.", A_ALWAYS, pc, null, null, TO_CHAR);
       }
       house_save(self);
@@ -1219,6 +1692,7 @@ code
       }
       substring(frd.names, "$" + who);
       act("You take back " + who + "'s key.", A_ALWAYS, pc, null, null, TO_CHAR);
+      house_sweep(self);
    }
    house_save(self);
    goto start;
@@ -1618,6 +2092,7 @@ dilbegin fnpri(FN_PRI_BLOCK) architect();
 external
    unitptr house_find(pname : string, lane : string, street : string);
    house_save(room : unitptr);
+   house_door(front : unitptr);
    integer house_counter(pc : unitptr, which : string);
    integer house_price(pc : unitptr, what : string);
    integer house_dear(price : integer, pct : integer);
@@ -1802,6 +2277,7 @@ code
       addextra(pc.extra, {HOUSE_PAID}, itoa(k));
       addextra(room.extra, {HOUSE_LOCK}, "locked");
       house_save(room);
+      house_door(room);
       act("You pay $3n " + moneystring(price, TRUE) + ".", A_ALWAYS, pc, null, self, TO_CHAR);
       exec("say Your door is fitted with a lock, and locked, " + pc.name + ". Inside you can " +
            "lock and unlock it, and give your friends a key with invite.", self);
@@ -1905,6 +2381,7 @@ code
    subextra(room.extra, HOUSE_LOCK);
    room.hp := room.max_hp;
    house_save(room);
+   house_door(room);   // no lock yet: the door opens for anyone
    where := HOUSE_WHERE in room.extra;
    act("You pay $3n " + moneystring(price, TRUE) + ".", A_ALWAYS, pc, null, self, TO_CHAR);
    exec("say Done, " + pc.name + ": your " + what + " is " + where.descr + ". The door knows you.", self);
@@ -1920,6 +2397,7 @@ dilend
 dilbegin fnpri(FN_PRI_BLOCK) furniture();
 external
    unitptr house_find(pname : string, lane : string, street : string);
+   unitptr house_piece(room : unitptr, hfile : string, sym : string, nolock : integer);
    house_furnish(room : unitptr);
    string house_file(room : unitptr);
 var
@@ -2052,22 +2530,11 @@ code
          exec("say A bed needs no lock, " + pc.name + ".", self);
          goto start;
       }
-      n := 0;   // chests of that kind; u: the first without a lock
-      found := null;
-      u := room.inside;
-      while (u != null)
-      {
-         if (u.nameidx == syms.[i])
-         {
-            n := n + 1;
-            if ((found == null) and (not (HOUSE_CHESTLOCK in u.extra)))
-               found := u;
-         }
-         u := u.next;
-      }
+      found := house_piece(room, "", syms.[i], TRUE);   // the first of that kind without a lock
       if (found == null)
       {
-         if (n == 0)
+         u := house_piece(room, "", syms.[i], FALSE);
+         if (u == null)
             exec("say You have no such chest in your house, " + pc.name + ".", self);
          else
             exec("say That chest has a lock already, " + pc.name + ".", self);
@@ -2094,7 +2561,7 @@ code
    // a bed and up to HOUSE_CHESTS chests, each saved in a file of its own
    if (i == 0)
    {
-      if (findsymbolic(room, "house_bed@housing", FIND_UNIT_INVEN) != null)
+      if (house_piece(room, "", "house_bed", FALSE) != null)
       {
          exec("say You have a bed already, " + pc.name + ".", self);
          goto start;
@@ -2108,17 +2575,8 @@ code
       while ((n <= HOUSE_CHESTS) and (hfile == ""))
       {
          hfile := house_file(room) + ".chest" + itoa(n);
-         u := room.inside;
-         while (u != null)
-         {
-            fl := HOUSE_FILE in u.extra;
-            if ((fl != null) and (fl.descr == hfile))
-            {
-               hfile := "";
-               break;
-            }
-            u := u.next;
-         }
+         if (house_piece(room, hfile, "", FALSE) != null)
+            hfile := "";   // that file is a chest's already, in one of the house's rooms
          n := n + 1;
       }
       if (hfile == "")
@@ -2146,6 +2604,160 @@ code
 dilend
 
 
+// Sister Sigrun, a priestess of Odin in Midgaard's cathedral: for an offering she walks to the
+// house of the one who asks, in Udgaard or Midgaard, and blesses its bed (`bless bed`). The
+// blessing lasts: the bed becomes sacred (UNIT_FL_SACRED), so whoever sleeps or rests in it gets
+// back health, mana and endurance twice as fast (vmelimits.cpp counts every unit a character is
+// in, a bed too). Then she walks
+// back. She is away while she walks, and blessing is all she does, so nobody else waits for her.
+dilbegin fnpri(FN_PRI_BLOCK) house_priest();
+external
+   unitptr house_find(pname : string, lane : string, street : string);
+   unitptr house_piece(room : unitptr, hfile : string, sym : string, nolock : integer);
+   house_furnish(room : unitptr);
+   integer walk_room@function(place : string, spd : integer);
+var
+   pc : unitptr;
+   front : unitptr;
+   bed : unitptr;
+   u : unitptr;
+   nxt : unitptr;
+   own : extraptr;
+   fl : extraptr;
+   home : string;
+   owner : string;
+   frname : string;
+   dest : string;
+   tries : integer;
+   ok : integer;
+code
+{
+   home := self.outside.nameidx + "@" + self.outside.zoneidx;
+:start:
+   wait(SFB_CMD, command("bless") and (activator.type == UNIT_ST_PC) and
+                 (activator.outside == self.outside));
+   block;
+   pc := activator;
+   if (not ("bed" in argument))
+   {
+      exec("say For an offering I bless the bed in your house, " + pc.name + ": 'bless bed'.", self);
+      goto start;
+   }
+   front := house_find(pc.name, "", "");
+   if (front == null)
+   {
+      exec("say You have no house for me to bless a bed in, " + pc.name + ".", self);
+      goto start;
+   }
+   house_furnish(front);
+   bed := house_piece(front, "", "house_bed", FALSE);
+   if (bed == null)
+   {
+      exec("say You have no bed yet, " + pc.name + ". Calvin the carpenter on Colosseum Square " +
+           "makes them.", self);
+      goto start;
+   }
+   if (isset(bed.flags, UNIT_FL_SACRED))
+   {
+      exec("say Your bed is blessed already, " + pc.name + ".", self);
+      goto start;
+   }
+   if (not transfermoney(pc, null, BLESS_PRICE))
+   {
+      exec("say The temple asks an offering of " + moneystring(BLESS_PRICE, TRUE) +
+           " for a blessing, " + pc.name + ".", self);
+      goto start;
+   }
+   act("You give $3n an offering of " + moneystring(BLESS_PRICE, TRUE) + ".", A_ALWAYS, pc, null, self, TO_CHAR);
+   exec("say Thank you, " + pc.name + ". I'll go to your house and bless your bed.", self);
+   exec("emote takes up a staff of ash and sets out.", self);
+   owner := pc.name;
+   frname := front.nameidx + "@" + front.zoneidx;
+
+   // to the bed, which may be dragged to another room on the way
+   tries := 0;
+:walk:
+   front := findroom(frname);
+   if (front == null)
+      goto refund;
+   own := HOUSE_OWNER in front.extra;
+   bed := house_piece(front, "", "house_bed", FALSE);
+   if ((own == null) or (bed == null))
+      goto refund;   // the house sold, or the bed gone, on the way
+   if (own.descr != owner)
+      goto refund;
+   if (bed.outside != self.outside)
+   {
+      if (tries >= 3)
+      {
+         // no way found (walk_room routes only both-way exits): she comes all the same
+         act("$1n hurries off.", A_SOMEONE, self, null, null, TO_ROOM);
+         link(self, bed.outside);
+         act("$1n arrives, a little out of breath.", A_SOMEONE, self, null, null, TO_ROOM);
+      }
+      else
+      {
+         tries := tries + 1;
+         dest := bed.outside.nameidx + "@" + bed.outside.zoneidx;
+         ok := walk_room@function(dest, 5);
+         goto walk;   // units are found again after the walk's waits
+      }
+   }
+
+   set(bed.flags, UNIT_FL_SACRED);
+   bed.outside_descr := BLESSED_BED;
+   addextra(bed.extra, {"rune", "headboard", "blessing", "ansuz"},
+            "ᚨ, Ansuz, the rune of Odin, carved into the headboard by Sister Sigrun of the " +
+            "cathedral as she blessed the bed. Whoever sleeps or rests in it gets back health, mana and " +
+            "endurance twice as fast.");
+   u := bed.inside;   // a pet lying in it gets up first, or it would be saved with the bed
+   while (u != null)
+   {
+      nxt := u.next;
+      if (u.type == UNIT_ST_NPC)
+         link(u, bed.outside);
+      u := nxt;
+   }
+   fl := HOUSE_FILE in bed.extra;
+   if (fl != null)
+      store(bed, fl.descr, TRUE);   // TRUE: the bed itself; FALSE would save only what is in it,
+                                    // and with nothing in it, store() removes the file
+   act("$1n lays a hand on the bed, blesses it in Odin's name and carves the rune ᚨ into " +
+       "its headboard.", A_ALWAYS, self, null, null, TO_ROOM);
+   u := pc_head();   // the owner hears of it, wherever they are
+   while ((u != null) and (u.name != owner))
+      u := u.gnext;
+   if ((u != null) and (u.outside != self.outside) and (u.outside.outside != self.outside))
+      act("$3n has blessed the bed in your house.", A_ALWAYS, u, null, self, TO_CHAR);
+   goto back;
+
+:refund:
+   // no house or bed to bless any more: the offering goes back to the owner
+   u := pc_head();
+   while ((u != null) and (u.name != owner))
+      u := u.gnext;
+   if (u == null)
+      log("house_priest(): no bed to bless for " + owner + ", who isn't in the game: refund " +
+          moneystring(BLESS_PRICE, TRUE) + " by hand");
+   else
+   {
+      ok := transfermoney(null, u, BLESS_PRICE);
+      act("$3n finds no bed of yours to bless and sends your offering back.", A_ALWAYS, u, null, self, TO_CHAR);
+   }
+
+:back:
+   ok := walk_room@function(home, 5);
+   u := findroom(home);
+   if (self.outside != u)
+   {
+      act("$1n hurries off.", A_SOMEONE, self, null, null, TO_ROOM);
+      link(self, u);   // no way back: walk_room routes only both-way exits
+      act("$1n arrives.", A_SOMEONE, self, null, null, TO_ROOM);
+   }
+   goto start;
+}
+dilend
+
 %objects
 
                                  house_bed
@@ -2163,6 +2775,7 @@ capacity 1000
 weight 200
 cost 2 GOLD_PIECE
 dilcopy house_bed@housing();
+dilcopy house_drag@housing();
 end
 
                                  house_log
@@ -2217,12 +2830,13 @@ CONTAINER_DEF(2000) \
 open {EX_OPEN_CLOSE, EX_CLOSED} \
 extra {HOUSE_HOLDS} ITEMS \
 dilcopy house_chestlock@housing(); \
-dilcopy house_chest@housing();
+dilcopy house_chest@housing(); \
+dilcopy house_drag@housing();
 
                                  chest_small
 names {"small chest", "chest"}
 title "a small chest"
-descr "A small wooden chest stands at the foot of the bed."
+descr "A small wooden chest stands against the wall."
 extra {}
 "A plain chest of six pine boards, made by Calvin the carpenter."
 HOUSE_CHEST("10")
@@ -2284,9 +2898,25 @@ money 5 IRON_PIECE
 dilcopy architect@housing();
 end
 
+                                 priestess
+names {"Sister Sigrun", "sister", "Sigrun", "priestess", "priest"}
+title "Sister Sigrun"
+descr "Sister Sigrun, a priestess of Odin, stands in the nave with her hands folded."
+extra {}
+"A grey-haired woman in the plain white robe of Odin's priests, a staff of ash
+beside her. For an offering she goes to a house and blesses its bed: 'bless
+bed'."
+romflags {CHAR_PROTECTED}
+flags {UNIT_FL_NO_TELEPORT}
+M_AVG_HUMAN(30, SEX_FEMALE)
+alignment 1000
+dilcopy house_priest@housing();
+end
+
 
 %reset
 
 load architect into th_citizen@midgaard max 1
+load priestess into cth_nave@midgaard max 1
 
 %end
