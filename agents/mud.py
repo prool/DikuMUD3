@@ -5,7 +5,12 @@ background so each command is a short call.
 
 usage: mud.py start [--throw]   log in; the session stays in the background
        mud.py send LINE...      send a line, print what the mud says until it goes quiet
+       mud.py send - <<'EOF'    the same, the line read from a quoted heredoc: $ and ' go
+                                through untouched, and a text may run over several lines
        mud.py read [SECONDS]    print what came in since the last call (waits up to SECONDS for some)
+       MUD_ASIDE=1 mud.py send|read ...   the same for a second program beside the agent (a planner):
+                                it gets a copy of what came while it waited, and the agent
+                                still gets all of it
        mud.py status            is the session logged in, and where
        mud.py way PLACE [from ROOM]   the shortest way to PLACE (room@zone, or words of its title)
        mud.py find WORDS...     the objects in the item list whose line has all the words,
@@ -179,6 +184,7 @@ MAP = os.path.expanduser(os.environ.get("MUD_MAP", "~/zones/map.txt"))  # from z
 ITEMS = os.path.expanduser(os.environ.get("MUD_ITEMS", "~/zones/items.txt"))  # from zoneitems.py
 FIND_MAX = 30       # lines find prints at most
 
+ASIDE = bool(os.environ.get("MUD_ASIDE"))  # a second program beside the agent: see the usage
 QUIET = 1.0         # the answer to a command is complete when nothing came for this long
 SEND_WAIT = 10      # but wait no longer than this
 MAX_UNREAD = 100000  # characters of unread output kept
@@ -559,8 +565,9 @@ def gm_refused(line):
     if word == "set" and (len(words) < 3 or words[2].lower() not in GM_SET_FIELDS):
         return "set only %s" % ", ".join(sorted(GM_SET_FIELDS))
     if word == "set" and words[2].lower() == "add-extra" and not EDITOR.match(line):
-        return ("set <unit> add-extra <keyword,keyword>: <text> (the text after a colon, on the same"
-                " line; mud.py types it into the game's editor)")
+        return ("set <unit> add-extra {}: <text> (what looking at it shows), or <keyword,keyword>: <text>"
+                " (a part of it): the text after a colon, on the same line; mud.py types it into the"
+                " game's editor")
     if word == "set" and words[2].lower() == "descr" and len(words) < 4:
         return "set <unit> descr <text> (the text on the same line; mud.py types it into the editor)"
     if word == "load":
@@ -597,17 +604,62 @@ def gm_refused(line):
     return None
 
 
-# `set <unit> descr <text>` and `set <unit> add-extra <keywords>: <text>`, after `at <room>` too
-EDITOR = re.compile(r"\s*((?:at\s+\S+\s+)?set\s+\S+\s+(?:descr|add-extra\s+([^:]+?)\s*:))\s*(\S.*)", re.I)
+# The game takes at most 511 bytes of a command and drops the rest without a word (mplex,
+# MAX_INPUT_LENGTH): a longer text is sent in lines that fit, or refused.
+MAX_LINE = 480
+# The editor keeps at most 12288 bytes (MAX_STRING_LENGTH, each line and a <br/>), then closes
+# itself: the lines after would run as commands
+EDITOR_MAX = 12000
+
+# `set <unit> descr <text>` and `set <unit> add-extra <keywords>: <text>`, after `at <room>` too:
+# they open the game's text editor, which takes the lines after and closes on a line ending in @
+EDITOR = re.compile(r"\s*((?:at\s+\S+\s+)?set\s+\S+\s+(?:descr|add-extra\s+([^:]+?)\s*:))\s*(\S.*)", re.I | re.S)
+# Texts that may go in pieces, the command again for each: a brief goes on with brief+ (which adds
+# to it with a space), a say, emote, tell, message or echo is said in several lines. A greet line
+# or a lure step can't: two would be two greetings or two steps.
+PIECES = re.compile(r"\s*((?:at\s+\S+\s+)?(?:gmmem\s+\S+\s+(?:brief\+?|told)|force\s+\S+\s+(?:say|emote)"
+                    r"|message\s+\S+|echo|say|emote|tell\s+\S+|respond))\s+(\S.*)", re.I | re.S)
 
 
-def editor_lines(mud, line):
-    """The lines to send for line. These set commands open the game's editor, which takes the
-    text on the next line and closes on a line ending in @; anything else is one line."""
+def fits(line):
+    return len(line.encode()) <= MAX_LINE
+
+
+def wrap(text, room):
+    """text in pieces of at most room bytes: whole sentences where they fit, else cut between
+    words (a word longer than room stays whole)."""
+    out, cur = [], ""
+    for sentence in re.split(r"(?<=[.!?])\s+", text.strip()):
+        t = cur + " " + sentence if cur else sentence
+        if len(t.encode()) <= room:
+            cur = t
+            continue
+        if cur:
+            out.append(cur)
+            cur = ""
+        for w in sentence.split():
+            t = cur + " " + w if cur else w
+            if cur and len(t.encode()) > room:
+                out.append(cur)
+                t = w
+            cur = t
+    return out + [cur] if cur else out
+
+
+def send_lines(mud, line):
+    """The lines to send for what the agent sent. The text of an editor command goes on the lines
+    after it, as long as it is (its line breaks kept), closed with @; another command is one line,
+    or the same command once for each piece of a text too long for one."""
     m = EDITOR.match(line)
     if m and mud.conf.get("role") == "gm":
         first = m.group(1)[:-1].rstrip() if m.group(2) else m.group(1)
-        return [first, m.group(3).rstrip().rstrip("@") + "@"]
+        text = [p for para in m.group(3).rstrip().rstrip("@").split("\n") for p in wrap(para, MAX_LINE - 1)] or [""]
+        return [first] + text[:-1] + [text[-1] + "@"]
+    line = " ".join(line.split())
+    m = PIECES.match(line)
+    if m and not fits(line):
+        head, more = m.group(1), re.sub(r"(brief)$", r"\1+", m.group(1), flags=re.I)
+        return ["%s %s" % (more if i else head, p) for i, p in enumerate(wrap(m.group(2), MAX_LINE - len(more.encode()) - 1))]
     return [line]
 
 
@@ -666,6 +718,7 @@ class Session:
         self.sock = self.conn.sock
         self.connected = True
         self.unread = ""   # not yet given to the agent
+        self.asides = []   # [text] per MUD_ASIDE call waiting: copies of what came meanwhile
         self.login_text = ""  # what was said since the last login step
         self.last_data = 0.0
         self.last_sent = time.time()
@@ -893,6 +946,8 @@ class Session:
         if self.playing and "By what name do they call you" in self.login_text[-len(txt) - 40:]:
             self.playing, self.rebooted = False, True  # the mud rebooted; mplex kept the connection
         self.unread += txt
+        for a in self.asides:
+            a[0] = (a[0] + txt)[-MAX_UNREAD:]
         if len(self.unread) > MAX_UNREAD:
             self.unread = "[... earlier output dropped ...]\n" + self.unread[-MAX_UNREAD:]
 
@@ -919,6 +974,10 @@ class Session:
 
     def take(self):
         t, self.unread = self.unread, ""
+        return self.clean(t)
+
+    def clean(self, t, repeats=True):
+        """Without the noise; repeats=False keeps the repeated lines, and what was seen when."""
         out, now = [], time.time()
         for line in t.split("\n"):
             s = line.strip()
@@ -927,7 +986,7 @@ class Session:
             m = MOVES.match(s)
             if m and self.online is not None and m.group("who") not in self.online:
                 continue
-            every = next((secs for pat, secs in REPEATS if pat.match(s)), None)
+            every = repeats and next((secs for pat, secs in REPEATS if pat.match(s)), None)
             if every:
                 if now - self.seen.get(s, 0) < every:
                     continue
@@ -1004,7 +1063,7 @@ def serve(mud, ready):
     sel = selectors.DefaultSelector()
     sel.register(mud.sock, selectors.EVENT_READ, "mud")
     sel.register(srv, selectors.EVENT_READ, "srv")
-    waiting = []  # [client, op, start, deadline]
+    waiting = []  # [client, op, start, deadline, aside: [text] or None]
     closed_at = None
     stopped = False
     while not stopped:
@@ -1023,13 +1082,17 @@ def serve(mud, ready):
             mud.reflexes["alone"] = now
             mud.add("\n[No players but Papi online: time to go hunting, see Growing stronger.]\n")
         for w in waiting[:]:
-            c, op, start, deadline = w
-            got = mud.unread and mud.last_data >= start
+            c, op, start, deadline, aside = w
+            got = (aside[0] if aside else mud.unread) and mud.last_data >= start
             if now >= deadline or not mud.connected or (got and now - mud.last_data >= QUIET):
-                text = mud.take()
+                text = mud.clean(aside[0], False) if aside else mud.take()
+                if aside:
+                    aside[0] = ""
                 if op == "read" and not text.strip() and now < deadline and mud.connected:
                     continue  # only noise came: keep waiting
                 waiting.remove(w)
+                if aside:
+                    mud.asides.remove(aside)
                 reply(c, mud, text)
                 if op == "stop":
                     stopped = True
@@ -1054,19 +1117,33 @@ def serve(mud, ready):
                 op = req.get("op")
                 now = time.time()
                 why = op == "send" and refused(mud, req["line"], bool(req.get("survey")))
+                lines = send_lines(mud, req["line"]) if op == "send" and not why else []
+                if any(not fits(ln) for ln in lines):
+                    why = ("too long: the game takes %d bytes a line and drops the rest. Make it"
+                           " shorter, or several commands" % MAX_LINE)
+                text = lines[1:] if op == "send" and mud.conf.get("role") == "gm" and EDITOR.match(req["line"]) else []
+                if not why and any(ln.endswith("@") for ln in text[:-1]):
+                    why = ("a line of the text would end in @, which closes the game's editor and runs the"
+                           " rest as commands: no @ at the end of a word or a line")
+                if not why and sum(len(ln.encode()) + 5 for ln in text) > EDITOR_MAX:
+                    why = "too long for the game's editor (%d bytes); the rest would run as commands" % EDITOR_MAX
                 if why:
                     reply(c, mud, "[Not sent: %s.]\n" % why)
-                elif op == "send" and mud.connected:
-                    if req.get("survey"):
-                        mud.survey_sent = (req["survey"][0], req["survey"][1], now + SEND_WAIT)
-                    for line in editor_lines(mud, req["line"]):
-                        mud.send(line)
-                    waiting.append([c, op, now, now + req.get("wait", SEND_WAIT)])
-                elif op == "read":
-                    waiting.append([c, op, now, now + req.get("wait", 0)])
+                elif op in ("send", "read") and (mud.connected or op == "read"):
+                    # an aside call gets a copy of what comes from now on, and takes nothing from
+                    # the agent's own unread text: the agent's next call still shows all of it
+                    aside = [""] if req.get("aside") else None
+                    if aside:
+                        mud.asides.append(aside)
+                    if op == "send":
+                        if req.get("survey"):
+                            mud.survey_sent = (req["survey"][0], req["survey"][1], now + SEND_WAIT)
+                        for line in lines:
+                            mud.send(line)
+                    waiting.append([c, op, now, now + req.get("wait", SEND_WAIT if op == "send" else 0), aside])
                 elif op == "stop" and mud.connected:
                     mud.send("quit")
-                    waiting.append([c, op, now, now + 5])
+                    waiting.append([c, op, now, now + 5, None])
                 elif op == "status":
                     reply(c, mud, "")
                 else:  # nothing to send to
@@ -1285,10 +1362,13 @@ def main():
     if op == "start":
         start("--throw" in args[1:])
     elif op == "send" and len(args) > 1:
-        show(request({"op": "send", "line": " ".join(args[1:])}, SEND_WAIT + 5))
+        line = sys.stdin.read().strip() if args[1:] == ["-"] else " ".join(args[1:])
+        if not line:
+            die("send -: nothing on stdin")
+        show(request({"op": "send", "line": line, "aside": ASIDE}, SEND_WAIT + 5))
     elif op == "read":
         wait = float(args[1]) if len(args) > 1 else 0
-        r = request({"op": "read", "wait": wait}, wait + 5)
+        r = request({"op": "read", "wait": wait, "aside": ASIDE}, wait + 5)
         if r is None and paused():
             time.sleep(max(0, min(wait, paused() - time.time())))
             if paused():
