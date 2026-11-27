@@ -33,7 +33,7 @@ END HEADER*/
 
 %dil
 
-#define TEST_MAXIMUM 53  // T010, T009, ...
+#define TEST_MAXIMUM 56  // T010, T009, ...
 
 #define LOGT_ERROR   0
 #define LOGT_SUCCESS 1
@@ -83,6 +83,405 @@ code
     logtest(tstno, LOGT_INFO, "Done");
     sendtoalldil("done", "labdirector@test");
     return;
+}
+dilend
+
+// ==================== T056 =====================
+
+// extinguish (do_extinguish@commands) puts a light out and keeps the hours it has left: it set
+// them to 0, so a torch put out was spent. A test man lights a torch (12 hours, t056torch: the
+// test world's zonelist stops before midgaard), puts it out, and lights it again.
+dilbegin T056(tstno : integer);
+external
+   logtest(no : integer, ltype : integer, msg : string);
+var
+   man : unitptr;
+   torch : unitptr;
+   h : integer;
+   bad : string;
+code
+{
+   heartbeat := PULSE_SEC * 1;
+   man := load("t049man@test");
+   link(man, self);
+   secure(man, lost);
+   torch := load("t056torch@test");
+   link(torch, man);
+   h := torch.value[0];
+   exec("light torch", man);
+   if (not isaff(torch, ID_LIGHT_EXTINGUISH))
+      bad := bad + " light didn't light it;";
+   exec("extinguish torch", man);
+   torch := findsymbolic(man, "t056torch@test", FIND_UNIT_INVEN);
+   if (torch == null)
+      bad := bad + " the torch is gone;";
+   else
+   {
+      if (isaff(torch, ID_LIGHT_EXTINGUISH))
+         bad := bad + " extinguish didn't put it out;";
+      if (torch.value[0] != h)
+         bad := bad + " put out after no time it has " + itoa(torch.value[0]) + " hours, not " + itoa(h) + ";";
+      exec("light torch", man);
+      if (not isaff(torch, ID_LIGHT_EXTINGUISH))
+         bad := bad + " it won't light again;";
+   }
+
+   if (bad != "")
+      logtest(tstno, LOGT_ERROR, "T056 extinguish:" + bad);
+   else
+      logtest(tstno, LOGT_SUCCESS, "T056 a torch put out keeps its " + itoa(h) + " hours and lights again");
+   goto done;
+
+:lost:
+   logtest(tstno, LOGT_ERROR, "T056 the test man was lost");
+
+:done:
+   if (man != null)
+   {
+      unsecure(man);
+      destroy(man);
+   }
+   logtest(tstno, LOGT_INFO, "Done");
+   sendtoalldil("done", "labdirector@test");
+   return;
+}
+dilend
+
+// ==================== T055 =====================
+
+// Spells fixed on 2026-11-14 (2affa912, 80a0a523) without a test until now. Remove curse lifts
+// the whole curse: curse adds five ID_CURSE penalties, and one cast used to take off one.
+// Hold, hold animal and hold undead leave the caster as peaceful as before: they turned the
+// flag on at every cast. Cause panic's program (panic@spells) makes a weak target flee: it fled
+// on spellresist() < 0, a failed resistance, so only a strong mind panicked.
+dilbegin T055(tstno : integer);
+external
+   logtest(no : integer, ltype : integer, msg : string);
+var
+   c : unitptr;
+   t : unitptr;
+   room : unitptr;
+   i : integer;
+   n : integer;
+   bad : string;
+code
+{
+   heartbeat := PULSE_SEC * 1;
+   c := load("t049man@test");
+   link(c, self);
+   secure(c, lost);
+   // a caster no target resists
+   c.abilities[ABIL_MAG] := 200;
+   c.abilities[ABIL_DIV] := 200;
+   c.abilities[ABIL_BRA] := 200;
+   i := 0;
+   while (i < SPL_TREE_MAX)
+   {
+      c.spells[i] := 200;
+      i := i + 1;
+   }
+   c.mana := 1000;
+
+   // ---- curse, then one remove curse
+   t := load("experiment@test");
+   link(t, self);
+   secure(t, lost);
+   i := 0;
+   while ((not isaff(t, ID_CURSE)) and (i < 20))
+   {
+      n := cast_spell(SPL_CURSE, c, c, t, "");
+      stop_fighting(c, null);
+      stop_fighting(t, null);
+      i := i + 1;
+   }
+   if (not isaff(t, ID_CURSE))
+      bad := bad + " curse never took;";
+   else
+   {
+      i := 0;
+      n := 0;
+      while ((n <= 0) and (i < 20))
+      {
+         n := cast_spell(SPL_REMOVE_CURSE, c, c, t, "");
+         i := i + 1;
+      }
+      if (isaff(t, ID_CURSE))
+         bad := bad + " one remove curse left the target cursed;";
+   }
+   unsecure(t);
+   destroy(t);
+
+   // ---- the three hold spells: the caster stays as peaceful as before (not)
+   unset(c.charflags, CHAR_PEACEFUL);
+   t := load("experiment@test"); // a small zombie: undead
+   link(t, self);
+   secure(t, lost);
+   n := cast_spell(SPL_HOLD, c, c, t, "");
+   stop_fighting(c, null);
+   if (isset(c.charflags, CHAR_PEACEFUL))
+      bad := bad + " hold made the caster peaceful;";
+   n := cast_spell(SPL_HOLD_UNDEAD, c, c, t, "");
+   stop_fighting(c, null);
+   if (isset(c.charflags, CHAR_PEACEFUL))
+      bad := bad + " hold undead made the caster peaceful;";
+   t.race := RACE_WOLF;
+   n := cast_spell(SPL_HOLD_ANIMAL, c, c, t, "");
+   stop_fighting(c, null);
+   stop_fighting(t, null);
+   if (isset(c.charflags, CHAR_PEACEFUL))
+      bad := bad + " hold animal made the caster peaceful;";
+   unsecure(t);
+   destroy(t);
+
+   // ---- panic: a weak target in a room with an exit flees from a strong caster's panic
+   room := findroom("testlabc@test");
+   t := load("experiment@test");
+   addstring(t.names, "t055panicked");
+   link(t, room);
+   t.abilities[ABIL_BRA] := 1;
+   dilcopy("panic@spells(200,200,10)", t);
+   i := 0;
+   while ((t != null) and (t.outside.symname == "testlabc@test") and (i < 60))
+   {
+      pause;
+      // not secured (it is in another room): found again by its own name after every wait
+      t := npc_head();
+      while ((t != null) and (t.type == UNIT_ST_NPC) and (not ("t055panicked" in t.names)))
+         t := t.gnext;
+      if ((t != null) and (t.type != UNIT_ST_NPC))
+         t := null;
+      i := i + 1;
+   }
+   if (t == null)
+      bad := bad + " the panicked target is gone;";
+   else if (t.outside.symname == "testlabc@test") // room is null after a wait: by name
+      bad := bad + " a weak target never fled from a strong caster's panic;";
+   if (t != null)
+      destroy(t);
+
+   if (bad != "")
+      logtest(tstno, LOGT_ERROR, "T055 spells:" + bad);
+   else
+      logtest(tstno, LOGT_SUCCESS, "T055 remove curse lifts all of a curse, hold leaves the caster unpeaceful, panic makes the weak flee");
+   goto done;
+
+:lost:
+   logtest(tstno, LOGT_ERROR, "T055 the caster or the target was lost");
+
+:done:
+   if (c != null)
+   {
+      unsecure(c);
+      destroy(c);
+   }
+   logtest(tstno, LOGT_INFO, "Done");
+   sendtoalldil("done", "labdirector@test");
+   return;
+}
+dilend
+
+// ==================== T054 =====================
+
+// Random treasure rolls every property below the top of its class (rndSteps@randomt), as most
+// named items of a band are below its best: the steps follow the curve, an artifact weapon made
+// to order has its quality and its main material from one roll, mostly below the top, 0-4
+// enchantments with about 2 on average (6 to 8 before #657, about 4 after it), and asks for the
+// level of its best roll; an artifact staff's power is 100 only now and then. Numbers roll any
+// whole number up to the class's most (rndValue): quality between the bands' steps (+9, +10),
+// power between tens; a class 1 weapon's quality is 0 to 2, class 2's 0 to 5, mostly above 0.
+dilbegin T054(tstno : integer);
+external
+   logtest(no : integer, ltype : integer, msg : string);
+   integer rndSteps@randomt(band : integer);
+var
+   u : unitptr;
+   box : unitptr;
+   exd : extraptr;
+   i : integer;
+   n : integer;
+   nlines : integer;
+   ntotal : integer;
+   nweap : integer;
+   ntop : integer;
+   nlow : integer;
+   nstaff : integer;
+   n100 : integer;
+   nodd : integer;
+   noddpwr : integer;
+   cls : integer;
+   q : integer;
+   nlow1 : integer;
+   nlow2 : integer;
+   il : intlist;
+   bad : string;
+code
+{
+   heartbeat := PULSE_SEC * 1;
+
+   // The curve: class 7 is at the top 8% and three below 42%; class 5 at the top 5%, two below 70%
+   il := {0, 0, 0, 0, 0};
+   i := 0;
+   while (i < 2000)
+   {
+      n := rndSteps@randomt(7);
+      il.[n] := il.[n] + 1;
+      i := i + 1;
+      if (i == (i / 100) * 100)
+         pause; // a DIL program may only run so long between waits
+   }
+   if ((il.[0] < 120) or (il.[0] > 200) or (il.[3] < 760) or (il.[3] > 920))
+      bad := bad + " class 7 steps " + itoa(il.[0]) + "/" + itoa(il.[1]) + "/" + itoa(il.[2]) + "/" + itoa(il.[3]) + "/" + itoa(il.[4]);
+   il := {0, 0, 0, 0, 0};
+   i := 0;
+   while (i < 2000)
+   {
+      n := rndSteps@randomt(5);
+      il.[n] := il.[n] + 1;
+      i := i + 1;
+      if (i == (i / 100) * 100)
+         pause; // a DIL program may only run so long between waits
+   }
+   if ((il.[0] < 60) or (il.[0] > 140) or (il.[2] < 1320) or (il.[2] > 1480) or (il.[4] > 0))
+      bad := bad + " class 5 steps " + itoa(il.[0]) + "/" + itoa(il.[1]) + "/" + itoa(il.[2]) + "/" + itoa(il.[3]) + "/" + itoa(il.[4]);
+
+   box := load("pbox@test");
+   link(box, self);
+   secure(box, lost);
+   i := 0;
+   while (i < 24)
+   {
+      u := load("treasure@randomt");
+      link(u, box);
+      dilcopy("Treasure@randomt(7,weapon)", u);
+      u := load("treasure@randomt");
+      link(u, box);
+      dilcopy("Treasure@randomt(7,magic staff)", u);
+      u := load("treasure@randomt");
+      link(u, box);
+      addextra(u.extra, {"$t054"}, "1");
+      dilcopy("Treasure@randomt(1,weapon)", u);
+      u := load("treasure@randomt");
+      link(u, box);
+      addextra(u.extra, {"$t054"}, "2");
+      dilcopy("Treasure@randomt(2,weapon)", u);
+      i := i + 1;
+   }
+
+   // They are made on their first tick: until every one has a title
+   i := 0;
+   n := 1;
+   while ((n > 0) and (i < 60))
+   {
+      pause;
+      i := i + 1;
+      n := 0;
+      u := box.inside;
+      while (u != null)
+      {
+         if (u.title == "")
+            n := n + 1;
+         u := u.next;
+      }
+   }
+   if (n > 0)
+   {
+      logtest(tstno, LOGT_ERROR, "T054 " + itoa(n) + " random items unmade after 60 seconds");
+      goto done;
+   }
+
+   u := box.inside;
+   while (u != null)
+   {
+      exd := "$t054" in u.extra;
+      cls := BONUS_ARTIFACT;
+      if (exd != null)
+         cls := atoi(exd.descr);
+      if ((u.objecttype == ITEM_WEAPON) and (cls < BONUS_ARTIFACT))
+      {
+         // classes 1 and 2: quality 0 to 2 and 0 to 5, mostly above 0
+         q := u.value[1];
+         if ((q < 0) or ((cls == 1) and (q > 2)) or ((cls == 2) and (q > 5)))
+            bad := bad + " class " + itoa(cls) + " quality " + itoa(q);
+         if ((cls == 1) and (q > 0))
+            nlow1 := nlow1 + 1;
+         if ((cls == 2) and (q > 0))
+            nlow2 := nlow2 + 1;
+      }
+      else if (u.objecttype == ITEM_WEAPON)
+      {
+         nweap := nweap + 1;
+         q := u.value[1];
+         if ((q != 0) and (q != 2) and (q != 5) and (q != 8) and (q != 11) and (q != 14) and (q != 17) and (q != 20))
+            nodd := nodd + 1;
+         exd := "" in u.extra; // the rolls (treasureroll@randomt)
+         if (exd.vals.[0] == BONUS_ARTIFACT)
+            ntop := ntop + 1;
+         if (exd.vals.[1] != exd.vals.[0])
+            bad := bad + " " + u.title + " material " + itoa(exd.vals.[1]) + " not its quality " + itoa(exd.vals.[0]);
+         if ((exd.vals.[9] < exd.vals.[0]) or (exd.vals.[9] > BONUS_ARTIFACT))
+            bad := bad + " " + u.title + " best roll " + itoa(exd.vals.[9]);
+         if (exd.vals.[9] < BONUS_ARTIFACT)
+            nlow := nlow + 1;
+         // a line for the quality, then one for each enchantment
+         exd := "$identify" in u.extra;
+         nlines := 0;
+         if (exd != null)
+            nlines := length(split(exd.descr, "<br/>")) - 2;
+         if (nlines > 4)
+            bad := bad + " " + u.title + " " + itoa(nlines) + " enchantments";
+         ntotal := ntotal + nlines;
+      }
+      else if (u.objecttype == ITEM_STAFF)
+      {
+         nstaff := nstaff + 1;
+         if (u.value[0] == 100)
+            n100 := n100 + 1;
+         if (u.value[0] != (u.value[0] / 10) * 10)
+            noddpwr := noddpwr + 1;
+      }
+      u := u.next;
+   }
+   logtest(tstno, LOGT_INFO, "T054 artifact weapons: " + itoa(ntop) + " of " + itoa(nweap) + " at the top quality, " +
+           itoa(nlow) + " ask for less than artifact, " + itoa(ntotal) + " enchantments; staffs at power 100: " +
+           itoa(n100) + " of " + itoa(nstaff) + "; quality between steps " + itoa(nodd) + ", power between tens " +
+           itoa(noddpwr) + "; above quality 0 at class 1 " + itoa(nlow1) + ", at class 2 " + itoa(nlow2));
+   if (nweap < 24)
+      bad := bad + " only " + itoa(nweap) + " of 24 weapons";
+   if (nstaff < 24)
+      bad := bad + " only " + itoa(nstaff) + " of 24 staffs";
+   if (ntop > 8)
+      bad := bad + " " + itoa(ntop) + " of 24 artifact weapons at the top quality";
+   if (nlow < 8)
+      bad := bad + " only " + itoa(nlow) + " of 24 artifact weapons rolled below artifact";
+   if ((ntotal > 24 * 3) or (ntotal < 24))
+      bad := bad + " " + itoa(ntotal) + " enchantments on 24 artifact weapons (about 44 expected)";
+   if (n100 > 8)
+      bad := bad + " " + itoa(n100) + " of 24 artifact staffs at power 100";
+   if (nodd < 3)
+      bad := bad + " only " + itoa(nodd) + " of 24 artifact weapons' quality between the bands' steps";
+   if (noddpwr < 3)
+      bad := bad + " only " + itoa(noddpwr) + " of 24 artifact staffs' power between tens";
+   if ((nlow1 < 8) or (nlow2 < 12))
+      bad := bad + " only " + itoa(nlow1) + " class 1 and " + itoa(nlow2) + " class 2 weapons of 24 above quality 0";
+
+   if (bad != "")
+      logtest(tstno, LOGT_ERROR, "T054 random treasure rolls:" + bad);
+   else
+      logtest(tstno, LOGT_SUCCESS, "T054 random treasure rolls each property below its class");
+   goto done;
+
+:lost:
+   logtest(tstno, LOGT_ERROR, "T054 the box of random treasure was lost");
+
+:done:
+   if (box != null)
+   {
+      unsecure(box);
+      destroy(box);
+   }
+   logtest(tstno, LOGT_INFO, "Done");
+   sendtoalldil("done", "labdirector@test");
+   return;
 }
 dilend
 
@@ -307,8 +706,8 @@ dilend
 // ==================== T050 =====================
 
 // Random magic items, gems and bags (randomt): Treasure made to order, as gmtreasure makes it,
-// at good (2): a potion and a scroll of power 50 with a spell, a wand and a magic staff with
-// charges, the staff's spell an attack or one good for its target (do_use@skills sends that to
+// at good (2): a potion and a scroll of power 30 to 50 (rolled up to the class) with a spell, a
+// wand and a magic staff with charges, the staff's spell an attack or one good for its target (do_use@skills sends that to
 // the group), a gem with a worth, a bag that holds something; none keeps the gear's mark.
 dilbegin T050(tstno : integer);
 external
@@ -375,12 +774,12 @@ code
          bad := bad + " " + sl.[i] + ": still marked;";
       else if (i <= 1) // potion, scroll
       {
-         if ((u.value[0] != 50) or (u.value[1] == SPL_NONE))
+         if ((u.value[0] < 30) or (u.value[0] > 50) or (u.value[1] == SPL_NONE))
             bad := bad + " " + sl.[i] + ": power " + itoa(u.value[0]) + ", spell " + itoa(u.value[1]) + ";";
       }
       else if (i <= 3) // wand, staff
       {
-         if ((u.value[0] != 50) or (u.value[1] < 2) or (u.value[4] != u.value[1]) or (u.value[2] == SPL_NONE))
+         if ((u.value[0] < 30) or (u.value[0] > 50) or (u.value[1] < 2) or (u.value[4] != u.value[1]) or (u.value[2] == SPL_NONE))
             bad := bad + " " + sl.[i] + ": power " + itoa(u.value[0]) + ", charges " + itoa(u.value[1]) + "/" +
                    itoa(u.value[4]) + ", spell " + itoa(u.value[2]) + ";";
          if (i == 3)
@@ -9556,6 +9955,15 @@ end
 
 
 %objects
+
+t056torch
+names {"torch"}
+title "a torch"
+descr "A torch is here."
+manipulate {MANIPULATE_TAKE, MANIPULATE_HOLD}
+LIGHT_DEF(12, 2)
+weight 1
+end
 
 t049staff
 names {"staff of healing", "staff"}

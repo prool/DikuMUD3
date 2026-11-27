@@ -1459,12 +1459,14 @@ dilend
 
 dilbegin integer enc_light(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     integer successroll(il : intlist, rollskew : integer);
     identify(u :unitptr, norm : string, improved: string);
 var
     i : integer;
 code
 {
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
     if (bonuslvl > 7)
     {
         bonuslvl := 7;
@@ -1491,12 +1493,14 @@ dilend
 
 dilbegin integer enc_dark(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     integer successroll(il : intlist, rollskew : integer);
     identify(u :unitptr, norm : string, improved: string);
 var
     i : integer;
 code
 {
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
     if (bonuslvl > 7)
     {
         bonuslvl := 7;
@@ -1545,8 +1549,10 @@ dilend
 dilbegin integer enc_ability(u : unitptr, bonuslvl : integer, data : string);
 external
     identify(u :unitptr, norm : string, improved: string);
+    integer transferBonus(u : unitptr, bonuslvl : integer);
 
 var
+    exd : extraptr;
     il : intlist;
     abilid : integer;
     i : integer;
@@ -1591,6 +1597,9 @@ code
     // XXX TODO. Determine how much to modify the ability
 
     i := getinteger(DIL_GINT_BONUS_B, null, bonuslvl);
+    exd := "" in u.extra;
+    if ((exd != null) and (exd.vals.[8] == TRUE))
+        i := transferBonus(u, bonuslvl); // random treasure: rolled up to its class's most
 
     if (i == 0)
         return(1);
@@ -1625,6 +1634,8 @@ code
     // debug log("Enchant abilities");
 
     numenc := 1+rnd(0,1)+rnd(0,1);
+    if ((data != "") and (numenc > atoi(data)))
+        numenc := atoi(data); // random treasure: no more than its enchantments left
     numenccopy := numenc;
 
     il := { ABIL_MAG, ABIL_DIV, ABIL_STR, ABIL_DEX, ABIL_CON, ABIL_CHA, ABIL_BRA, ABIL_HP };
@@ -1647,11 +1658,15 @@ dilend
 // Enchant the weapon either dark or light
 dilbegin integer enc_vorpal(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
 var
     i : integer;
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
     i := bonuslvl;
     dilcopy("vorpalweapon@randomt("+itoa(2*i)+")", u);
     identify(u, "Will occasionally decapitate enemies.", "Decapitates enemies " + itoa(2*i) + " out of 1000.");
@@ -1664,11 +1679,15 @@ dilend
 // Make up to 4 ticks faster
 dilbegin integer enc_haste(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
 var
     spd : integer;
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
     spd := ((SPEED_DEFAULT/2)*bonuslvl)/7; // Max double speed
 
     if (spd == 0)
@@ -1688,11 +1707,15 @@ dilend
 // Make 4 ticks slower
 dilbegin integer enc_slow(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
 var
     spd : integer;
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
     spd := -((SPEED_DEFAULT/2)*bonuslvl)/7; // Max double speed
 
     if (spd == 0)
@@ -1732,9 +1755,13 @@ dilend
 
 dilbegin integer enc_goodprot(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
 	addaff(u, ID_PROT_GOOD_TRANSFER, -1, 0,
 	       0, 0, 0,
            TIF_PROT_GOOD_ON, TIF_NONE, TIF_PROT_GOOD_OFF, APF_NONE);
@@ -1750,9 +1777,13 @@ dilend
 
 dilbegin integer enc_evilprot(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
 	addaff(u, ID_PROT_EVIL_TRANSFER, -1, 0,
 	       0, 0, 0,
            TIF_PROT_EVIL_ON, TIF_NONE, TIF_PROT_EVIL_OFF, APF_NONE);
@@ -1786,9 +1817,13 @@ dilend
 
 dilbegin integer enc_bless(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
 	addaff(u, -ID_BLESS, -1, 0,
         ABIL_DIV, bonuslvl, 0,
         TIF_BLESS_ON, TIF_NONE, TIF_BLESS_OFF, APF_ABILITY);
@@ -1817,9 +1852,13 @@ dilend
 
 dilbegin integer enc_sanc(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
 	addaff(u, -ID_SANCTUARY, -1, 0,
 	       0, 0, 0,
            TIF_SANCTUARY_ON, TIF_NONE, TIF_SANCTUARY_OFF, APF_NONE);
@@ -1907,6 +1946,8 @@ code
     // debug log("Enchant resistances");
 
     numenc := 1+rnd(0,1)+rnd(0,1)+rnd(0,1)+rnd(0,1);
+    if ((data != "") and (numenc > atoi(data)))
+        numenc := atoi(data); // random treasure: no more than its enchantments left
     numenccopy := numenc;
 
     il := { SPL_DIVINE, SPL_PROTECTION, SPL_DETECTION, SPL_SUMMONING, SPL_CREATION, SPL_MIND,
@@ -1999,6 +2040,8 @@ code
     // debug log("Enchant defences");
 
     numenc := 1+rnd(0,1);
+    if ((data != "") and (numenc > atoi(data)))
+        numenc := atoi(data); // random treasure: no more than its enchantments left
     numenccopy := numenc;
 
     il := { WPN_AXE_HAM, WPN_SWORD, WPN_CLUB_MACE, WPN_POLEARM, WPN_UNARMED, WPN_SPECIAL };
@@ -2022,6 +2065,7 @@ dilend
 
 dilbegin integer enc_wpnslaying(u : unitptr, bonuslvl : integer, data : string);
 external
+    noteBest(u : unitptr, band : integer);
     identify(u :unitptr, norm : string, improved: string);
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
 
@@ -2031,6 +2075,9 @@ var
     exd : extraptr;
 code
 {
+    if (bonuslvl <= BONUS_AVERAGE)
+        return (1); // no on/off enchantment on a pick rolled at average: the slot is spent
+    noteBest(u, bonuslvl); // random treasure: the band this enchantment rolled
     // Race from, Race to, "$n slayer" name
     sl := {
         QUOTE(RACE_MOSQUITO), "", "mosquitoe",
@@ -2098,9 +2145,10 @@ dilend
 dilbegin integer enc_armenchant(u : unitptr, bonuslvl : integer, data : string);
 external
     identify(u :unitptr, norm : string, improved: string);
+    integer rndAmount(u : unitptr, band : integer, scale : integer);
 code
 {
-    u.value[2] := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    u.value[2] := rndAmount(u, bonuslvl, 0); // random treasure: rolled up to its class's most
 
     if (u.value[2] == 0)
         return(1);
@@ -2113,9 +2161,10 @@ dilend
 dilbegin integer enc_wpnenchant(u : unitptr, bonuslvl : integer, data : string);
 external
     identify(u :unitptr, norm : string, improved: string);
+    integer rndAmount(u : unitptr, band : integer, scale : integer);
 code
 {
-    u.value[2] := getinteger(DIL_GINT_BONUS_A, null, bonuslvl);
+    u.value[2] := rndAmount(u, bonuslvl, 0); // random treasure: rolled up to its class's most
 
     if (u.value[2] == 0)
         return(1);
@@ -2284,14 +2333,191 @@ dilend
 // The amount of a skill, spell or weapon transfer of class bonuslvl on u: random treasure on the
 // scale zone files' transfers use (bonus_map_b, bonus_setup in db.cpp), shop stock as it was
 dilbegin integer transferBonus(u : unitptr, bonuslvl : integer);
+external
+    integer rndAmount(u : unitptr, band : integer, scale : integer);
+code
+{
+    return (rndAmount(u, bonuslvl, 1)); // random treasure: rolled; other items bonus_map_a
+}
+dilend
+
+// Random treasure rolls every property below the top of its class, the way builders made named
+// items: most of a band carry one transfer, few the most bands.md allows (counted over all zones
+// on 2026-11-26). How many steps below the top a property lands:
+//   class 1-4: at the top 5%, one below 15%, two below 45%, three below 35%
+//   class 5-6: at the top 5%, one below 17%, two below 70%, three below 8%
+//   class 7:   at the top 8%, one below 12%, two below 33%, three below 42%, four below 5%
+// Each property rolls on its own (quality, each enchantment's size, a magic item's power...),
+// so an item that is the best at all of them at once is very rare.
+dilbegin integer rndSteps(band : integer);
+var
+    r : integer;
+    i : integer;
+    il : intlist;
+code
+{
+    if (band >= BONUS_ARTIFACT)
+        il := {8, 20, 53, 95, 100};
+    else if (band >= BONUS_EXCELLENT_PLUS)
+        il := {5, 22, 92, 100};
+    else
+        il := {5, 20, 65, 100};
+    r := rnd(1, 100);
+    i := 0;
+    while (r > il.[i])
+        i := i + 1;
+    return (i);
+}
+dilend
+
+// A property of random treasure of class band: rndSteps below it, never below average
+dilbegin integer rndBand(band : integer);
+external
+    integer rndSteps(band : integer);
+code
+{
+    if (band <= BONUS_AVERAGE)
+        return (band);
+    band := band - rndSteps(band);
+    if (band < BONUS_AVERAGE)
+        band := BONUS_AVERAGE;
+    return (band);
+}
+dilend
+
+// How many enchantments random treasure of class band gets: the most bands.md allows (3, at
+// artifact 4) less rndSteps, so 0-3 (0-4) with one the most common
+dilbegin integer encCount(band : integer);
+external
+    integer rndSteps(band : integer);
+var
+    n : integer;
+code
+{
+    n := 3;
+    if (band >= BONUS_ARTIFACT)
+        n := 4;
+    return (n - rndSteps(band));
+}
+dilend
+
+// The most a number of each band can be: scale 0 is quality and magic (bonus_map_a, 0 to 20),
+// scale 1 the transfers (bonus_map_b, 0 to 10)
+dilbegin integer bandTop(band : integer, scale : integer);
+var
+    il : intlist;
+code
+{
+    if (scale == 0)
+        il := {0, 2, 5, 8, 11, 14, 17, 20};
+    else
+        il := {0, 1, 2, 4, 5, 6, 8, 10};
+    if (band < BONUS_AVERAGE)
+        band := BONUS_AVERAGE;
+    if (band > BONUS_ARTIFACT)
+        band := BONUS_ARTIFACT;
+    return (il.[band]);
+}
+dilend
+
+// The band a number reaches: the highest band whose most it is at or above (bandTop's scales)
+dilbegin integer valueBand(v : integer, scale : integer);
+external
+    integer bandTop(band : integer, scale : integer);
+var
+    b : integer;
+code
+{
+    b := BONUS_ARTIFACT;
+    while ((b > BONUS_AVERAGE) and (v < bandTop(b, scale)))
+        b := b - 1;
+    return (b);
+}
+dilend
+
+// A number of random treasure of class band, 0 to top (the class's most): any whole number,
+// the higher the rarer, on rndSteps' curve: the steps are quarters of the range (at artifact of
+// 1 to top, and four steps below is 0), every number within a quarter as likely. So +9 and +10
+// happen too, and only an artifact reaches +20.
+dilbegin integer rndValue(band : integer, top : integer);
+external
+    integer rndSteps(band : integer);
+var
+    k : integer;
+    n : integer;
+    lo : integer;
+    hi : integer;
+    base : integer;
+code
+{
+    if ((band <= BONUS_AVERAGE) or (top <= 0))
+        return (0);
+    k := rndSteps(band);
+    base := 0;
+    if (band >= BONUS_ARTIFACT)
+    {
+        if (k >= 4)
+            return (0);
+        base := 1;
+    }
+    n := top + 1 - base;
+    hi := top - (n * k) / 4;
+    lo := top + 1 - (n * (k + 1)) / 4;
+    if (lo > hi)
+        lo := hi;
+    if (lo < base)
+        lo := base;
+    return (rnd(lo, hi));
+}
+dilend
+
+// Random treasure keeps the best band any of its properties rolled in its rolls (vals.[9]), for
+// its level requirement (vrestrict)
+dilbegin noteBest(u : unitptr, band : integer);
 var
     exd : extraptr;
+    il : intlist;
 code
 {
     exd := "" in u.extra;
-    if ((exd != null) and (exd.vals.[8] == TRUE))
-        return (getinteger(DIL_GINT_BONUS_B, null, bonuslvl));
-    return (getinteger(DIL_GINT_BONUS_A, null, bonuslvl));
+    if ((exd == null) or (exd.vals.[8] != TRUE))
+        return;
+    if (band > exd.vals.[9])
+    {
+        il := exd.vals;
+        il.[9] := band;
+        exd.vals := il;
+    }
+    return;
+}
+dilend
+
+// An enchantment's number on random treasure: rolled up to its class's most (rndValue on scale,
+// bandTop's), at least 1, its band noted (noteBest). Other items: band's, from bonus_map_a.
+dilbegin integer rndAmount(u : unitptr, band : integer, scale : integer);
+external
+    integer bandTop(band : integer, scale : integer);
+    integer valueBand(v : integer, scale : integer);
+    integer rndValue(band : integer, top : integer);
+    noteBest(u : unitptr, band : integer);
+var
+    exd : extraptr;
+    cls : integer;
+    i : integer;
+    b : integer;
+code
+{
+    exd := "" in u.extra;
+    if ((exd == null) or (exd.vals.[8] != TRUE))
+        return (getinteger(DIL_GINT_BONUS_A, null, band));
+    cls := exd.vals.[4]; // the class (treasureroll)
+    i := bandTop(cls, scale);
+    i := rndValue(cls, i);
+    if (i < 1)
+        i := 1;
+    b := valueBand(i, scale);
+    noteBest(u, b);
+    return (i);
 }
 dilend
 
@@ -2313,9 +2539,13 @@ dilbegin encWpn(u : unitptr);
 external
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
     integer encTurnedDown(enc : string);
+    integer encCount(band : integer);
+    integer rndBand(band : integer);
 
 var
     random : integer;
+    nleft : string;
+    size : integer;
     enchantments : integer;
     lvl : integer;
     i,j : integer;
@@ -2365,17 +2595,31 @@ code
 
     i := length(encs);
     j := 0;
-    enchantments := rollenc;
+    // Random treasure rolls how many below its class (encCount): the roll itself (the class less
+    // one) made random weapons carry more than the named items of their band
+    if (random)
+        enchantments := encCount(rollenc);
+    else
+        enchantments := rollenc;
+    if (random)
+        nleft := itoa(enchantments); // plural enchantments take no more than are left
     while ((enchantments > 0) and (i > 0)) // i: a turned-down pick takes no slot
     {
-        r := j + twodiceidxbonus(i, rollenc);  // Get two dice random number from [0..length-1]
-        // log("enchantment "+encs.[r]);
+        // Random treasure: each pick rolls a band below the class; the dice favour the rarer
+        // enchantments (sanctuary, speed, vorpal...) with a better one, and an on/off one takes
+        // it. An enchantment with a number rolls that number itself (rndAmount).
+        size := lvl;
+        if (random)
+            size := rndBand(lvl);
+        r := j + twodiceidxbonus(i, rollenc + size - lvl);  // Get two dice random number from [0..length-1]
         if (random and encTurnedDown(encs.[r]))
             n := 0;
         else
-            n := dilcall(encs.[r])(u, lvl, "");
+            n := dilcall(encs.[r])(u, size, nleft);
         encs.[r] := encs.[j];
         enchantments := enchantments - n;
+        if (random)
+            nleft := itoa(enchantments);
         i := i - 1;
         j := j + 1;
     }
@@ -2388,9 +2632,13 @@ dilbegin encJewelry(u : unitptr);
 external
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
     integer encTurnedDown(enc : string);
+    integer encCount(band : integer);
+    integer rndBand(band : integer);
 
 var
     random : integer;
+    nleft : string;
+    size : integer;
     enchantments : integer;
     lvl : integer;
     i,j : integer;
@@ -2446,18 +2694,30 @@ code
 
     i := length(encs);
     j := 0;
-    enchantments := ((lvl+1)/2); // 1-2 = 1; 3-4 = 2; 5-6 = 3; 7 = 4
+    if (random)
+        enchantments := encCount(rollenc); // rolled below its class, as named items have theirs
+    else
+        enchantments := ((lvl+1)/2); // 1-2 = 1; 3-4 = 2; 5-6 = 3; 7 = 4
  
+    if (random)
+        nleft := itoa(enchantments); // plural enchantments take no more than are left
     while ((enchantments > 0) and (i > 0)) // i: a turned-down pick takes no slot
     {
-        r := j+twodiceidxbonus(i, rollenc);  // Get two dice random number from [0..length-1]
-        // log("enchantment "+encs.[r]);
+        // Random treasure: each pick rolls a band below the class; the dice favour the rarer
+        // enchantments (sanctuary, speed, vorpal...) with a better one, and an on/off one takes
+        // it. An enchantment with a number rolls that number itself (rndAmount).
+        size := lvl;
+        if (random)
+            size := rndBand(lvl);
+        r := j + twodiceidxbonus(i, rollenc + size - lvl);  // Get two dice random number from [0..length-1]
         if (random and encTurnedDown(encs.[r]))
             n := 0;
         else
-            n := dilcall(encs.[r])(u, lvl, "");
+            n := dilcall(encs.[r])(u, size, nleft);
         encs.[r] := encs.[j];
         enchantments := enchantments - n;
+        if (random)
+            nleft := itoa(enchantments);
         i := i - 1;
         j := j + 1;
     }
@@ -2472,9 +2732,13 @@ dilbegin encArmor(u : unitptr);
 external
     integer twodiceidxbonus(len : integer, bonuslvl : integer);
     integer encTurnedDown(enc : string);
+    integer encCount(band : integer);
+    integer rndBand(band : integer);
 
 var
     random : integer;
+    nleft : string;
+    size : integer;
     enchantments : integer;
     lvl : integer;
     i,j : integer;
@@ -2511,17 +2775,30 @@ code
 
     i := length(encs);
     j := 0;
-    enchantments := ((lvl+1)/2); // 1-2 = 1; 3-4 = 2; 5-6 = 3; 7 = 4
+    if (random)
+        enchantments := encCount(rollenc); // rolled below its class, as named items have theirs
+    else
+        enchantments := ((lvl+1)/2); // 1-2 = 1; 3-4 = 2; 5-6 = 3; 7 = 4
 
+    if (random)
+        nleft := itoa(enchantments); // plural enchantments take no more than are left
     while ((enchantments > 0) and (i > 0)) // i: a turned-down pick takes no slot
     {
-        r := j+twodiceidxbonus(i, rollenc);  // Get two dice random number from [0..length-1]
+        // Random treasure: each pick rolls a band below the class; the dice favour the rarer
+        // enchantments (sanctuary, speed, vorpal...) with a better one, and an on/off one takes
+        // it. An enchantment with a number rolls that number itself (rndAmount).
+        size := lvl;
+        if (random)
+            size := rndBand(lvl);
+        r := j + twodiceidxbonus(i, rollenc + size - lvl);  // Get two dice random number from [0..length-1]
         if (random and encTurnedDown(encs.[r]))
             n := 0;
         else
-            n := dilcall(encs.[r])(u, lvl, "");
+            n := dilcall(encs.[r])(u, size, nleft);
         encs.[r] := encs.[j];
         enchantments := enchantments - n;
+        if (random)
+            nleft := itoa(enchantments);
         i := i - 1;
         j := j + 1;
     }
@@ -3366,8 +3643,13 @@ external
     integer bonusAdjRoll(bonus : integer);
     integer clampedRoll(bonus : integer, lo : integer, hi : integer);
     integer minmax7(i : integer);
+    integer rndBand(band : integer);
+    integer bandTop(band : integer, scale : integer);
+    integer valueBand(v : integer, scale : integer);
+    integer rndValue(band : integer, top : integer);
 
 var
+    qv : integer;
     rollmat : integer;
     mat1 : integer;
     mat2 : integer;
@@ -3392,11 +3674,13 @@ code
         hgt := atoi(exd.descr);
         subextra(u.extra, "$treasure_height");
     }
-    // Random treasure (RndTreasure and Treasure mark it $random_treasure) is of its class: its
-    // craftsmanship is the class, which alone gives its quality (randomizeItem); its materials
-    // vary from two below up to the class; it is enchanted one below the class, jewellery (no
-    // quality of its own) at it. So its best bonus is the class. The mark goes in the rolls
-    // (vals.[8]) for randomizeItem and the enchantments. Shop stock rolls as it always has.
+    // Random treasure (RndTreasure and Treasure mark it $random_treasure) rolls below its class:
+    // its quality, a number up to the class's most (rndValue, kept in vals.[10] for
+    // randomizeItem), and from its band the craftsmanship and the main material, so only the best
+    // quality gets the best material; the other materials at or a little below it. The class is the enchantments' ceiling: each one rolls
+    // its own size (encWpn, encArmor, encJewelry). The mark goes in the rolls (vals.[8]), and the
+    // best roll the item gets in vals.[9], for its level requirement. Shop stock rolls as it
+    // always has.
     random := FALSE;
     exd := "$random_treasure" in u.extra;
     if (exd != null)
@@ -3411,16 +3695,15 @@ code
     if (random)
     {
         rollmat := minmax7(bonuslvl);
-        mat1 := clampedRoll(rollmat, rollmat - 2, rollmat);
-        mat1 := minmax7(mat1);
+        qv := bandTop(rollmat, 0);
+        qv := rndValue(rollmat, qv);    // the quality, 0 to the class's most
+        rollmat := valueBand(qv, 0);    // its band: craftsmanship, weight, hit points, price
+        mat1 := rollmat;
         mat2 := clampedRoll(rollmat, rollmat - 2, rollmat);
         mat2 := minmax7(mat2);
         mat3 := clampedRoll(rollmat, rollmat - 2, rollmat);
         mat3 := minmax7(mat3);
-        rollenc := rollmat - 1;
-        if (u.objecttype == ITEM_TREASURE)
-            rollenc := rollmat;
-        rollenc := minmax7(rollenc);
+        rollenc := minmax7(bonuslvl);
         enc1 := rollenc;
         enc2 := rollenc;
         enc3 := rollenc;
@@ -3510,6 +3793,12 @@ code
     insert(il, 6, enc2);
     insert(il, 7, enc3);
     insert(il, 8, random);
+    // the best roll so far: the quality (jewellery has none of its own)
+    if (u.objecttype == ITEM_TREASURE)
+        insert(il, 9, BONUS_AVERAGE);
+    else
+        insert(il, 9, rollmat);
+    insert(il, 10, qv); // random treasure's quality (0 for other items)
 
     u.extra.vals := il;
 
@@ -3586,6 +3875,7 @@ var
     func : string;
     rollsmith, mat1, mat2, mat3, matIndex : integer;
     q : integer;
+    qv : integer;
     slWeapons    : stringlist global slWeapons@randomt;
     slMatNames  : stringlist global slMatNames@randomt;
     exd : extraptr;
@@ -3603,12 +3893,14 @@ code
         log("Nicey noice, above bonus with: " + itoa(rollsmith-bonuslvl));
 
     q := (rollsmith + mat1) / 2; // the quality
-    if (exd.vals.[8]) // random treasure: its craftsmanship, its class (treasureroll)
-        q := rollsmith;
+
+    qv := getinteger(DIL_GINT_BONUS_A, null, q);
+    if (exd.vals.[8])
+        qv := exd.vals.[10]; // random treasure: the number it rolled (treasureroll)
 
     if (self.objecttype == ITEM_WEAPON)
     {
-        self.value[1] := getinteger(DIL_GINT_BONUS_A, null, q);
+        self.value[1] := qv;
         if (self.value[1] >= 0)
             identify(self, "Weapon has a quality bonus.", "Weapon has a quality bonus of +" + itoa(self.value[1]) + ".");
         else if (self.value[1] < 0)
@@ -3617,7 +3909,7 @@ code
     }
     else if ((self.objecttype == ITEM_ARMOR) or (self.objecttype == ITEM_SHIELD))
     {
-        self.value[1] := getinteger(DIL_GINT_BONUS_A, null, q);
+        self.value[1] := qv;
         if (self.value[1] >= 0)
             identify(self, "Armour has a quality bonus.", "Armour has a quality bonus of +" + itoa(self.value[1]) + ".");
         else if (self.value[1] < 0)
@@ -3671,7 +3963,10 @@ code
     self.value[3] := RACE_DO_NOT_USE;
 
     exd := randomizeItem(bonuslvl);
-    vrestrict(bonuslvl);
+    if (exd.vals.[8])
+        vrestrict(exd.vals.[9]); // random treasure: the best it rolled
+    else
+        vrestrict(bonuslvl);
 
     rollsmith := exd.vals.[0];  // Smithing roll
     mat1 := exd.vals.[1];       // Primary blade material
@@ -3754,7 +4049,10 @@ code
     self.manipulate := self.manipulate | atoi(slJewelry.[i+3]);
 
     exd := randomizeItem(bonuslvl);
-    vrestrict(bonuslvl);
+    if (exd.vals.[8])
+        vrestrict(exd.vals.[9]); // random treasure: the best it rolled
+    else
+        vrestrict(bonuslvl);
 
     i := matJewelry@randomt(self, bonuslvl, "");
 
@@ -3871,7 +4169,10 @@ code
     self.manipulate := self.manipulate | atoi(slArmor.[i+1]);
 
     exd := randomizeItem(bonuslvl);
-    vrestrict(bonuslvl);
+    if (exd.vals.[8])
+        vrestrict(exd.vals.[9]); // random treasure: the best it rolled
+    else
+        vrestrict(bonuslvl);
 
     // The main material: cloth, leather and hides, wood (small and medium shields) or metal
     if (shield and (atype <= ARM_HLEATHER))
@@ -4055,6 +4356,9 @@ external
     identify(u :unitptr, norm : string, improved: string);
     vrestrict(bonuslvl : integer);
     string aOrAn(s : string, cap : integer);
+    integer rndBand(band : integer);
+    integer rndSteps(band : integer);
+    integer rndValue(band : integer, top : integer);
 var
     il : intlist;
     sl : stringlist;
@@ -4065,6 +4369,11 @@ var
     charges : integer;
     spl1 : integer;
     spl2 : integer;
+    spl3 : integer;
+    pb : integer;
+    pv : integer;
+    best : integer;
+    n : integer;
 code
 {
     if (bonuslvl < BONUS_AVERAGE)
@@ -4074,23 +4383,40 @@ code
     if ((kind < RNDT_POTION) or (kind > RNDT_STAFF))
         kind := RNDT_POTION;
 
-    // The spell's band: the item's two times in three, else a band lower, and so on (variety,
-    // while the power stays the item's)
-    t := bonuslvl;
-    while ((t > BONUS_AVERAGE) and (rnd(1, 3) == 1))
-        t := t - 1;
+    // Each property rolls on its own below the class, as random gear does: the spell's band
+    // (rndBand), the power and the charges (numbers, rndValue), and how many spells a potion or
+    // scroll holds
+    t := rndBand(bonuslvl);
+    pv := rndValue(bonuslvl, 10 * bonuslvl);                // the power: 30 + 0 to 70 at artifact
+    pb := pv / 10;
+    charges := rndValue(bonuslvl, bonuslvl + 1 + bonuslvl / 2); // charges: 2 + 0 to 12 at artifact
+    best := t;
+    if (pb > best)
+        best := pb;
     if ((kind == RNDT_POTION) and (bonuslvl <= BONUS_GOOD_PLUS) and (rnd(1, 20) == 1))
         il := rndSpells(RNDT_CURSED, bonuslvl);
     else
         il := rndSpells(kind, t);
     spl1 := il.[rnd(0, length(il) - 1)];
     spl2 := SPL_NONE;
-    // from good+ a second spell now and then on a potion or scroll; not two of the same
-    if ((kind <= RNDT_SCROLL) and (bonuslvl >= BONUS_GOOD_PLUS) and (rnd(1, 100) <= 8 * bonuslvl) and (length(il) > 1))
+    spl3 := SPL_NONE;
+    // from good+ a potion or scroll holds a second spell on a roll one below the top, a third
+    // too on a top roll; not two of the same
+    if ((kind <= RNDT_SCROLL) and (bonuslvl >= BONUS_GOOD_PLUS) and (length(il) > 1))
     {
-        spl2 := il.[rnd(0, length(il) - 1)];
-        if (spl2 == spl1)
-            spl2 := SPL_NONE;
+        n := rndSteps(bonuslvl);
+        if (n <= 1)
+        {
+            spl2 := il.[rnd(0, length(il) - 1)];
+            if (spl2 == spl1)
+                spl2 := SPL_NONE;
+        }
+        if ((n == 0) and (spl2 != SPL_NONE))
+        {
+            spl3 := il.[rnd(0, length(il) - 1)];
+            if ((spl3 == spl1) or (spl3 == spl2))
+                spl3 := SPL_NONE;
+        }
     }
 
     // The kind's look; a potion also has a colour
@@ -4108,7 +4434,7 @@ code
 
     // Price (a potion's, copper, by class) times the kind's: a scroll 1.5, a wand 3, a staff 4
     il := {15, 30, 60, 120, 250, 500, 900, 1500};
-    pwr := il.[bonuslvl];
+    pwr := il.[best];
     il := {2, 3, 6, 8};
     pwr := (pwr * il.[kind]) / 2;
     sl := {"potion", "scroll", "wand", "staff"};
@@ -4127,17 +4453,21 @@ code
     self.flags := self.flags | UNIT_FL_MAGIC;
     self.manipulate := self.manipulate | MANIPULATE_TAKE | MANIPULATE_HOLD;
 
-    pwr := 30 + 10 * bonuslvl;                              // 30 at average, 100 at artifact
-    charges := 2 + bonuslvl + rnd(0, 1 + bonuslvl / 2);     // 2-3 at average, 7-10 at excellent+
+    pwr := 30 + pv;                         // 30 at average, up to 100 at artifact
+    charges := 2 + charges;                 // 2 at average, up to 14 at artifact
     self.value[0] := pwr;
     self.spells[SPL_ALL] := pwr;
     self.value[3] := SPL_NONE;
+    if (kind <= RNDT_SCROLL)
+        self.value[3] := spl3;
     s := spellinfo(spl1, t, t, t, t, t, t, t);
     if (kind <= RNDT_SCROLL)
     {
         self.value[1] := spl1;
         self.value[2] := spl2;
-        if (spl2 != SPL_NONE)
+        if (spl3 != SPL_NONE)
+            s := s + ", " + spellinfo(spl2, t, t, t, t, t, t, t) + " and " + spellinfo(spl3, t, t, t, t, t, t, t);
+        else if (spl2 != SPL_NONE)
             s := s + " and " + spellinfo(spl2, t, t, t, t, t, t, t);
         identify(self, "It holds the magic of " + s + ".", "Its magic has a power of " + itoa(pwr) + ".");
     }
@@ -4148,7 +4478,7 @@ code
         self.value[4] := charges;
         identify(self, "It holds the magic of " + s + ".", "Its magic has a power of " + itoa(pwr) + ", and " +
                  itoa(charges) + " charges.");
-        vrestrict(bonuslvl);
+        vrestrict(best);
     }
     return;
 }
@@ -4161,6 +4491,7 @@ external
     createItem(itemnames : stringlist, item_type : integer, price : integer, lbs : integer);
     identify(u :unitptr, norm : string, improved: string);
     string aOrAn(s : string, cap : integer);
+    integer rndBand(band : integer);
 var
     sl : stringlist;
     il : intlist;
@@ -4173,6 +4504,7 @@ code
         bonuslvl := BONUS_AVERAGE;
     if (bonuslvl > BONUS_ARTIFACT)
         bonuslvl := BONUS_ARTIFACT;
+    bonuslvl := rndBand(bonuslvl); // the kind of gem rolls below the class: the rarest more rarely
 
     sl := {"quartz//agate//jasper//piece of amber", "amethyst//garnet//onyx//moonstone",
            "topaz//jade//pearl//carnelian", "aquamarine//opal//peridot//turquoise",
@@ -4216,7 +4548,10 @@ external
     createItem(itemnames : stringlist, item_type : integer, price : integer, lbs : integer);
     identify(u :unitptr, norm : string, improved: string);
     string aOrAn(s : string, cap : integer);
+    integer rndBand(band : integer);
+    integer rndValue(band : integer, top : integer);
 var
+    hb : integer;
     sl : stringlist;
     look : string;
 code
@@ -4238,12 +4573,15 @@ code
     self.title := aOrAn(look, FALSE);
     self.outside_descr := aOrAn(look, TRUE) + " lies here.";
     self.manipulate := MANIPULATE_TAKE | MANIPULATE_HOLD;
-    self.capacity := 30 + 15 * bonuslvl;                     // pounds: 30 at average, 105 at excellent+
+    // pounds: 30 and up to 15 more a band (rolled, rndValue): up to 135 at artifact
+    self.capacity := 30 + rndValue(bonuslvl, 15 * bonuslvl);
 
-    if ((bonuslvl >= BONUS_EXCELLENT_PLUS) and (rnd(1, 4) == 1))
+    // a bag of holding only on a roll of excellent+ or better
+    hb := rndBand(bonuslvl);
+    if (hb >= BONUS_EXCELLENT_PLUS)
     {
         self.flags := self.flags | UNIT_FL_MAGIC;
-        dilcopy("bagofholding@randomt(" + itoa(25 + 10 * bonuslvl) + ",2," + itoa(100 + 50 * bonuslvl) + ")", self);
+        dilcopy("bagofholding@randomt(" + itoa(25 + 10 * hb) + ",2," + itoa(100 + 50 * hb) + ")", self);
         identify(self, "A bag of holding: what it holds weighs less.", "");
     }
     return;
